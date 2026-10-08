@@ -239,7 +239,7 @@ func (m Model) renderTreeLine(i int) string {
 		}
 		text := seg.Text
 		if start < left || end > right {
-			text = ansi.CutWc(text, max(0, left-start), min(w, right-start))
+			text = ansi.Cut(text, max(0, left-start), min(w, right-start))
 		}
 		switch {
 		case seg.Node < 0:

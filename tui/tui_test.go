@@ -9,6 +9,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/efi/goged/gedcom"
 	"github.com/efi/goged/worldmap"
 	"github.com/muesli/termenv"
@@ -368,6 +369,29 @@ func TestTimelineWording(t *testing.T) {
 		"12 Sep 1968         Civil marriage with Erika Gabler")
 	a.openPerson("I6")
 	a.contains("7 May 1967          Adoption  by Gerold Freiwein · Köln")
+}
+
+func TestTreeHorizontalScroll(t *testing.T) {
+	// Leon's pedigree is wider than the window; selecting his
+	// great-grandfather scrolls it sideways.
+	a := newMusterApp(t)
+	a.resize(100, 30)
+	a.openPerson("I3")
+	a.press("t", "right", "right", "right")
+	if a.m.tree.left == 0 {
+		t.Fatal("the chart did not scroll")
+	}
+	for i, want := range []string{"┌─ Otto Mustermann (–aft.1943)", "┌─ Max Manfred Mustermann (1943–) ─┤", "└─ Maria von Stradonitz", "┌─ Erwin Mustermann (1972–) ─┤"} {
+		line := ansi.Strip(a.m.renderTreeLine(i))
+		node := a.m.tree.chart.LineText(i)
+		if !strings.Contains(line, want) || ansi.StringWidth(line) > a.m.width {
+			t.Errorf("line %d = %q, want it to contain %q", i, line, want)
+		}
+		// The visible part is exactly the chart line from the scroll offset.
+		if wantLine := ansi.Cut(node, a.m.tree.left, a.m.tree.left+a.m.width); line != wantLine {
+			t.Errorf("line %d = %q\nwant      %q", i, line, wantLine)
+		}
+	}
 }
 
 func TestTreeLabelsInFull(t *testing.T) {
