@@ -11,6 +11,9 @@ import (
 type Result struct {
 	Individual *gedcom.Individual
 	Score      int
+	// NameIndex is the index (into Individual.Names) of the name that
+	// matched the query's name terms best; 0 is the primary name.
+	NameIndex int
 }
 
 type foldedName struct {
@@ -143,9 +146,7 @@ func newEntry(ind *gedcom.Individual) *entry {
 		}
 		return true
 	})
-	text = append(text, notes...)
-	text = append(text, srcs...)
-	e.text = Fold(strings.Join(text, "\n"))
+	e.text = Fold(strings.Join(text, "\n")) + "\n" + e.notes + "\n" + e.sources
 
 	n := ind.Name()
 	e.sortKey = Fold(n.Surname) + "\x00" + Fold(n.Given) + "\x00" + Fold(n.Suffix) + "\x00" + sortableYear(ind) + "\x00" + ind.ID
@@ -175,9 +176,9 @@ func sortableYear(ind *gedcom.Individual) string {
 func (ix *Index) Search(q Query) []Result {
 	results := make([]Result, 0, 64)
 	for _, e := range ix.entries {
-		score, ok := ix.match(e, q)
+		score, name, ok := ix.match(e, q)
 		if ok {
-			results = append(results, Result{Individual: e.ind, Score: score})
+			results = append(results, Result{Individual: e.ind, Score: score, NameIndex: name})
 		}
 	}
 	sort.SliceStable(results, func(i, j int) bool { return results[i].Score > results[j].Score })
@@ -193,23 +194,28 @@ func (ix *Index) SearchString(s string) ([]Result, error) {
 	return ix.Search(q), nil
 }
 
-func (ix *Index) match(e *entry, q Query) (int, bool) {
-	total := 0
+// match scores an entry against all terms. It also reports which name
+// matched the first positive name term.
+func (ix *Index) match(e *entry, q Query) (score, name int, ok bool) {
+	nameSet := false
 	for i := range q.Terms {
 		t := &q.Terms[i]
-		score := ix.matchTerm(e, t)
+		s, idx := ix.matchTerm(e, t)
 		if t.Negate {
-			if score > 0 {
-				return 0, false
+			if s > 0 {
+				return 0, 0, false
 			}
 			continue
 		}
-		if score == 0 {
-			return 0, false
+		if s == 0 {
+			return 0, 0, false
 		}
-		total += score
+		if idx >= 0 && !nameSet {
+			name, nameSet = idx, true
+		}
+		score += s
 	}
-	return total, true
+	return score, name, true
 }
 
 // Scores for name matches.
@@ -236,46 +242,50 @@ func matchWords(needle string, list []string) int {
 	return best
 }
 
-func (e *entry) matchName(needle string) int {
-	best := 0
-	for _, n := range e.names {
-		if strings.ContainsAny(needle, " -") {
-			if n.full == needle {
-				return scoreWord
-			}
-			if strings.Contains(n.full, needle) {
-				best = max(best, scorePrefix)
-			}
-			continue
+// bestName applies score to every name and returns the best score and the
+// index of the (first) name achieving it.
+func (e *entry) bestName(score func(n *foldedName) int) (int, int) {
+	best, idx := 0, -1
+	for i := range e.names {
+		if s := score(&e.names[i]); s > best {
+			best, idx = s, i
 		}
-		best = max(best, matchWords(needle, n.words))
 	}
-	return best
+	return best, idx
 }
 
-func (e *entry) matchGiven(needle string) int {
-	best := 0
-	for _, n := range e.names {
-		best = max(best, matchWords(needle, n.given))
-	}
-	return best
+func (e *entry) matchName(needle string) (int, int) {
+	return e.bestName(func(n *foldedName) int {
+		if strings.ContainsAny(needle, " -") {
+			switch {
+			case n.full == needle:
+				return scoreWord
+			case strings.Contains(n.full, needle):
+				return scorePrefix
+			}
+			return 0
+		}
+		return matchWords(needle, n.words)
+	})
 }
 
-func (e *entry) matchSurname(needle string) int {
-	best := 0
-	for _, n := range e.names {
+func (e *entry) matchGiven(needle string) (int, int) {
+	return e.bestName(func(n *foldedName) int { return matchWords(needle, n.given) })
+}
+
+func (e *entry) matchSurname(needle string) (int, int) {
+	return e.bestName(func(n *foldedName) int {
 		switch {
 		case n.surname == needle:
 			return scoreWord
 		case strings.ContainsAny(needle, " -"):
 			if strings.Contains(n.surname, needle) {
-				best = max(best, scorePrefix)
+				return scorePrefix
 			}
-		default:
-			best = max(best, matchWords(needle, words(n.surname)))
+			return 0
 		}
-	}
-	return best
+		return matchWords(needle, words(n.surname))
+	})
 }
 
 func boolScore(b bool) int {
@@ -296,14 +306,16 @@ func matchVital(t *Term, has bool, s eventSpan) bool {
 	return strings.Contains(s.place, t.folded)
 }
 
-func (ix *Index) matchTerm(e *entry, t *Term) int {
+// matchTerm scores one term. For name terms it also returns the index of
+// the best matching name, else -1.
+func (ix *Index) matchTerm(e *entry, t *Term) (int, int) {
 	switch t.Field {
 	case FieldText:
 		if t.folded == e.id {
-			return scoreID
+			return scoreID, -1
 		}
 		if t.isYears {
-			return boolScore(matchVital(t, e.hasBirth, e.birth) || matchVital(t, e.hasDeath, e.death))
+			return boolScore(matchVital(t, e.hasBirth, e.birth) || matchVital(t, e.hasDeath, e.death)), -1
 		}
 		return e.matchName(t.folded)
 	case FieldName:
@@ -312,6 +324,13 @@ func (ix *Index) matchTerm(e *entry, t *Term) int {
 		return e.matchGiven(t.folded)
 	case FieldSurname:
 		return e.matchSurname(t.folded)
+	}
+	return ix.matchField(e, t), -1
+}
+
+// matchField scores terms that do not concern names.
+func (ix *Index) matchField(e *entry, t *Term) int {
+	switch t.Field {
 	case FieldBorn:
 		return boolScore(matchVital(t, e.hasBirth, e.birth))
 	case FieldDied:

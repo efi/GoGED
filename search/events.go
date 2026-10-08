@@ -99,6 +99,8 @@ type eventItem struct {
 	place  string
 	lo, hi int
 	ok     bool
+	key    int  // chronological sort key
+	dated  bool // key is valid
 }
 
 // EventIndex holds all events of a document in chronological order with
@@ -125,10 +127,15 @@ func NewEventIndex(events []*gedcom.Event) *EventIndex {
 		}
 		it.text = Fold(ev.Label()+"\n"+ev.Detail()) + "\n" + it.names + "\n" + it.place
 		it.lo, it.hi, it.ok = eventYears(ev.Date)
+		it.key, it.dated = ev.Date.Key()
 		ix.items = append(ix.items, it)
 	}
 	sort.SliceStable(ix.items, func(i, j int) bool {
-		return ix.items[i].ev.Date.Compare(ix.items[j].ev.Date) < 0
+		a, b := &ix.items[i], &ix.items[j]
+		if a.dated != b.dated {
+			return a.dated
+		}
+		return a.key < b.key
 	})
 	return ix
 }

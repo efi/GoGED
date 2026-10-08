@@ -4,6 +4,7 @@ package search
 
 import (
 	"strings"
+	"sync"
 	"unicode"
 	"unicode/utf8"
 
@@ -37,23 +38,60 @@ func isASCII(s string) bool {
 	return true
 }
 
+// foldCache memoizes the folded form of non-ASCII runes.
+var foldCache sync.Map // rune -> string
+
+// foldRune returns the folded form of a single non-ASCII rune.
+func foldRune(r rune) string {
+	if v, ok := foldCache.Load(r); ok {
+		return v.(string)
+	}
+	var b strings.Builder
+	if t, ok := special[r]; ok {
+		b.WriteString(t)
+	} else {
+		for _, d := range norm.NFKD.String(string(r)) {
+			if unicode.Is(unicode.Mn, d) {
+				continue
+			}
+			if t, ok := special[d]; ok {
+				b.WriteString(t)
+				continue
+			}
+			b.WriteRune(unicode.ToLower(d))
+		}
+	}
+	out := b.String()
+	foldCache.Store(r, out)
+	return out
+}
+
 // Fold normalizes text for matching: it lower-cases, strips diacritics
-// ("Müller" -> "muller") and transliterates letters such as ß, æ and ø.
+// ("Müller" -> "muller"), expands compatibility characters such as
+// ligatures ("ﬁ" -> "fi") and transliterates letters such as ß, æ and ø.
 func Fold(s string) string {
 	if isASCII(s) {
 		return strings.ToLower(s)
 	}
+	// Precomposed input is folded rune by rune; decomposed input (base
+	// letters followed by combining marks) is composed first.
+	if !norm.NFC.IsNormalString(s) {
+		s = norm.NFC.String(s)
+	}
 	var b strings.Builder
 	b.Grow(len(s))
-	for _, r := range norm.NFD.String(s) {
-		if unicode.Is(unicode.Mn, r) {
-			continue
+	for _, r := range s {
+		switch {
+		case r < utf8.RuneSelf:
+			if 'A' <= r && r <= 'Z' {
+				r += 'a' - 'A'
+			}
+			b.WriteByte(byte(r))
+		case unicode.Is(unicode.Mn, r):
+			// Stray combining marks.
+		default:
+			b.WriteString(foldRune(r))
 		}
-		if t, ok := special[r]; ok {
-			b.WriteString(t)
-			continue
-		}
-		b.WriteRune(unicode.ToLower(r))
 	}
 	return b.String()
 }

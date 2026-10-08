@@ -226,6 +226,8 @@ func TestDescribe(t *testing.T) {
 		{1, 2, gedcom.SexUnknown, false, "nephew/niece"},
 		{4, 1, gedcom.SexUnknown, false, "2nd great-uncle/aunt"},
 		{2, 1, gedcom.SexMale, true, "half-uncle"},
+		{3, 1, gedcom.SexFemale, true, "half-great-aunt"},
+		{1, 4, gedcom.SexMale, true, "half-2nd great-nephew"},
 		{3, 3, gedcom.SexMale, false, "second cousin"},
 		{3, 6, gedcom.SexMale, false, "second cousin thrice removed"},
 		{3, 7, gedcom.SexMale, false, "second cousin 4 times removed"},

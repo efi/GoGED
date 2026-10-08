@@ -298,9 +298,9 @@ func describe(upA, upB int, sex gedcom.Sex, half bool) string {
 	case upA == 1 && upB == 1:
 		return h + gendered(sex, "brother", "sister", "sibling")
 	case upA == 1: // B descends from A's sibling
-		return greatPrefix(upB-2) + h + gendered(sex, "nephew", "niece", "nephew/niece")
+		return h + greatPrefix(upB-2) + gendered(sex, "nephew", "niece", "nephew/niece")
 	case upB == 1: // B is a sibling of A's ancestor
-		return greatPrefix(upA-2) + h + gendered(sex, "uncle", "aunt", "uncle/aunt")
+		return h + greatPrefix(upA-2) + gendered(sex, "uncle", "aunt", "uncle/aunt")
 	}
 	degree := min(upA, upB) - 1
 	word := Ordinal(degree)

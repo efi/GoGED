@@ -42,6 +42,26 @@ func TestFold(t *testing.T) {
 	}
 }
 
+func TestFoldDecomposedAndCombining(t *testing.T) {
+	tests := map[string]string{
+		"Mu\u0308ller": "muller", // decomposed ü
+		"\u0301abc":    "abc",    // stray combining mark
+		"ÅNGSTRÖM":     "angstrom",
+		"ǅemal":        "dzemal",
+		"Ǆ":            "dz",
+		"\u1E9Eaa":     "ssaa", // capital sharp s
+	}
+	for in, want := range tests {
+		if got := Fold(in); got != want {
+			t.Errorf("Fold(%q) = %q, want %q", in, got, want)
+		}
+	}
+	// The cache returns the same answer on repeated calls.
+	if Fold("Ørsted") != Fold("Ørsted") || Fold("Ørsted") != "orsted" {
+		t.Error("cached folding")
+	}
+}
+
 func TestWords(t *testing.T) {
 	got := words("o'brien van-der berg, jr.")
 	want := []string{"obrien", "van", "der", "berg", "jr"}
@@ -336,6 +356,28 @@ func TestSearchRanking(t *testing.T) {
 	rs, _ = NewIndex(doc).SearchString("i3")
 	if len(rs) != 1 || rs[0].Score != scoreID {
 		t.Errorf("id match = %+v", rs)
+	}
+}
+
+func TestSearchMatchedName(t *testing.T) {
+	ix := NewIndex(loadSample(t))
+	rs, _ := ix.SearchString("smith")
+	for _, r := range rs {
+		want := 0
+		if r.Individual.ID == "I13" {
+			want = 1 // Jane Doe matches through her married name
+		}
+		if r.NameIndex != want {
+			t.Errorf("%s: NameIndex = %d, want %d", r.Individual.ID, r.NameIndex, want)
+		}
+	}
+	rs, _ = ix.SearchString("born:1845 frederick")
+	if len(rs) != 1 || rs[0].NameIndex != 1 {
+		t.Errorf("aka match = %+v", rs)
+	}
+	rs, _ = ix.SearchString("sex:m")
+	if rs[0].NameIndex != 0 {
+		t.Error("non-name queries report the primary name")
 	}
 }
 
