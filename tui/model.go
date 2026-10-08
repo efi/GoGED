@@ -431,6 +431,9 @@ func fixHeight(s string, h int) string {
 
 func (m Model) viewHeader() string {
 	info := fmt.Sprintf("%d people · %d families", len(m.doc.Individuals), len(m.doc.Families))
+	if n := m.doc.Redactions; n > 0 {
+		info += fmt.Sprintf(" · %d restricted hidden", n)
+	}
 	if m.opts.Title != "" {
 		info = m.opts.Title + " · " + info
 	}

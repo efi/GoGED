@@ -309,6 +309,22 @@ func TestPersonViewAdoption(t *testing.T) {
 	a.contains("Son           Markus Schüchter (1963–)  (adopted)")
 }
 
+func TestRestrictedNotice(t *testing.T) {
+	doc, err := gedcom.ParseFile(filepath.Join("..", "testdata", "Muster_GEDCOM_UTF-8.ged"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := &app{t: t, m: New(doc.Redacted(), Options{Title: "Muster_GEDCOM_UTF-8.ged"})}
+	a.resize(110, 30)
+	a.contains("37 people · 18 families · 2 restricted hidden")
+	a.openPerson("I22")
+	a.notContains("1 May 1933")
+	a = newMusterApp(t)
+	a.notContains("restricted")
+	a.openPerson("I22")
+	a.contains("1 May 1933          Birth  Wenningen", "confidential")
+}
+
 func TestPersonViewTitles(t *testing.T) {
 	a := newMusterApp(t)
 	a.openPerson("I30")

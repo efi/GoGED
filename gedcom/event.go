@@ -208,8 +208,11 @@ type Event struct {
 	Age     string // AGE of the principal at the event
 	Cause   string // CAUS
 	Address string // ADDR, flattened to one line
-	Notes   []string
-	Node    *Node
+	// Restriction is the RESN value, e.g. "confidential", "privacy" or
+	// "locked".
+	Restriction string
+	Notes       []string
+	Node        *Node
 
 	Individual *Individual // owner of an individual event
 	Family     *Family     // owner of a family event
@@ -288,6 +291,8 @@ func newEvent(doc *Document, n *Node) *Event {
 		Age:   strings.TrimSpace(n.Val("AGE")),
 		Cause: strings.TrimSpace(n.Val("CAUS")),
 		Node:  n,
+
+		Restriction: strings.ToLower(n.Val("RESN")),
 	}
 	if a := n.First("ADDR"); a != nil {
 		parts := strings.Split(a.Value, "\n")

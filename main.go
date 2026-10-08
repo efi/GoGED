@@ -71,6 +71,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, startTUI tuiR
 		gens     = fs.Int("gen", 4, "number of `generations` shown in trees")
 		ascii    = fs.Bool("ascii", false, "draw trees with ASCII characters only")
 		person   = fs.String("person", "", "open the browser at the person with `ID`")
+		showRes  = fs.Bool("show-restricted", false, "show data marked confidential or private (RESN), which is hidden by default")
 		showVer  = fs.Bool("version", false, "print the version and exit")
 		showLic  = fs.Bool("licenses", false, "print the licenses of the map data and the third-party software")
 	)
@@ -124,6 +125,9 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, startTUI tuiR
 	if err != nil {
 		fmt.Fprintf(stderr, "goged: %s: %v\n", path, err)
 		return 1
+	}
+	if !*showRes {
+		doc = doc.Redacted()
 	}
 
 	chartOpts := chart.Options{Generations: *gens, ASCII: *ascii}
@@ -232,6 +236,9 @@ func printTimeline(ind *gedcom.Individual, w io.Writer) {
 		if e.HasAge {
 			rest = append(rest, "age "+e.Age.String())
 		}
+		if r := e.Event.Restriction; r != "" {
+			rest = append(rest, r)
+		}
 		lineText := fmt.Sprintf("  %-22s %s", date, title)
 		if len(rest) > 0 {
 			lineText += "  (" + strings.Join(rest, "; ") + ")"
@@ -329,6 +336,9 @@ func printStats(doc *gedcom.Document, name string, w io.Writer) {
 			top = append(top, fmt.Sprintf("%s (%d)", nc.Name, nc.Count))
 		}
 		fmt.Fprintf(w, "Top surnames:  %s\n", strings.Join(top, ", "))
+	}
+	if doc.Redactions > 0 {
+		fmt.Fprintf(w, "Restricted:    %d hidden (confidential or private; see -show-restricted)\n", doc.Redactions)
 	}
 	fmt.Fprintf(w, "Warnings:      %d\n", len(doc.Warnings))
 	for _, warn := range doc.Warnings {

@@ -260,8 +260,13 @@ func TestMusterFile(t *testing.T) {
 		args []string
 		want []string
 	}{
-		{[]string{"-stats"}, []string{"(UTF-8, GEDCOM 5.5.1)", "Individuals:   37 (21 male, 16 female", "Families:      18", "Places:        23", "Sources:       11", "Years:         1794–2005", "Warnings:      0"}},
-		{[]string{"-q", "surname:muller"}, []string{"I22    Müller, Karl Junior              1933–1980", "I37    Müller, Roswitha"}},
+		{[]string{"-stats"}, []string{"(UTF-8, GEDCOM 5.5.1)", "Individuals:   37 (21 male, 16 female", "Families:      18", "Places:        23", "Sources:       11", "Years:         1794–2005",
+			"Restricted:    2 hidden (confidential or private; see -show-restricted)", "Warnings:      0"}},
+		// Karl Junior's birth and christening are confidential and private.
+		{[]string{"-q", "surname:muller"}, []string{"I22    Müller, Karl Junior              –1980", "I37    Müller, Roswitha"}},
+		{[]string{"-show-restricted", "-q", "surname:muller"}, []string{"I22    Müller, Karl Junior              1933–1980"}},
+		{[]string{"-timeline", "I22"}, []string{"Karl Müller Junior (I22)\n  7 Jun 1935             Birth of sister"}},
+		{[]string{"-timeline", "I22", "-show-restricted"}, []string{"1 May 1933             Birth  (Wenningen, Hochsauerlandkreis, Nordrhein-Westfalen, Deutschland; confidential)"}},
 		{[]string{"-q", "given:desire"}, []string{"I7     Mustermann, Desiré Jeanette"}},
 		// Maria's "von" is recorded as SPFX and is not sorted; Erich Karl's is
 		// part of the surname. Titles (NPFX) are not given names.

@@ -250,6 +250,9 @@ func (m *Model) timelineLine(e genealogy.TimelineEntry) line {
 	if e.HasAge {
 		rest = append(rest, "age "+e.Age.String())
 	}
+	if ev.Restriction != "" {
+		rest = append(rest, ev.Restriction)
+	}
 	tail := ""
 	if len(rest) > 0 {
 		tail = "  " + strings.Join(rest, " · ")

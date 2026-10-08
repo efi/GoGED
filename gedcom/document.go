@@ -34,6 +34,10 @@ type Document struct {
 	Warnings    []Warning
 	Encoding    Encoding
 	Version     string // HEAD.GEDC.VERS
+	// Redactions counts the records and structures withheld by Redacted.
+	Redactions int
+
+	inputWarnings []Warning // warnings from decoding and parsing
 
 	records   map[string]*Node
 	indis     map[string]*Individual
@@ -145,12 +149,13 @@ func (d *Document) citationsIn(n *Node) []Citation {
 // newDocument indexes the records and builds the typed model.
 func newDocument(records []*Node, warnings []Warning) *Document {
 	d := &Document{
-		Records:  records,
-		Warnings: warnings,
-		records:  map[string]*Node{},
-		indis:    map[string]*Individual{},
-		fams:     map[string]*Family{},
-		sources:  map[string]*Source{},
+		Records:       records,
+		Warnings:      append([]Warning(nil), warnings...),
+		inputWarnings: warnings,
+		records:       map[string]*Node{},
+		indis:         map[string]*Individual{},
+		fams:          map[string]*Family{},
+		sources:       map[string]*Source{},
 
 		locations: map[string]*Location{},
 	}

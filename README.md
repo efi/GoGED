@@ -64,6 +64,8 @@ all from the keyboard.
   adoptive, foster and step links are named as such.
 - **Statistics and validation**: counts, time span, generations, lifespans,
   most common names and all warnings found while reading the file.
+- **Privacy**: data marked confidential or private (`RESN`) is hidden unless
+  you ask for it.
 - **Batch mode** for scripts: print search results, charts, timelines,
   relationships, events and statistics without starting the interface.
 
@@ -117,6 +119,11 @@ goged family.ged                 # open the browser
 goged -person I42 family.ged     # open the browser at a person
 cat family.ged | goged -         # read from standard input
 ```
+
+Data marked confidential or private (`RESN confidential` or `privacy`) is
+hidden: restricted events and structures are left out, and of restricted
+people and families only names and family links remain. The header and
+`-stats` say how much was withheld; `-show-restricted` shows everything.
 
 Batch mode prints to standard output and exits:
 
