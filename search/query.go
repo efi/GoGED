@@ -71,6 +71,7 @@ type Term struct {
 	tagVal  string   // folded value after '=' for tag: terms
 	sex     string
 	soundex string
+	cologne string
 }
 
 // Query is a parsed search query: all terms must match.
@@ -295,7 +296,7 @@ func parseTerm(tok string) (*Term, error) {
 		}
 		t.tagVal = Fold(val)
 	case FieldSounds:
-		t.soundex = Soundex(t.Value)
+		t.soundex, t.cologne = Soundex(t.Value), Cologne(t.Value)
 		if t.soundex == "" {
 			return nil, &ParseError{"sounds: expects a name"}
 		}

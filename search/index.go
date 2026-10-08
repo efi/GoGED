@@ -17,11 +17,16 @@ type Result struct {
 }
 
 type foldedName struct {
-	full    string   // "john william smith"
-	given   []string // ["john", "william"]
-	surname string   // "van der berg"
-	words   []string // all words of the name
-	soundex []string // Soundex codes of the words
+	full    string     // "john william smith"
+	given   []string   // ["john", "william"]
+	surname string     // "van der berg"
+	words   []string   // all words of the name
+	sounds  []phonetic // phonetic codes of the words
+}
+
+// phonetic holds the codes that must agree for names to sound alike.
+type phonetic struct {
+	soundex, cologne string
 }
 
 type eventSpan struct {
@@ -103,7 +108,7 @@ func newEntry(ind *gedcom.Individual) *entry {
 		fn.words = words(fn.full)
 		for _, w := range fn.words {
 			if sx := Soundex(w); sx != "" {
-				fn.soundex = append(fn.soundex, sx)
+				fn.sounds = append(fn.sounds, phonetic{sx, Cologne(w)})
 			}
 		}
 		e.names = append(e.names, fn)
@@ -323,9 +328,11 @@ func (ix *Index) matchTerm(e *entry, t *Term) (int, int) {
 	case FieldSurname:
 		return e.matchSurname(t.folded)
 	case FieldSounds:
+		// Soundex alone confuses e.g. Mustermann and Musterow (M236); the
+		// Cologne phonetics, made for German names, tell them apart.
 		return e.bestName(func(n *foldedName) int {
-			for _, sx := range n.soundex {
-				if sx == t.soundex {
+			for _, p := range n.sounds {
+				if p.soundex == t.soundex && p.cologne == t.cologne {
 					return 1
 				}
 			}

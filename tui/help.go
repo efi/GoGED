@@ -72,7 +72,7 @@ var helpSections = [][]string{
 	{"smith", "people with a name word starting with smith (diacritics are ignored)"},
 	{"john smith", "all terms must match"},
 	{`"van der berg"`, "a phrase"},
-	{"~smyth", "names that sound alike (Soundex)"},
+	{"~smyth", "names that sound alike (Soundex and Cologne phonetics)"},
 	{"given:john  surname:smith", "match one part of the name (also first:, last:, name:)"},
 	{"born:1850  died:1900", "year of birth / death (baptism and burial count too)"},
 	{"born:1840..1860", "year ranges; also <1900, >=1850, ~1850 (±5), 1850s"},

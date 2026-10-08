@@ -35,7 +35,7 @@ all from the keyboard.
 ## Features
 
 - **Search as you type** over names (diacritic-insensitive, alternate and
-  married names included, phonetic Soundex matching) and over any other
+  married names included, phonetic matching) and over any other
   property: dates, places, occupations, notes, sources, arbitrary GEDCOM tags.
 - **Person view** with parents, siblings and half-siblings, every family with
   spouse and children, associated people (godparents, witnesses, friends:
@@ -207,7 +207,7 @@ are ignored (`muller` finds Müller).
 | Query | Matches |
 |-------|---------|
 | `smith`, `"van der berg"` | name words starting with *smith*; an exact phrase |
-| `~smyth` | names that sound alike (Soundex): Smith, Smyth, Schmidt |
+| `~smyth` | names that sound alike (Soundex and the Cologne phonetics for German names agree): Smith, Smyth, Schmidt |
 | `given:john`, `surname:smith` | one part of the name (also `first:`, `last:`, `name:`) |
 | `born:1850`, `died:1900` | year of birth / death; baptism and burial count when there is no birth or death date |
 | `born:1840..1860`, `born:<1900`, `born:>=1850`, `born:~1850`, `born:1850s` | year ranges (`~` = ±5 years) |
@@ -286,7 +286,7 @@ build date; a second run on the same day replaces that day's release.
 |---------|----------|
 | [`gedcom`](gedcom) | line parser, character set detection and ANSEL decoding, node tree, typed model (individuals, families, events, names, places, sources, notes), dates and calendars |
 | [`genealogy`](genealogy) | relationship calculator, life timelines, place hierarchy, statistics |
-| [`search`](search) | query language, diacritic folding, Soundex, person index, event filter |
+| [`search`](search) | query language, diacritic folding, Soundex and Cologne phonetics, person index, event filter |
 | [`chart`](chart) | pedigree and descendant charts with node positions for navigation |
 | [`worldmap`](worldmap) | embedded Natural Earth map data, Web Mercator projection and Braille renderer; [`mkworld`](worldmap/mkworld) converts GeoJSON |
 | [`licenses`](licenses) | embedded third-party license texts |

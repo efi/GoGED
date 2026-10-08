@@ -86,6 +86,23 @@ func TestSoundex(t *testing.T) {
 	}
 }
 
+func TestCologne(t *testing.T) {
+	tests := map[string]string{
+		// Reference values from the description of the algorithm.
+		"Wikipedia": "3412", "Müller-Lüdenscheidt": "65752682", "Breschnew": "17863",
+		"Mustermann": "682766", "Musterman": "682766", "Musterow": "68273",
+		"Smith": "862", "Smyth": "862", "Schmidt": "862", "Meyer": "67", "Maier": "67",
+		"Anna": "06", "Max": "648", "Maks": "648", "Xaver": "4837", "Christoph": "47823",
+		"Philipp": "351", "Cäsar": "487", "Claudia": "452", "Dachs": "248", "Sachs": "848",
+		"": "", "123": "",
+	}
+	for in, want := range tests {
+		if got := Cologne(in); got != want {
+			t.Errorf("Cologne(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
 func TestParseYearRange(t *testing.T) {
 	tests := []struct {
 		in     string

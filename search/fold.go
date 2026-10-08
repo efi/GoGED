@@ -146,3 +146,85 @@ func Soundex(s string) string {
 	}
 	return string(out[:4])
 }
+
+// Cologne returns the Cologne phonetics code (Kölner Phonetik) of a name, a
+// phonetic algorithm designed for German names: "3412" for "Wikipedia",
+// "65752682" for "Müller-Lüdenscheidt". Unlike Soundex it keeps the whole
+// name and tells s from k and f from b. The result is empty if s contains
+// no letters.
+func Cologne(s string) string {
+	var letters []byte
+	for _, r := range Fold(s) {
+		if r >= 'a' && r <= 'z' {
+			letters = append(letters, byte(r))
+		}
+	}
+	in := func(c byte, set string) bool { return c != 0 && strings.IndexByte(set, c) >= 0 }
+	var codes []byte
+	for i, c := range letters {
+		var prev, next byte
+		if i > 0 {
+			prev = letters[i-1]
+		}
+		if i+1 < len(letters) {
+			next = letters[i+1]
+		}
+		switch c {
+		case 'a', 'e', 'i', 'j', 'o', 'u', 'y':
+			codes = append(codes, '0')
+		case 'h':
+		case 'b':
+			codes = append(codes, '1')
+		case 'p':
+			if next == 'h' {
+				codes = append(codes, '3')
+			} else {
+				codes = append(codes, '1')
+			}
+		case 'd', 't':
+			if in(next, "csz") {
+				codes = append(codes, '8')
+			} else {
+				codes = append(codes, '2')
+			}
+		case 'f', 'v', 'w':
+			codes = append(codes, '3')
+		case 'g', 'k', 'q':
+			codes = append(codes, '4')
+		case 'c':
+			switch {
+			case i == 0 && in(next, "ahkloqrux"),
+				i > 0 && !in(prev, "sz") && in(next, "ahkoqux"):
+				codes = append(codes, '4')
+			default:
+				codes = append(codes, '8')
+			}
+		case 'x':
+			if in(prev, "ckq") {
+				codes = append(codes, '8')
+			} else {
+				codes = append(codes, '4', '8')
+			}
+		case 'l':
+			codes = append(codes, '5')
+		case 'm', 'n':
+			codes = append(codes, '6')
+		case 'r':
+			codes = append(codes, '7')
+		case 's', 'z':
+			codes = append(codes, '8')
+		}
+	}
+	// Collapse repeated codes, then drop the vowels except at the start.
+	var out []byte
+	for i, c := range codes {
+		if i > 0 && c == codes[i-1] {
+			continue
+		}
+		if c == '0' && len(out) > 0 {
+			continue
+		}
+		out = append(out, c)
+	}
+	return string(out)
+}
