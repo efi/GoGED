@@ -289,6 +289,10 @@ func TestMusterFile(t *testing.T) {
 	if r := runCLI(t, "", "-q", "given:freiherr", muster); r.stdout != "" {
 		t.Errorf("a title matched as given name: %q", r.stdout)
 	}
+	// A residence "after May 1996" is no evidence for 2005.
+	if r := runCLI(t, "", "-q", "year:2005", muster); r.stdout != "I32    Dwight, Reginald Kenneth\nI33    Furnish, David\n" {
+		t.Errorf("year:2005:\n%s", r.stdout)
+	}
 	// Mustermann and Musterow share the Soundex code M236.
 	if r := runCLI(t, "", "-q", "~musterman", muster); strings.Contains(r.stdout, "Musterow") || !strings.Contains(r.stdout, "Mustermann, Max Manfred") {
 		t.Errorf("~musterman:\n%s", r.stdout)

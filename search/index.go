@@ -70,9 +70,12 @@ func NewIndex(doc *gedcom.Document) *Index {
 // Len returns the number of indexed individuals.
 func (ix *Index) Len() int { return len(ix.entries) }
 
-// eventYears returns the year span an event date may denote, widened for
-// approximate and open-ended dates so that searches are forgiving.
-func eventYears(d gedcom.Date) (lo, hi int, ok bool) {
+// eventYears returns the year span an event date may denote, widened by two
+// years for approximate dates. Dates before or after a year count for that
+// year only, unless openEnded widens them by ten years in the open
+// direction: someone born before 1855 may well have been born in 1850, but
+// a residence after 1996 is no evidence for the year 2005.
+func eventYears(d gedcom.Date, openEnded bool) (lo, hi int, ok bool) {
 	lo, hi, ok = d.YearRange()
 	if !ok {
 		return 0, 0, false
@@ -81,19 +84,23 @@ func eventYears(d gedcom.Date) (lo, hi int, ok bool) {
 	case gedcom.DateAbout, gedcom.DateCalculated, gedcom.DateEstimated:
 		lo, hi = lo-2, hi+2
 	case gedcom.DateBefore:
-		lo = hi - 10
+		if openEnded {
+			lo = hi - 10
+		}
 	case gedcom.DateAfter:
-		hi = lo + 10
+		if openEnded {
+			hi = lo + 10
+		}
 	}
 	return lo, hi, true
 }
 
-func spanOf(e *gedcom.Event) eventSpan {
+func spanOf(e *gedcom.Event, openEnded bool) eventSpan {
 	if e == nil {
 		return eventSpan{}
 	}
 	s := eventSpan{place: Fold(strings.Join(e.Place.Names(), "\n"))}
-	s.lo, s.hi, s.ok = eventYears(e.Date)
+	s.lo, s.hi, s.ok = eventYears(e.Date, openEnded)
 	return s
 }
 
@@ -115,15 +122,15 @@ func newEntry(ind *gedcom.Individual) *entry {
 	}
 
 	if b := ind.FirstDatedEvent(gedcom.BirthTags...); b != nil {
-		e.birth, e.hasBirth = spanOf(b), true
+		e.birth, e.hasBirth = spanOf(b, true), true
 	}
 	if d := ind.FirstDatedEvent(gedcom.DeathTags...); d != nil {
-		e.death, e.hasDeath = spanOf(d), true
+		e.death, e.hasDeath = spanOf(d, true), true
 	}
 
 	var occ, notes, srcs []string
 	for _, ev := range ind.Events {
-		e.events = append(e.events, spanOf(ev))
+		e.events = append(e.events, spanOf(ev, false))
 		if ev.Tag == "OCCU" {
 			occ = append(occ, ev.Value)
 		}
@@ -131,7 +138,7 @@ func newEntry(ind *gedcom.Individual) *entry {
 	}
 	for _, f := range ind.FamiliesAsSpouse() {
 		for _, ev := range f.Events {
-			e.events = append(e.events, spanOf(ev))
+			e.events = append(e.events, spanOf(ev, false))
 		}
 	}
 	notes = append(notes, ind.Notes()...)

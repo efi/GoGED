@@ -126,7 +126,7 @@ func NewEventIndex(events []*gedcom.Event) *EventIndex {
 			place: Fold(strings.Join(ev.Place.Names(), "\n")),
 		}
 		it.text = Fold(ev.Label()+"\n"+ev.Detail()) + "\n" + it.names + "\n" + it.place
-		it.lo, it.hi, it.ok = eventYears(ev.Date)
+		it.lo, it.hi, it.ok = eventYears(ev.Date, false)
 		it.key, it.dated = ev.Date.Key()
 		ix.items = append(ix.items, it)
 	}

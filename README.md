@@ -212,7 +212,7 @@ are ignored (`muller` finds Müller).
 | `born:1850`, `died:1900` | year of birth / death; baptism and burial count when there is no birth or death date |
 | `born:1840..1860`, `born:<1900`, `born:>=1850`, `born:~1850`, `born:1850s` | year ranges (`~` = ±5 years) |
 | `born:leeds`, `died:york` | place of birth / death |
-| `place:york`, `year:1881` | any event at a place / in a year |
+| `place:york`, `year:1881` | any event at a place / in a year (dates before or after a year count for that year only) |
 | `alive:1900` | possibly alive in that year |
 | `sex:f` | `m`, `f`, `u` (unknown) or `x` |
 | `id:I12` or just `I12` | a record identifier |

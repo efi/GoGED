@@ -103,6 +103,60 @@ func TestCologne(t *testing.T) {
 	}
 }
 
+func TestEventYears(t *testing.T) {
+	tests := []struct {
+		date      string
+		openEnded bool
+		lo, hi    int
+	}{
+		{"1850", false, 1850, 1850},
+		{"ABT 1850", false, 1848, 1852},
+		{"BEF 1850", false, 1850, 1850},
+		{"BEF 1850", true, 1840, 1850},
+		{"AFT MAY 1996", false, 1996, 1996},
+		{"AFT MAY 1996", true, 1996, 2006},
+		{"BET 1850 AND 1860", false, 1850, 1860},
+	}
+	for _, tt := range tests {
+		lo, hi, ok := eventYears(gedcom.ParseDate(tt.date), tt.openEnded)
+		if !ok || lo != tt.lo || hi != tt.hi {
+			t.Errorf("eventYears(%q, %v) = %d..%d %v, want %d..%d", tt.date, tt.openEnded, lo, hi, ok, tt.lo, tt.hi)
+		}
+	}
+	if _, _, ok := eventYears(gedcom.ParseDate("(unknown)"), true); ok {
+		t.Error("phrase dates have no years")
+	}
+}
+
+func TestSearchOpenEndedDates(t *testing.T) {
+	doc, err := gedcom.ParseString(`0 HEAD
+0 @I1@ INDI
+1 NAME Early /Bird/
+1 BIRT
+2 DATE BEF 1855
+1 RESI
+2 DATE AFT 1880
+0 TRLR
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ix := NewIndex(doc)
+	for q, want := range map[string]int{
+		"born:1850": 1, "born:1856": 0, // someone born before 1855 may be born in 1850
+		"year:1855": 1, "year:1880": 1, "year:1885": 0, // a residence after 1880 says nothing about 1885
+	} {
+		if rs, _ := ix.SearchString(q); len(rs) != want {
+			t.Errorf("%s: %d results, want %d", q, len(rs), want)
+		}
+	}
+	evs := NewEventIndex(doc.Events())
+	q, _ := ParseEventQuery("1885")
+	if got := evs.Filter(q, false); len(got) != 0 {
+		t.Errorf("events in 1885: %v", got)
+	}
+}
+
 func TestParseYearRange(t *testing.T) {
 	tests := []struct {
 		in     string
