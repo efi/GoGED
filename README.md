@@ -75,7 +75,15 @@ all from the keyboard.
 
 ## Installation
 
-Requires Go 1.24 or later.
+Download a ready-made binary from the
+[releases page](https://github.com/efi/goged/releases): one universal binary
+for macOS (Intel and Apple Silicon) and binaries for Linux and Windows on
+x86-64 and ARM64. File names carry the build date, e.g.
+`goged-2026-10-08-linux-amd64`. On macOS and Linux run `chmod +x` on the file
+first; macOS may also ask you to allow the unsigned binary
+(`xattr -d com.apple.quarantine goged-*-macos-universal`).
+
+To build from source you need Go 1.24 or later:
 
 ```sh
 go install github.com/efi/goged@latest
@@ -198,6 +206,12 @@ go test -fuzz FuzzParse ./gedcom    # fuzz the parser (also FuzzParseDate, FuzzP
 go test -fuzz FuzzParse ./search    # fuzz the query language
 go test -bench . ./search
 ```
+
+Releases are built by the **Release** workflow: open *Actions → Release →
+Run workflow* on GitHub. It runs the tests, builds all binaries with
+[`scripts/build-release.sh`](scripts/build-release.sh) (which also works
+locally and writes to `dist/`) and publishes them as a release tagged with the
+build date; a second run on the same day replaces that day's release.
 
 | Package | Contents |
 |---------|----------|

@@ -1,0 +1,60 @@
+name: Release
+
+# Builds binaries for Linux, Windows and macOS (universal) named after the
+# build date and publishes them as a GitHub release tagged with that date.
+# A second run on the same day replaces that day's release.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Test
+        run: go test ./...
+      - name: Build binaries
+        run: |
+          date="$(date -u +%Y-%m-%d)"
+          echo "BUILD_DATE=$date" >> "$GITHUB_ENV"
+          BUILD_DATE="$date" ./scripts/build-release.sh
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${BUILD_DATE}"
+          cat > notes.md <<EOF
+          Binaries built on ${BUILD_DATE} from commit ${GITHUB_SHA::7} with $(go version | cut -d' ' -f3).
+
+          | Platform | File |
+          |----------|------|
+          | macOS (Intel and Apple Silicon) | \`goged-${BUILD_DATE}-macos-universal\` |
+          | Linux x86-64 | \`goged-${BUILD_DATE}-linux-amd64\` |
+          | Linux ARM64 | \`goged-${BUILD_DATE}-linux-arm64\` |
+          | Windows x86-64 | \`goged-${BUILD_DATE}-windows-amd64.exe\` |
+          | Windows ARM64 | \`goged-${BUILD_DATE}-windows-arm64.exe\` |
+
+          On macOS and Linux, make the file executable first: \`chmod +x goged-*\`.
+          macOS may block a binary downloaded with a browser because it is not
+          notarized; allow it with \`xattr -d com.apple.quarantine goged-${BUILD_DATE}-macos-universal\`.
+
+          Checksums are in \`goged-${BUILD_DATE}-SHA256SUMS.txt\`.
+          EOF
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "replacing the existing release $tag"
+            gh release delete "$tag" --cleanup-tag --yes
+          fi
+          gh release create "$tag" dist/* \
+            --target "$GITHUB_SHA" \
+            --title "goged ${BUILD_DATE}" \
+            --notes-file notes.md
