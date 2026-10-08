@@ -264,6 +264,37 @@ func TestTruncationAndWideCharacters(t *testing.T) {
 	}
 }
 
+func TestTruncationKeepsLifeDates(t *testing.T) {
+	doc, _ := gedcom.ParseString(`0 HEAD
+0 @I1@ INDI
+1 NAME Bartholomew Maximilian Fitzgerald /Worthington-Smythe/
+1 BIRT
+2 DATE 1850
+0 @I2@ INDI
+1 NAME Bartholomew Maximilian Fitzgerald /Worthington-Smythe/
+0 TRLR
+`)
+	tests := []struct {
+		id    string
+		width int
+		want  string
+	}{
+		{"I1", 30, "Bartholomew Maximilia… (1850–)"},
+		{"I1", 100, "Bartholomew Maximilian Fitzgerald Worthington-Smythe (1850–)"},
+		{"I1", 12, "Bartholomew…"}, // too narrow to keep the dates
+		{"I2", 20, "Bartholomew Maximil…"},
+	}
+	for _, tt := range tests {
+		got := fitLabel(doc.Individual(tt.id), tt.width)
+		if got != tt.want || runewidth.StringWidth(got) > tt.width {
+			t.Errorf("fitLabel(%s, %d) = %q, want %q", tt.id, tt.width, got, tt.want)
+		}
+	}
+	if fitLabel(nil, 10) != "?" {
+		t.Error("fitLabel(nil)")
+	}
+}
+
 func TestEmptyCharts(t *testing.T) {
 	if c := Pedigree(nil, Options{}); len(c.Nodes) != 0 || c.String() != "" {
 		t.Error("nil pedigree")

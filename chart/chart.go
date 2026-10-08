@@ -17,8 +17,9 @@ type Options struct {
 	// Generations is the number of generations shown, including the root
 	// person. Values below 1 select the default of 4.
 	Generations int
-	// MaxLabel truncates person labels to this display width. Values below
-	// 8 select the default of 40.
+	// MaxLabel truncates person labels to this display width, shortening
+	// the name rather than the life dates. Values below 8 select the default
+	// of 40.
 	MaxLabel int
 	// ASCII draws lines with plain ASCII characters instead of Unicode box
 	// drawing characters.
@@ -147,6 +148,25 @@ func Label(ind *gedcom.Individual) string {
 	return l
 }
 
+// fitLabel formats a person as Label does in at most width display
+// columns. Long names are shortened so that the life dates remain:
+// "Freiherr Erich Karl von St… (1855–)".
+func fitLabel(ind *gedcom.Individual, width int) string {
+	full := Label(ind)
+	if ind == nil || runewidth.StringWidth(full) <= width {
+		return full
+	}
+	dates := ""
+	if span := ind.Lifespan(); span != "" {
+		dates = " (" + span + ")"
+	}
+	room := width - runewidth.StringWidth(dates)
+	if dates == "" || room < 6 {
+		return truncate(full, width)
+	}
+	return truncate(ind.DisplayName(), room) + dates
+}
+
 // truncate shortens s to at most width display columns, ending in "…".
 func truncate(s string, width int) string {
 	if runewidth.StringWidth(s) <= width {
@@ -258,7 +278,7 @@ func Pedigree(root *gedcom.Individual, opts Options) *Chart {
 			m := build(mother, gen+1, idx)
 			c.Nodes[idx].Down = append(c.Nodes[idx].Down, m)
 		}
-		label := truncate(Label(ind), opts.MaxLabel)
+		label := fitLabel(ind, opts.MaxLabel)
 		if c.Nodes[idx].More {
 			label += g.moreUp
 		}
@@ -374,7 +394,7 @@ func Descendants(root *gedcom.Individual, opts Options) *Chart {
 	person = func(ind *gedcom.Individual, gen, up int, prefix, branch, note string) {
 		lead := prefix + branch
 		col := runewidth.StringWidth(lead)
-		label := truncate(Label(ind), opts.MaxLabel)
+		label := fitLabel(ind, opts.MaxLabel)
 		families := ind.FamiliesAsSpouse()
 		expand := gen < opts.Generations-1 && !seen[ind]
 		if seen[ind] {
@@ -425,7 +445,7 @@ func Descendants(root *gedcom.Individual, opts Options) *Chart {
 			parent := idx
 			ps := []placement{{0, lead, -1}}
 			if spouse != nil {
-				label := truncate(Label(spouse), opts.MaxLabel)
+				label := fitLabel(spouse, opts.MaxLabel)
 				parent = addNode(spouse, KindSpouse, gen, idx, col, label)
 				ps = append(ps, placement{col, label, parent})
 				col += c.Nodes[parent].Width

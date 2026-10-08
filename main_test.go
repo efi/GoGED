@@ -281,6 +281,8 @@ func TestMusterFile(t *testing.T) {
 		{[]string{"-relate", "I6,I19"}, []string{"Gerold Freiwein is Markus Schüchter's adoptive father."}},
 		{[]string{"-timeline", "I37"}, []string{"Christening  (Wenningen, Hochsauerlandkreis, Nordrhein-Westfalen, Deutschland; religion: evangelisch; godparents: Max Herbert Mustermann, Musiker)"}},
 		{[]string{"-timeline", "I11"}, []string{"Divorce from Brigitte Gutedel filed  (Tempelhof", "Divorce from Brigitte Gutedel  (Tempelhof", "Jul 1997               Pilgerreise nach Rom with Brigitte Gutedel  (age ~24)"}},
+		{[]string{"-desc", "I30"}, []string{"Freiherr Erich Karl von Stradonitz (1855–)\n└── ⚭ Freifrau Charlotte v. Musterow (1877–)  m. 1892\n"}},
+		{[]string{"-tree", "I13"}, []string{"Freifrau Charlotte v. Musterow (1877–)"}},
 		{[]string{"-timeline", "I6"}, []string{"Adoption  (by Gerold Freiwein; Köln"}},
 		{[]string{"-timeline", "I29"}, []string{"24 Oct 1794            Birth  (3. Brumaire III; Nohfelden"}},
 		{[]string{"-timeline", "I1"}, []string{"  Apr 1958–Mar 1961      Education  (Werkzeugschlosser Lehre;"}},

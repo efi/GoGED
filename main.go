@@ -155,7 +155,9 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, startTUI tuiR
 		if !ok {
 			return 1
 		}
-		fmt.Fprint(stdout, chart.Descendants(ind, chartOpts).String())
+		descOpts := chartOpts
+		descOpts.MaxLabel = 1 << 16 // one person per line: no need to shorten labels
+		fmt.Fprint(stdout, chart.Descendants(ind, descOpts).String())
 		return 0
 	case set["timeline"]:
 		ind, ok := lookup(*timeline)

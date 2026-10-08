@@ -20,6 +20,7 @@ const (
 const (
 	minGenerations = 2
 	maxGenerations = 12
+	fullLabels     = 1 << 16 // a label width limit that is never reached
 )
 
 type treeState struct {
@@ -43,6 +44,9 @@ func (m *Model) rebuildTree() {
 	if t.mode == modePedigree {
 		t.chart = chart.Pedigree(ind, opts)
 	} else {
+		// Every person has a line of their own and the view scrolls
+		// sideways, so labels are shown in full.
+		opts.MaxLabel = fullLabels
 		t.chart = chart.Descendants(ind, opts)
 	}
 	t.sel, t.top, t.left = 0, 0, 0
@@ -185,9 +189,18 @@ func (m Model) viewTree(h int) string {
 		kind = "Descendants"
 	}
 	sel := t.chart.Nodes[t.sel]
-	header := m.st.section.Render(fmt.Sprintf("%s of %s", kind, m.current().DisplayName())) +
-		m.st.dim.Render(fmt.Sprintf(" · %d generations · selected: ", t.gens)) +
-		m.st.name.Render(chart.Label(sel.Ind))
+	// The selected person comes last; if the line is too long, the root's
+	// name and then the number of generations are left out so that the
+	// selection stays readable.
+	gens := fmt.Sprintf(" · %d generations", t.gens)
+	selected := m.st.dim.Render(" · selected: ") + m.st.name.Render(chart.Label(sel.Ind))
+	header := m.st.section.Render(kind+" of "+m.current().DisplayName()) + m.st.dim.Render(gens) + selected
+	if ansi.StringWidth(header) > m.width {
+		header = m.st.section.Render(kind) + m.st.dim.Render(gens) + selected
+	}
+	if ansi.StringWidth(header) > m.width {
+		header = m.st.section.Render(kind) + selected
+	}
 	out := []string{fit(header, m.width)}
 	for i := t.top; i < len(t.chart.Lines) && len(out) < h; i++ {
 		out = append(out, m.renderTreeLine(i))

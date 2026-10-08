@@ -370,6 +370,33 @@ func TestTimelineWording(t *testing.T) {
 	a.contains("7 May 1967          Adoption  by Gerold Freiwein · Köln")
 }
 
+func TestTreeLabelsInFull(t *testing.T) {
+	a := newMusterApp(t)
+	a.resize(80, 40)
+	a.openPerson("I30")
+	a.press("d")
+	// Descendant labels are never cut, at any number of generations.
+	for i := 0; i < 3; i++ {
+		a.contains("Descendants · selected: Freiherr Erich Karl von Stradonitz (1855–)\n",
+			"\nFreiherr Erich Karl von Stradonitz (1855–)\n", "⚭ Freifrau Charlotte v. Musterow (1877–)  m. 1892")
+		lines := strings.Split(a.view(), "\n")
+		for _, l := range lines[3 : len(lines)-1] { // the chart, without header and key help
+			if strings.Contains(l, "…") {
+				t.Errorf("cut label: %q", l)
+			}
+		}
+		a.press("+")
+	}
+	// The header keeps the generations when there is room.
+	a.openPerson("I12")
+	a.press("d")
+	a.contains("Descendants · 7 generations · selected: Otto Mustermann (–aft.1943)")
+	// Pedigree columns stay narrow, but names are shortened, not the dates.
+	a.openPerson("I13")
+	a.press("p")
+	a.contains("Freifrau Charlotte v. Muste… (1877–)")
+}
+
 func TestPersonViewTitles(t *testing.T) {
 	a := newMusterApp(t)
 	a.openPerson("I30")
