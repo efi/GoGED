@@ -47,7 +47,8 @@ all from the keyboard.
   marriages and deaths of close relatives during their lifetime.
 - **Tree views**: a horizontal pedigree chart of ancestors and an indented
   descendant chart with spouses, both navigable with the arrow keys,
-  re-rootable, and adjustable from 2 to 12 generations.
+  re-rootable, and adjustable from 2 to 12 (pedigree) or 20 (descendants)
+  generations.
 - **Events browser** listing all (or only the vital) events of the file in
   chronological order, with a filter for type, year range, place and names.
 - **Places browser**: every place in the file arranged by jurisdiction

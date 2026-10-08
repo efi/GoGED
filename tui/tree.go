@@ -19,9 +19,21 @@ const (
 
 const (
 	minGenerations = 2
-	maxGenerations = 12
-	fullLabels     = 1 << 16 // a label width limit that is never reached
+	// Pedigree charts grow exponentially with each generation, descendant
+	// charts only with the actual number of descendants.
+	maxPedigreeGenerations   = 12
+	maxDescendantGenerations = 20
+	fullLabels               = 1 << 16 // a label width limit that is never reached
 )
+
+// maxGenerations is the largest number of generations shown in the
+// current tree mode.
+func (t *treeState) maxGenerations() int {
+	if t.mode == modeDescendants {
+		return maxDescendantGenerations
+	}
+	return maxPedigreeGenerations
+}
 
 type treeState struct {
 	mode  treeMode
@@ -160,13 +172,17 @@ func (m *Model) setTreeMode(mode treeMode) {
 		return
 	}
 	m.tree.mode = mode
+	if limit := m.tree.maxGenerations(); m.tree.gens > limit {
+		m.tree.gens = limit
+		m.setStatus(fmt.Sprintf("showing %d generations, the most for this chart", limit))
+	}
 	m.rebuildTree()
 }
 
 func (m *Model) setGenerations(n int) {
-	n = clamp(n, minGenerations, maxGenerations)
+	n = clamp(n, minGenerations, m.tree.maxGenerations())
 	if n == m.tree.gens {
-		m.setStatus(fmt.Sprintf("generations are limited to %d–%d", minGenerations, maxGenerations))
+		m.setStatus(fmt.Sprintf("generations are limited to %d–%d", minGenerations, m.tree.maxGenerations()))
 		return
 	}
 	m.tree.gens = n
