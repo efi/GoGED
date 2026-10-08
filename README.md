@@ -54,7 +54,8 @@ all from the keyboard.
   the places within it, then open the people involved.
 - **Map (experimental)**: a zoomable world map drawn with Braille characters,
   with coastlines, country borders, rivers and lakes, and a marker for every
-  place that has coordinates (`PLAC` → `MAP` → `LATI`/`LONG`). The map data is
+  place that has coordinates (`PLAC` → `MAP` → `LATI`/`LONG`, or the place
+  record the place refers to). The map data is
   compiled into the executable, so goged stays a single file.
 - **Relationship calculator**: mark a reference person and every person view
   tells how they are related ("Harold Smith's third cousin", "half-great-aunt",
@@ -80,7 +81,10 @@ all from the keyboard.
   to a common timeline for sorting and age calculation. Common deviations such
   as full month names, `Abt.`, `circa` or ISO dates are accepted too.
 - `CONT`/`CONC` continuation lines, shared notes (`NOTE`/`SNOTE` records),
-  source citations, adoption and fostering (`PEDI`, per parent through
+  place records (`_LOC`, as agreed by GEDCOM-L: places written differently
+  but referring to the same record are grouped, and their coordinates, other
+  names and GOV identifiers are used), source citations, adoption and
+  fostering (`PEDI`, per parent through
   `ADOP`.`FAMC`.`ADOP` or `_FREL`/`_MREL`) and custom `_TAGS`; any custom tag
   with a date or place is treated as an event.
 

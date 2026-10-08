@@ -87,7 +87,7 @@ func spanOf(e *gedcom.Event) eventSpan {
 	if e == nil {
 		return eventSpan{}
 	}
-	s := eventSpan{place: Fold(e.Place.String())}
+	s := eventSpan{place: Fold(strings.Join(e.Place.Names(), "\n"))}
 	s.lo, s.hi, s.ok = eventYears(e.Date)
 	return s
 }

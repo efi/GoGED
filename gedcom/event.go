@@ -149,10 +149,16 @@ func humanizeTag(tag string) string {
 // smallest to largest, separated by commas.
 type Place struct {
 	Name string
-	// Lat and Lon are the coordinates from PLAC.MAP.LATI/LONG in decimal
-	// degrees (north and east positive), valid if HasCoords is set.
+	// Lat and Lon are the coordinates in decimal degrees (north and east
+	// positive), valid if HasCoords is set. They come from PLAC.MAP.LATI and
+	// LONG, else from the place record.
 	Lat, Lon  float64
 	HasCoords bool
+	// Location is the place record (_LOC) the place refers to, or nil.
+	Location *Location
+	// GOV is the identifier of the place in the GOV gazetteer (PLAC._GOV,
+	// else that of the place record).
+	GOV string
 }
 
 // Parts returns the comma-separated jurisdictions with blanks removed.
@@ -168,6 +174,21 @@ func (p Place) Parts() []string {
 
 // String returns the place with normalized separators.
 func (p Place) String() string { return strings.Join(p.Parts(), ", ") }
+
+// Names returns the place as written followed by the names of its place
+// record, for searching.
+func (p Place) Names() []string {
+	var out []string
+	if s := p.String(); s != "" {
+		out = append(out, s)
+	}
+	if p.Location != nil {
+		for _, n := range p.Location.Names {
+			out = append(out, n.Name)
+		}
+	}
+	return out
+}
 
 // Short returns the most specific jurisdiction.
 func (p Place) Short() string {
@@ -263,7 +284,7 @@ func newEvent(doc *Document, n *Node) *Event {
 		Value: strings.TrimSpace(n.Value),
 		Type:  strings.TrimSpace(n.Val("TYPE")),
 		Date:  ParseDate(n.Val("DATE")),
-		Place: placeOf(n),
+		Place: doc.placeOf(n),
 		Age:   strings.TrimSpace(n.Val("AGE")),
 		Cause: strings.TrimSpace(n.Val("CAUS")),
 		Node:  n,
@@ -287,19 +308,34 @@ func newEvent(doc *Document, n *Node) *Event {
 
 // placeOf reads the place of an event, including coordinates from the
 // PLAC.MAP structure. A MAP directly below the event, as written by some
-// programs, is accepted too.
-func placeOf(event *Node) Place {
+// programs, is accepted too. A place record referred to with PLAC._LOC
+// provides coordinates, a GOV identifier and, if the place has no text,
+// the name.
+func (d *Document) placeOf(event *Node) Place {
 	plac := event.First("PLAC")
-	p := Place{Name: strings.TrimSpace(plac.valueOrEmpty())}
+	p := Place{Name: strings.TrimSpace(plac.valueOrEmpty()), GOV: strings.TrimSpace(plac.Val("_GOV"))}
 	m := plac.First("MAP")
 	if m == nil {
 		m = event.First("MAP")
 	}
 	if m != nil {
-		lat, ok1 := ParseCoordinate(m.Val("LATI"), 'N', 'S', 90)
-		lon, ok2 := ParseCoordinate(m.Val("LONG"), 'E', 'W', 180)
-		if ok1 && ok2 {
-			p.Lat, p.Lon, p.HasCoords = lat, lon, true
+		p.Lat, p.Lon, p.HasCoords = coordinates(m)
+	}
+	if ref := plac.First("_LOC"); ref != nil && ref.IsPointer() {
+		p.Location = d.locations[StripXref(ref.Value)]
+		if p.Location == nil {
+			d.warn(ref.Line, "place %q refers to missing place record %s", p.Name, ref.Value)
+		}
+	}
+	if l := p.Location; l != nil {
+		if !p.HasCoords && l.HasCoords {
+			p.Lat, p.Lon, p.HasCoords = l.Lat, l.Lon, true
+		}
+		if p.GOV == "" {
+			p.GOV = l.GOV
+		}
+		if p.Name == "" {
+			p.Name = l.Name()
 		}
 	}
 	return p

@@ -260,7 +260,7 @@ func TestMusterFile(t *testing.T) {
 		args []string
 		want []string
 	}{
-		{[]string{"-stats"}, []string{"(UTF-8, GEDCOM 5.5.1)", "Individuals:   37 (21 male, 16 female", "Families:      18", "Sources:       11", "Years:         1794–2005", "Warnings:      0"}},
+		{[]string{"-stats"}, []string{"(UTF-8, GEDCOM 5.5.1)", "Individuals:   37 (21 male, 16 female", "Families:      18", "Places:        23", "Sources:       11", "Years:         1794–2005", "Warnings:      0"}},
 		{[]string{"-q", "surname:muller"}, []string{"I22    Müller, Karl Junior              1933–1980", "I37    Müller, Roswitha"}},
 		{[]string{"-q", "given:desire"}, []string{"I7     Mustermann, Desiré Jeanette"}},
 		// Maria's "von" is recorded as SPFX and is not sorted; Erich Karl's is
@@ -268,6 +268,9 @@ func TestMusterFile(t *testing.T) {
 		{[]string{"-q", "stradonitz"}, []string{"I13    Stradonitz, Maria von            1910–\nI30    von Stradonitz, Erich Karl       1855–\n"}},
 		{[]string{"-q", "freiherr"}, []string{"I30    von Stradonitz, Erich Karl"}},
 		{[]string{"-q", "born:1794"}, []string{"I29    Frantz, Eva"}},
+		// Brzozowo is the Polish name in the place record of Brosowo.
+		{[]string{"-q", "place:brzozowo"}, []string{"I1     Mustermann, Max Manfred"}},
+		{[]string{"-places"}, []string{"  Berlin                                     6 events     6 people\n    Tempelhof                                5 events     5 people\n"}},
 		{[]string{"-relate", "I3,I7"}, []string{"Desiré Jeanette Mustermann is Leon Mustermann's half-sister."}},
 		{[]string{"-relate", "I6,I19"}, []string{"Gerold Freiwein is Markus Schüchter's adoptive father."}},
 	}

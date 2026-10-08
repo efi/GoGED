@@ -496,3 +496,113 @@ func TestPlaceCoordinates(t *testing.T) {
 		t.Errorf("place without MAP: %+v", r)
 	}
 }
+
+func TestLocations(t *testing.T) {
+	doc, err := ParseFile(filepath.Join("..", "testdata", "Muster_GEDCOM_UTF-8.ged"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(doc.Locations) != 11 || len(doc.Warnings) != 0 {
+		t.Fatalf("%d locations, warnings %v", len(doc.Locations), doc.Warnings)
+	}
+	tempelhof := doc.Location("@P29@")
+	if tempelhof.Name() != "Tempelhof" || tempelhof.Type != "Stadtbezirk" || tempelhof.HasCoords || len(tempelhof.Parents) != 3 {
+		t.Fatalf("P29 = %+v", tempelhof)
+	}
+	if p := tempelhof.Parents[2]; p.Location.Name() != "Berlin" || p.Type != "POLI" || p.Date.String() != "from 3 Oct 1990" {
+		t.Errorf("third parent = %+v (%s)", p, p.Date)
+	}
+	brosowo := doc.Location("P_BROOWOJO93FH")
+	if !brosowo.HasCoords || brosowo.Lat != 53.32 || brosowo.Lon != 18.42 || brosowo.GOV != "BROOWOJO93FH" ||
+		len(brosowo.Names) != 2 || brosowo.Names[1].Name != "Brzozowo" || brosowo.Names[1].Lang != "Polish" {
+		t.Errorf("Brosowo = %+v", brosowo)
+	}
+	if brosowo.GOVURL() != "https://gov.genealogy.net/item/show/BROOWOJO93FH" || (&Location{}).GOVURL() != "" || (&Location{}).Name() != "" {
+		t.Error("GOVURL/Name")
+	}
+	// Erika's birth refers to P29 without coordinates; Max's birth to
+	// Brosowo, whose coordinates come from the place record.
+	birth := doc.Individual("I2").Birth()
+	if birth.Place.Location != tempelhof || birth.Place.HasCoords || birth.Place.GOV != "" {
+		t.Errorf("Erika's birth place = %+v", birth.Place)
+	}
+	birth = doc.Individual("I1").Birth()
+	if birth.Place.Location != brosowo || !birth.Place.HasCoords || birth.Place.Lat != 53.32 || birth.Place.GOV != "BROOWOJO93FH" {
+		t.Errorf("Max's birth place = %+v", birth.Place)
+	}
+	if got := strings.Join(birth.Place.Names(), "|"); got != "Brosowo, Kulm, Bromberg, Danzig-Westpreussen, Deutsches Reich|Brosowo|Brzozowo" {
+		t.Errorf("Names = %q", got)
+	}
+}
+
+func TestLocationEdgeCases(t *testing.T) {
+	doc, err := ParseString(`0 HEAD
+0 @I1@ INDI
+1 BIRT
+2 PLAC
+3 _LOC @L1@
+1 DEAT
+2 PLAC Somewhere
+3 MAP
+4 LATI N1
+4 LONG E2
+3 _LOC @L1@
+3 _GOV OWN_ID
+1 BURI
+2 PLAC Nowhere
+3 _LOC @MISSING@
+0 @L1@ _LOC
+1 NAME Town
+1 MAP
+2 LATI S10.5
+2 LONG W20.25
+1 _LOC @L2@
+1 _LOC @L3@
+0 @L2@ _LOC
+1 TYPE Country
+0 _LOC
+1 NAME no identifier
+0 TRLR
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ind := doc.Individual("I1")
+	// A place without text takes the name of its record.
+	if p := ind.Birth().Place; p.Name != "Town" || p.Lat != -10.5 || p.Lon != -20.25 {
+		t.Errorf("birth place = %+v", p)
+	}
+	// Coordinates and GOV identifiers below PLAC win over the record's.
+	if p := ind.Death().Place; p.Lat != 1 || p.Lon != 2 || p.GOV != "OWN_ID" {
+		t.Errorf("death place = %+v", p)
+	}
+	if p := ind.FirstEvent("BURI").Place; p.Location != nil || p.Name != "Nowhere" {
+		t.Errorf("burial place = %+v", p)
+	}
+	if l := doc.Location("L1"); len(l.Parents) != 1 || l.Parents[0].Location != doc.Location("L2") {
+		t.Errorf("parents = %+v", l.Parents)
+	}
+	var msgs []string
+	for _, w := range doc.Warnings {
+		msgs = append(msgs, w.Msg)
+	}
+	want := []string{
+		"place L1 refers to missing place @L3@",
+		"_LOC record without cross-reference identifier ignored",
+		`place "Nowhere" refers to missing place record @MISSING@`,
+	}
+	for _, w := range want {
+		if !containsString(msgs, w) {
+			t.Errorf("missing warning %q in %q", w, msgs)
+		}
+	}
+}
+
+func containsString(list []string, s string) bool {
+	for _, x := range list {
+		if x == s {
+			return true
+		}
+	}
+	return false
+}

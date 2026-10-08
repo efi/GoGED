@@ -19,7 +19,7 @@ type Stats struct {
 	Families    int
 	Sources     int
 	Events      int
-	Places      int // distinct place names
+	Places      int // distinct places: place records (_LOC) or names
 	Males       int
 	Females     int
 	OtherSex    int // unknown or intersex
@@ -79,8 +79,10 @@ func Compute(doc *gedcom.Document) Stats {
 	}
 	for _, e := range doc.Events() {
 		s.Events++
-		if p := e.Place.String(); p != "" {
-			places[p] = true
+		if l := e.Place.Location; l != nil {
+			places["\x00"+l.ID] = true
+		} else if p := e.Place.String(); p != "" {
+			places[strings.ToLower(p)] = true
 		}
 		if lo, hi, ok := e.Date.YearRange(); ok {
 			if s.EarliestYear == 0 || lo < s.EarliestYear {

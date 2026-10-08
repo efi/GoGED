@@ -30,14 +30,16 @@ type Document struct {
 	Individuals []*Individual // in file order
 	Families    []*Family     // in file order
 	Sources     []*Source
+	Locations   []*Location // _LOC place records
 	Warnings    []Warning
 	Encoding    Encoding
 	Version     string // HEAD.GEDC.VERS
 
-	records map[string]*Node
-	indis   map[string]*Individual
-	fams    map[string]*Family
-	sources map[string]*Source
+	records   map[string]*Node
+	indis     map[string]*Individual
+	fams      map[string]*Family
+	sources   map[string]*Source
+	locations map[string]*Location
 }
 
 // normalizeID accepts "I1" or "@I1@" and returns "I1".
@@ -149,6 +151,8 @@ func newDocument(records []*Node, warnings []Warning) *Document {
 		indis:    map[string]*Individual{},
 		fams:     map[string]*Family{},
 		sources:  map[string]*Source{},
+
+		locations: map[string]*Location{},
 	}
 	for _, r := range records {
 		if r.Tag == "HEAD" && d.Header == nil {
@@ -157,7 +161,7 @@ func newDocument(records []*Node, warnings []Warning) *Document {
 		}
 		if r.Xref == "" {
 			switch r.Tag {
-			case "INDI", "FAM", "SOUR", "REPO", "OBJE", "SNOTE", "SUBM":
+			case "INDI", "FAM", "SOUR", "REPO", "OBJE", "SNOTE", "SUBM", "_LOC":
 				d.warn(r.Line, "%s record without cross-reference identifier ignored", r.Tag)
 			}
 			continue
@@ -196,8 +200,17 @@ func newDocument(records []*Node, warnings []Warning) *Document {
 			}
 			d.Sources = append(d.Sources, s)
 			d.sources[id] = s
+		case "_LOC":
+			l := &Location{ID: id, Node: r}
+			d.Locations = append(d.Locations, l)
+			d.locations[id] = l
 		}
 	}
+
+	for _, l := range d.Locations {
+		d.buildLocation(l)
+	}
+	d.linkLocations()
 
 	for _, ind := range d.Individuals {
 		d.buildIndividual(ind)

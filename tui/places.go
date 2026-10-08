@@ -315,6 +315,9 @@ func (m Model) viewPlaces(h int) string {
 		header := m.st.section.Render("Events in "+n.Full) +
 			m.st.dim.Render(" · "+plural(n.Count(), "event", "events")+" · "+plural(n.People(), "person", "people"))
 		out = append(out, fit(header, m.width))
+		for _, info := range placeInfo(n) {
+			out = append(out, fit(m.st.dim.Render("  "+info), m.width))
+		}
 		out = append(out, fit(m.st.dim.Render("  esc returns to the places · enter opens the person"), m.width))
 		out = append(out, m.eventRows(p.events, p.evCursor, p.evOffset, h-len(out))...)
 		return strings.Join(out, "\n")
@@ -362,6 +365,45 @@ func (m Model) viewPlaces(h int) string {
 		out = append(out, fit("  "+style.Render(pad(left, nameW))+m.st.dim.Render(counts), m.width))
 	}
 	return strings.Join(out, "\n")
+}
+
+// placeInfo describes what the file records about a place besides its
+// events: other spellings, the place record and coordinates.
+func placeInfo(n *genealogy.PlaceNode) []string {
+	var out []string
+	if len(n.Aliases) > 0 {
+		out = append(out, "also written as "+strings.Join(n.Aliases, " · "))
+	}
+	var facts []string
+	if l := n.Location; l != nil {
+		var names []string
+		for _, ln := range l.Names {
+			if strings.EqualFold(ln.Name, n.Name) {
+				continue
+			}
+			name := ln.Name
+			if ln.Lang != "" {
+				name += " (" + ln.Lang + ")"
+			}
+			names = append(names, name)
+		}
+		if len(names) > 0 {
+			facts = append(facts, "names: "+strings.Join(names, ", "))
+		}
+		if l.Type != "" {
+			facts = append(facts, l.Type)
+		}
+	}
+	if n.HasCoords {
+		facts = append(facts, formatLatLon(n.Lat, n.Lon))
+	}
+	if n.GOV != "" {
+		facts = append(facts, "GOV "+gedcom.GOVURL(n.GOV))
+	}
+	if len(facts) > 0 {
+		out = append(out, strings.Join(facts, " · "))
+	}
+	return out
 }
 
 // noun returns the singular or plural form for a count.

@@ -621,6 +621,74 @@ Preußen (1/1)
 	}
 }
 
+func TestPlacesGroupedByPlaceRecord(t *testing.T) {
+	doc, err := gedcom.ParseFile(filepath.Join("..", "testdata", "Muster_GEDCOM_UTF-8.ged"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Five events refer to the place record of Tempelhof, written in three
+	// ways; they are grouped under the most recent spelling.
+	var tempelhof []*PlaceNode
+	Places(doc).Walk(func(n *PlaceNode) bool {
+		if n.Name == "Tempelhof" {
+			tempelhof = append(tempelhof, n)
+		}
+		return true
+	})
+	if len(tempelhof) != 1 {
+		t.Fatalf("Tempelhof appears %d times", len(tempelhof))
+	}
+	n := tempelhof[0]
+	if n.Full != "Tempelhof, Berlin, Deutschland" || len(n.Events) != 5 || n.Location != doc.Location("P29") || n.HasCoords {
+		t.Errorf("Tempelhof = %+v", n)
+	}
+	if got := strings.Join(n.Aliases, "|"); got != "Tempelhof, amerikanischer Sektor, Berlin (West), Deutschland|Tempelhof, Berlin (West), Deutschland" {
+		t.Errorf("aliases = %q", got)
+	}
+	located := Places(doc).Located()
+	if len(located) != 1 || located[0].Name != "Brosowo" || located[0].GOV != "BROOWOJO93FH" || located[0].Lat != 53.32 {
+		t.Errorf("located = %+v", located)
+	}
+	if s := Compute(doc); s.Places != 23 {
+		t.Errorf("Places = %d", s.Places)
+	}
+}
+
+func TestPlacesUndatedPlaceRecord(t *testing.T) {
+	// Without dates, the first spelling is used.
+	doc := mustParse(t, `0 HEAD
+0 @I1@ INDI
+1 BIRT
+2 PLAC Town, Old County
+3 _LOC @L1@
+1 DEAT
+2 PLAC Town, New County
+3 _LOC @L1@
+1 BURI
+2 DATE 1900
+2 PLAC Town, Newest County
+3 _LOC @L2@
+1 CREM
+2 PLAC Town, Undated County
+3 _LOC @L2@
+0 @L1@ _LOC
+1 NAME Town
+0 @L2@ _LOC
+1 NAME Town
+0 TRLR
+`)
+	var names []string
+	Places(doc).Walk(func(n *PlaceNode) bool {
+		if len(n.Events) > 0 {
+			names = append(names, fmt.Sprintf("%s:%d", n.Full, len(n.Events)))
+		}
+		return true
+	})
+	if got := strings.Join(names, " "); got != "Town, Newest County:2 Town, Old County:2" {
+		t.Errorf("places = %s", got)
+	}
+}
+
 func TestPlacesMergeCaseAndSkipBlanks(t *testing.T) {
 	doc := mustParse(t, `0 HEAD
 0 @I1@ INDI

@@ -20,9 +20,17 @@ type PlaceNode struct {
 	// Events that took place exactly here (not in sub-places).
 	Events []*gedcom.Event
 	// Lat and Lon locate the place if HasCoords is set; they come from the
-	// first event here whose place has a MAP structure.
+	// first event here whose place has coordinates.
 	Lat, Lon  float64
 	HasCoords bool
+	// Location is the place record (_LOC) of the events here, if any, and
+	// GOV the identifier of the place in the GOV gazetteer.
+	Location *gedcom.Location
+	GOV      string
+	// Aliases are other ways in which the place is written in the file.
+	// Events that refer to the same place record are grouped under the
+	// place as written for the most recent of them.
+	Aliases []string
 
 	count  int // events here and in all sub-places
 	people int // distinct people involved in those events
@@ -82,7 +90,8 @@ func (n *PlaceNode) Path() []string {
 // Places builds the place hierarchy of all events in the document. The
 // returned root has no name; its children are the top-level jurisdictions.
 // Jurisdiction names are matched case-insensitively; the first spelling
-// seen is kept.
+// seen is kept. Places that refer to the same place record (_LOC) are
+// grouped, see PlaceNode.Aliases.
 func Places(doc *gedcom.Document) *PlaceNode {
 	root := &PlaceNode{}
 	index := map[*PlaceNode]map[string]*PlaceNode{}
@@ -106,16 +115,31 @@ func Places(doc *gedcom.Document) *PlaceNode {
 		return c
 	}
 
-	for _, e := range doc.Events() {
+	events := doc.Events()
+	canonical := canonicalPlaces(events)
+	for _, e := range events {
 		parts := e.Place.Parts()
 		if len(parts) == 0 {
 			continue
+		}
+		written := e.Place.String()
+		if c, ok := canonical[e.Place.Location]; ok {
+			parts = c.Parts()
 		}
 		node := root
 		for i := len(parts) - 1; i >= 0; i-- {
 			node = child(node, parts[i])
 		}
 		node.Events = append(node.Events, e)
+		if !strings.EqualFold(written, node.Full) && !containsFold(node.Aliases, written) {
+			node.Aliases = append(node.Aliases, written)
+		}
+		if node.Location == nil {
+			node.Location = e.Place.Location
+		}
+		if node.GOV == "" {
+			node.GOV = e.Place.GOV
+		}
 		if !node.HasCoords && e.Place.HasCoords {
 			node.Lat, node.Lon, node.HasCoords = e.Place.Lat, e.Place.Lon, true
 		}
@@ -139,4 +163,33 @@ func Places(doc *gedcom.Document) *PlaceNode {
 		return true
 	})
 	return root
+}
+
+// canonicalPlaces picks, for every place record, the place as written for
+// the most recent dated event referring to it, or for the first event if
+// none is dated.
+func canonicalPlaces(events []*gedcom.Event) map[*gedcom.Location]gedcom.Place {
+	out := map[*gedcom.Location]gedcom.Place{}
+	dates := map[*gedcom.Location]gedcom.Date{}
+	for _, e := range events {
+		l := e.Place.Location
+		if l == nil || len(e.Place.Parts()) == 0 {
+			continue
+		}
+		_, seen := out[l]
+		later := e.Date.IsValid() && (!dates[l].IsValid() || e.Date.Compare(dates[l]) > 0)
+		if !seen || later {
+			out[l], dates[l] = e.Place, e.Date
+		}
+	}
+	return out
+}
+
+func containsFold(list []string, s string) bool {
+	for _, x := range list {
+		if strings.EqualFold(x, s) {
+			return true
+		}
+	}
+	return false
 }

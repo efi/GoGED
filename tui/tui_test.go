@@ -919,6 +919,25 @@ func TestMapView(t *testing.T) {
 	a.contains("Events in York, Yorkshire, England")
 }
 
+func TestPlaceRecords(t *testing.T) {
+	a := newMusterApp(t)
+	a.resize(160, 40)
+	a.press("alt+5", "f")
+	a.typ("tempelhof")
+	a.press("enter", "down", "down") // Deutschland, Berlin, Tempelhof
+	if sel := a.m.selectedPlace(); sel == nil || sel.Name != "Tempelhof" {
+		t.Fatalf("selected %v", sel)
+	}
+	a.press("enter")
+	a.contains("Events in Tempelhof, Berlin, Deutschland · 5 events · 5 people",
+		"also written as Tempelhof, amerikanischer Sektor, Berlin (West), Deutschland · Tempelhof, Berlin (West), Deutschland",
+		"Stadtbezirk\n", "Birth              Erika Gabler")
+	a.press("esc", "esc", "f")
+	a.typ("brosowo")
+	a.press("enter", "down", "down", "down", "down", "enter")
+	a.contains("names: Brzozowo (Polish) · 39 Ort · 53.32°N 18.42°E · GOV https://gov.genealogy.net/item/show/BROOWOJO93FH")
+}
+
 func TestPlacesToMap(t *testing.T) {
 	a := newApp(t, Options{})
 	a.resize(120, 36)
