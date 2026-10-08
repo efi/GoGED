@@ -49,6 +49,9 @@ jobs:
           notarized; allow it with \`xattr -d com.apple.quarantine goged-${BUILD_DATE}-macos-universal\`.
 
           Checksums are in \`goged-${BUILD_DATE}-SHA256SUMS.txt\`.
+
+          The experimental map uses data made with Natural Earth (public domain).
+          Run \`goged -licenses\` to read the licenses of the map data and all libraries.
           EOF
           if gh release view "$tag" >/dev/null 2>&1; then
             echo "replacing the existing release $tag"

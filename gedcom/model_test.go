@@ -312,3 +312,79 @@ func TestSourceRecords(t *testing.T) {
 		t.Errorf("citations = %+v", cits)
 	}
 }
+
+func TestParseCoordinate(t *testing.T) {
+	tests := []struct {
+		in     string
+		lat    bool
+		want   float64
+		wantOK bool
+	}{
+		{"N50.781464", true, 50.781464, true},
+		{"S33.8688", true, -33.8688, true},
+		{"E10.786089", false, 10.786089, true},
+		{"W0.1278", false, -0.1278, true},
+		{" n 51.5 ", true, 51.5, true},
+		{"-0.1278", false, -0.1278, true},
+		{"51.5", true, 51.5, true},
+		{"51.5N", true, 51.5, true},
+		{"0.12W", false, -0.12, true},
+		{"N50,78", true, 50.78, true},
+		{"N91", true, 0, false},
+		{"E181", false, 0, false},
+		{"W180", false, -180, true},
+		{"", true, 0, false},
+		{"N", true, 0, false},
+		{"north", true, 0, false},
+		{"E10.7", true, 0, false}, // wrong hemisphere letter for a latitude
+		{"NaN", true, 0, false},
+		{"Inf", false, 0, false},
+	}
+	for _, tt := range tests {
+		pos, neg, limit := byte('E'), byte('W'), 180.0
+		if tt.lat {
+			pos, neg, limit = 'N', 'S', 90
+		}
+		got, ok := ParseCoordinate(tt.in, pos, neg, limit)
+		if ok != tt.wantOK || (ok && got != tt.want) {
+			t.Errorf("ParseCoordinate(%q, lat=%v) = %v, %v; want %v, %v", tt.in, tt.lat, got, ok, tt.want, tt.wantOK)
+		}
+	}
+}
+
+func TestPlaceCoordinates(t *testing.T) {
+	doc := mustParse(t, `0 HEAD
+0 @I1@ INDI
+1 BIRT
+2 PLAC TheSpecificPlace
+3 MAP
+4 LATI N50.781464
+4 LONG E10.786089
+1 DEAT
+2 PLAC Somewhere
+2 MAP
+3 LATI S12.5
+3 LONG W77
+1 BURI
+2 PLAC Broken
+3 MAP
+4 LATI N50.7
+1 RESI
+2 PLAC Nowhere
+0 TRLR
+`)
+	ind := doc.Individual("I1")
+	birth := ind.Birth().Place
+	if !birth.HasCoords || birth.Lat != 50.781464 || birth.Lon != 10.786089 || birth.Name != "TheSpecificPlace" {
+		t.Errorf("birth place = %+v", birth)
+	}
+	if d := ind.Death().Place; !d.HasCoords || d.Lat != -12.5 || d.Lon != -77 {
+		t.Errorf("MAP below the event: %+v", d)
+	}
+	if b := ind.FirstEvent("BURI").Place; b.HasCoords {
+		t.Errorf("incomplete MAP must be ignored: %+v", b)
+	}
+	if r := ind.FirstEvent("RESI").Place; r.HasCoords || r.Name != "Nowhere" {
+		t.Errorf("place without MAP: %+v", r)
+	}
+}

@@ -1,6 +1,8 @@
 package gedcom
 
 import (
+	"math"
+	"strconv"
 	"strings"
 	"unicode"
 )
@@ -147,6 +149,10 @@ func humanizeTag(tag string) string {
 // smallest to largest, separated by commas.
 type Place struct {
 	Name string
+	// Lat and Lon are the coordinates from PLAC.MAP.LATI/LONG in decimal
+	// degrees (north and east positive), valid if HasCoords is set.
+	Lat, Lon  float64
+	HasCoords bool
 }
 
 // Parts returns the comma-separated jurisdictions with blanks removed.
@@ -257,7 +263,7 @@ func newEvent(doc *Document, n *Node) *Event {
 		Value: strings.TrimSpace(n.Value),
 		Type:  strings.TrimSpace(n.Val("TYPE")),
 		Date:  ParseDate(n.Val("DATE")),
-		Place: Place{Name: strings.TrimSpace(n.Val("PLAC"))},
+		Place: placeOf(n),
 		Age:   strings.TrimSpace(n.Val("AGE")),
 		Cause: strings.TrimSpace(n.Val("CAUS")),
 		Node:  n,
@@ -277,4 +283,57 @@ func newEvent(doc *Document, n *Node) *Event {
 	}
 	e.Notes = doc.notesOf(n)
 	return e
+}
+
+// placeOf reads the place of an event, including coordinates from the
+// PLAC.MAP structure. A MAP directly below the event, as written by some
+// programs, is accepted too.
+func placeOf(event *Node) Place {
+	plac := event.First("PLAC")
+	p := Place{Name: strings.TrimSpace(plac.valueOrEmpty())}
+	m := plac.First("MAP")
+	if m == nil {
+		m = event.First("MAP")
+	}
+	if m != nil {
+		lat, ok1 := ParseCoordinate(m.Val("LATI"), 'N', 'S', 90)
+		lon, ok2 := ParseCoordinate(m.Val("LONG"), 'E', 'W', 180)
+		if ok1 && ok2 {
+			p.Lat, p.Lon, p.HasCoords = lat, lon, true
+		}
+	}
+	return p
+}
+
+// ParseCoordinate parses a GEDCOM latitude ("N50.781464") or longitude
+// ("W0.1278"). pos and neg are the hemisphere letters for positive and
+// negative values and limit is the largest absolute value allowed. Signed
+// decimals ("-0.1278"), a trailing hemisphere letter ("50.78N") and a
+// decimal comma ("N50,78") are accepted as well.
+func ParseCoordinate(s string, pos, neg byte, limit float64) (float64, bool) {
+	s = strings.ToUpper(strings.TrimSpace(s))
+	if s == "" {
+		return 0, false
+	}
+	sign := 1.0
+	switch {
+	case s[0] == pos:
+		s = s[1:]
+	case s[0] == neg:
+		sign, s = -1, s[1:]
+	case s[len(s)-1] == pos:
+		s = s[:len(s)-1]
+	case s[len(s)-1] == neg:
+		sign, s = -1, s[:len(s)-1]
+	}
+	s = strings.ReplaceAll(strings.TrimSpace(s), ",", ".")
+	v, err := strconv.ParseFloat(s, 64)
+	if err != nil || math.IsNaN(v) || math.IsInf(v, 0) {
+		return 0, false
+	}
+	v *= sign
+	if v < -limit || v > limit {
+		return 0, false
+	}
+	return v, true
 }

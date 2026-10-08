@@ -241,6 +241,10 @@ func TestHelpAndVersion(t *testing.T) {
 	if r.code != 0 || !strings.Contains(r.stderr, "goged — browse GEDCOM") || !strings.Contains(r.stderr, "-relate") {
 		t.Errorf("-h: %d %q", r.code, r.stderr)
 	}
+	r = runCLI(t, "", "-licenses")
+	if r.code != 0 || !strings.Contains(r.stdout, "Natural Earth") || !strings.Contains(r.stdout, "public domain") || !strings.Contains(r.stdout, "github.com/charmbracelet/bubbletea") {
+		t.Errorf("-licenses: %d %q", r.code, r.stdout[:min(200, len(r.stdout))])
+	}
 	r = runCLI(t, "", "-version")
 	if r.code != 0 || r.stdout != "goged dev\n" {
 		t.Errorf("-version: %d %q", r.code, r.stdout)

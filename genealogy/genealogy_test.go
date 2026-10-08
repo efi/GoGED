@@ -537,3 +537,36 @@ func TestPlacesMergeCaseAndSkipBlanks(t *testing.T) {
 		t.Error("empty document")
 	}
 }
+
+func TestPlaceCoordinates(t *testing.T) {
+	doc := mustParse(t, `0 HEAD
+0 @I1@ INDI
+1 BIRT
+2 PLAC Leeds, England
+1 DEAT
+2 PLAC Leeds, England
+3 MAP
+4 LATI N53.7997
+4 LONG W1.5492
+1 BURI
+2 PLAC leeds, england
+3 MAP
+4 LATI N1
+4 LONG E1
+1 RESI
+2 PLAC York, England
+0 TRLR
+`)
+	root := Places(doc)
+	england := root.Children[0]
+	leeds, york := england.Children[0], england.Children[1]
+	if !leeds.HasCoords || leeds.Lat != 53.7997 || leeds.Lon != -1.5492 {
+		t.Errorf("Leeds = %+v (the first coordinates win)", leeds)
+	}
+	if england.HasCoords || york.HasCoords {
+		t.Error("places without MAP have no coordinates")
+	}
+	if got := root.Located(); len(got) != 1 || got[0] != leeds {
+		t.Errorf("Located = %v", got)
+	}
+}

@@ -18,16 +18,25 @@
 1 BIRT
 2 DATE 12 MAR 1790
 2 PLAC Leeds, Yorkshire, England
+3 MAP
+4 LATI N53.7997
+4 LONG W1.5492
 2 SOUR @S1@
 3 PAGE Baptisms 1790, folio 12
 1 OCCU Weaver
 1 DEAT
 2 DATE 4 JAN 1850
 2 PLAC Leeds, Yorkshire, England
+3 MAP
+4 LATI N53.7997
+4 LONG W1.5492
 2 CAUS Consumption
 1 BURI
 2 DATE 8 JAN 1850
 2 PLAC St Peter's Churchyard, Leeds, Yorkshire, England
+3 MAP
+4 LATI N53.7963
+4 LONG W1.5378
 1 NOTE @N1@
 1 FAMS @F1@
 0 @I2@ INDI
@@ -36,9 +45,15 @@
 1 BIRT
 2 DATE ABT 1795
 2 PLAC York, Yorkshire, England
+3 MAP
+4 LATI N53.9590
+4 LONG W1.0815
 1 DEAT
 2 DATE 1860
 2 PLAC Leeds, Yorkshire, England
+3 MAP
+4 LATI N53.7997
+4 LONG W1.5492
 1 FAMS @F1@
 0 @I3@ INDI
 1 NAME John /Smith/
@@ -46,19 +61,31 @@
 1 BIRT
 2 DATE 2 FEB 1817
 2 PLAC Leeds, Yorkshire, England
+3 MAP
+4 LATI N53.7997
+4 LONG W1.5492
 1 CHR
 2 DATE 10 FEB 1817
 2 PLAC St Peter's, Leeds, Yorkshire, England
+3 MAP
+4 LATI N53.7962
+4 LONG W1.5381
 1 OCCU Mill worker
 2 DATE FROM 1835 TO 1870
 1 CENS
 2 DATE 30 MAR 1851
 2 PLAC Manchester, Lancashire, England
+3 MAP
+4 LATI N53.4808
+4 LONG W2.2426
 2 SOUR @S2@
 3 PAGE HO107/2229 folio 316
 1 DEAT
 2 DATE 1880
 2 PLAC Manchester, Lancashire, England
+3 MAP
+4 LATI N53.4808
+4 LONG W2.2426
 1 NOTE John moved to Manchester around 1839 to work in the cotton mills.
 2 CONT He married twice.
 1 FAMC @F1@
@@ -70,6 +97,9 @@
 1 BIRT
 2 DATE 1819
 2 PLAC Leeds, Yorkshire, England
+3 MAP
+4 LATI N53.7997
+4 LONG W1.5492
 1 DEAT
 2 DATE 1899
 1 FAMC @F1@
@@ -82,6 +112,9 @@
 1 DEAT
 2 DATE 1845
 2 PLAC Manchester, Lancashire, England
+3 MAP
+4 LATI N53.4808
+4 LONG W2.2426
 1 FAMS @F2@
 0 @I6@ INDI
 1 NAME Sarah /White/
@@ -97,6 +130,9 @@
 1 BIRT
 2 DATE 5 MAY 1842
 2 PLAC Manchester, Lancashire, England
+3 MAP
+4 LATI N53.4808
+4 LONG W2.2426
 1 OCCU Engineer
 1 DEAT
 2 DATE 1910
@@ -108,6 +144,9 @@
 1 BIRT
 2 DATE 1848
 2 PLAC Manchester, Lancashire, England
+3 MAP
+4 LATI N53.4808
+4 LONG W2.2426
 1 FAMC @F3@
 1 FAMS @F6@
 0 @I9@ INDI
@@ -151,6 +190,9 @@
 1 BIRT
 2 DATE 1866
 2 PLAC Salford, Lancashire, England
+3 MAP
+4 LATI N53.4875
+4 LONG W2.2901
 1 _MILT
 2 DATE FROM 1914 TO 1918
 2 PLAC France
@@ -166,9 +208,15 @@
 1 BIRT
 2 DATE 1845
 2 PLAC Köln, Preußen
+3 MAP
+4 LATI N50.9375
+4 LONG E6.9603
 1 IMMI
 2 DATE 1866
 2 PLAC Hull, Yorkshire, England
+3 MAP
+4 LATI N53.7457
+4 LONG W0.3367
 1 FAMS @F6@
 0 @I16@ INDI
 1 NAME Edith /Miller/
@@ -190,9 +238,15 @@
 1 EMIG
 2 DATE 1905
 2 PLAC Liverpool, Lancashire, England
+3 MAP
+4 LATI N53.4084
+4 LONG W2.9916
 1 IMMI
 2 DATE 1905
 2 PLAC Toronto, Ontario, Canada
+3 MAP
+4 LATI N43.6532
+4 LONG W79.3832
 1 FAMC @F7@
 1 FAMS @F9@
 0 @I19@ INDI
@@ -240,6 +294,9 @@
 1 MARR
 2 DATE 15 JUN 1815
 2 PLAC Leeds, Yorkshire, England
+3 MAP
+4 LATI N53.7997
+4 LONG W1.5492
 1 CHIL @I3@
 1 CHIL @I4@
 0 @F2@ FAM
@@ -248,6 +305,9 @@
 1 MARR
 2 DATE 1840
 2 PLAC Manchester, Lancashire, England
+3 MAP
+4 LATI N53.4808
+4 LONG W2.2426
 1 CHIL @I7@
 0 @F3@ FAM
 1 HUSB @I3@
@@ -297,6 +357,9 @@
 1 MARR
 2 DATE 1888
 2 PLAC Leeds, Yorkshire, England
+3 MAP
+4 LATI N53.7997
+4 LONG W1.5492
 1 CHIL @I23@
 0 @N1@ NOTE William was a hand-loom weaver in the parish of St Pet
 1 CONC er, Leeds.

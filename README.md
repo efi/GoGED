@@ -7,7 +7,7 @@ all from the keyboard.
 
 ```
  goged  family.ged · 24 people · 9 families
- 1 Search  [2 Person]  3 Tree   4 Events   5 Places   6 Stats
+ 1 Search  [2 Person]  3 Tree   4 Events   5 Places   6 Map   7 Stats
   John Smith
   male · I3 · 1817–1880
 
@@ -52,6 +52,10 @@ all from the keyboard.
   (country → county → town) with the number of events and people, collapsible
   and filterable. Select a place to list everything that happened there and in
   the places within it, then open the people involved.
+- **Map (experimental)**: a zoomable world map drawn with Braille characters,
+  with coastlines, country borders, rivers and lakes, and a marker for every
+  place that has coordinates (`PLAC` → `MAP` → `LATI`/`LONG`). The map data is
+  compiled into the executable, so goged stays a single file.
 - **Relationship calculator**: mark a reference person and every person view
   tells how they are related ("Harold Smith's third cousin", "half-great-aunt",
   "brother-in-law", "husband's aunt"), including the closest common ancestors.
@@ -119,6 +123,7 @@ goged -events 'type:marr place:leeds' family.ged
 goged -events '' -all family.ged           # every event, chronologically
 goged -places family.ged                   # place hierarchy with counts
 goged -stats family.ged                    # statistics and warnings
+goged -licenses                            # licenses of map data and libraries
 ```
 
 ```
@@ -156,10 +161,10 @@ Try it with the sample file in [`testdata/family.ged`](testdata/family.ged).
 | Where   | Keys | Action |
 |---------|------|--------|
 | Global  | `/` | search |
-|         | `tab` / `shift+tab`, `1`…`6` (`alt+1`…`alt+6` while typing) | switch view: search, person, tree, events, places, stats |
+|         | `tab` / `shift+tab`, `1`…`7` (`alt+1`…`alt+7` while typing) | switch view: search, person, tree, events, places, map, stats |
 |         | `b`, `backspace`, `[` / `]` | back / forward in history |
 |         | `m` | mark the current person as reference for relationships (again to clear) |
-|         | `?` | help · `q`, `ctrl+c` quit |
+|         | `?` | help · `L` licenses · `q`, `ctrl+c` quit |
 | Search  | type, `↑` `↓` `pgup` `pgdown`, `enter`, `esc` | search, select, open, clear / return |
 | Person  | `↑` `↓` (`j` `k`), `enter` | move between relatives, go to relative |
 |         | `←` `→` (`h` `l`) | back / forward |
@@ -171,7 +176,10 @@ Try it with the sample file in [`testdata/family.ged`](testdata/family.ged).
 | Events  | `f`, `a`, `x`, `enter` | edit filter, all/important events, clear filter, open person |
 | Places  | `←` `→` (`h` `l`), `-` / `+` | collapse/expand a place (or go to the enclosing/first contained place); collapse/expand all |
 |         | `enter`, `esc` | list the events at a place and within it (enter again opens the person); back to the places |
-|         | `f`, `x` | filter places by name, clear the filter |
+|         | `f`, `x`, `M` | filter places by name, clear the filter, show the place on the map |
+| Map     | arrows (`h` `j` `k` `l`), `+` `-` | pan, zoom |
+|         | `n` / `N`, `enter` | next/previous place (most events first), list the events at the place |
+|         | `0`, `w`, `c` | fit all places, whole world, center on the selected place |
 | Stats   | `enter` | list everybody with the selected surname |
 
 ## Search syntax
@@ -205,6 +213,43 @@ The events filter understands `type:marr,div` (tags or names such as
 `birth`, `marriage`, `census`), year ranges (`1850..1870` or `year:`),
 `place:`, `name:`, negation and plain text.
 
+## The map (experimental)
+
+Coordinates are read from the standard GEDCOM structure below a place:
+
+```
+2 PLAC TheSpecificPlace
+3 MAP
+4 LATI N50.781464
+4 LONG E10.786089
+```
+
+Signed decimals (`-0.1278`), a trailing hemisphere letter (`50.78N`) and a
+decimal comma are accepted as well. A place gets the coordinates of the first
+event that records them.
+
+The map shows the 1:10m coastlines, land borders, rivers and lakes of
+[Natural Earth](https://www.naturalearthdata.com/), simplified to about
+0.005° and stored in a compact format (`worldmap/world.bin`, 1.5 MB) that is
+embedded into the executable. Minor rivers and lakes appear as you zoom in.
+To rebuild the data from the Natural Earth GeoJSON files:
+
+```sh
+go run ./worldmap/mkworld -o worldmap/world.bin \
+    -coast ne_10m_coastline.geojson \
+    -borders ne_10m_admin_0_boundary_lines_land.geojson \
+    -rivers ne_10m_rivers_lake_centerlines.geojson \
+    -lakes ne_10m_lakes.geojson
+```
+
+## Licenses
+
+Natural Earth map data is in the public domain; goged credits it with "Made
+with Natural Earth". The licenses of the map data and of all libraries
+compiled into goged can be read in the program (`L`) or printed with
+`goged -licenses`. After changing dependencies, regenerate the embedded
+license texts with `scripts/gen-licenses.sh`.
+
 ## Development
 
 ```sh
@@ -227,6 +272,8 @@ build date; a second run on the same day replaces that day's release.
 | [`genealogy`](genealogy) | relationship calculator, life timelines, place hierarchy, statistics |
 | [`search`](search) | query language, diacritic folding, Soundex, person index, event filter |
 | [`chart`](chart) | pedigree and descendant charts with node positions for navigation |
+| [`worldmap`](worldmap) | embedded Natural Earth map data, Web Mercator projection and Braille renderer; [`mkworld`](worldmap/mkworld) converts GeoJSON |
+| [`licenses`](licenses) | embedded third-party license texts |
 | [`tui`](tui) | the Bubble Tea interface |
 | [`main.go`](main.go) | command-line entry point and batch mode |
 

@@ -19,6 +19,10 @@ type PlaceNode struct {
 	Children []*PlaceNode // sorted by name
 	// Events that took place exactly here (not in sub-places).
 	Events []*gedcom.Event
+	// Lat and Lon locate the place if HasCoords is set; they come from the
+	// first event here whose place has a MAP structure.
+	Lat, Lon  float64
+	HasCoords bool
 
 	count  int // events here and in all sub-places
 	people int // distinct people involved in those events
@@ -52,6 +56,18 @@ func (n *PlaceNode) Walk(fn func(*PlaceNode) bool) {
 	for _, c := range n.Children {
 		c.Walk(fn)
 	}
+}
+
+// Located returns n and all its sub-places that have coordinates.
+func (n *PlaceNode) Located() []*PlaceNode {
+	var out []*PlaceNode
+	n.Walk(func(p *PlaceNode) bool {
+		if p.HasCoords {
+			out = append(out, p)
+		}
+		return true
+	})
+	return out
 }
 
 // Path returns the names from the top-level jurisdiction down to n.
@@ -100,6 +116,9 @@ func Places(doc *gedcom.Document) *PlaceNode {
 			node = child(node, parts[i])
 		}
 		node.Events = append(node.Events, e)
+		if !node.HasCoords && e.Place.HasCoords {
+			node.Lat, node.Lon, node.HasCoords = e.Place.Lat, e.Place.Lon, true
+		}
 		for p := node; p != nil; p = p.Parent {
 			p.count++
 			if people[p] == nil {

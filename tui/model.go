@@ -19,11 +19,12 @@ const (
 	viewTree
 	viewEvents
 	viewPlaces
+	viewMap
 	viewStats
 	viewCount
 )
 
-var viewNames = [viewCount]string{"Search", "Person", "Tree", "Events", "Places", "Stats"}
+var viewNames = [viewCount]string{"Search", "Person", "Tree", "Events", "Places", "Map", "Stats"}
 
 // Options configure the interface.
 type Options struct {
@@ -49,6 +50,7 @@ type Model struct {
 	active        view
 	prev          view // view to return to when leaving search with esc
 	showHelp      bool
+	overlay       string // title of the overlay shown when showHelp is set
 	help          docView
 	status        string
 	statusErr     bool
@@ -64,6 +66,7 @@ type Model struct {
 	tree   treeState
 	ev     eventsState
 	places placesState
+	mapv   mapState
 	stats  statsState
 }
 
@@ -139,7 +142,7 @@ func (m *Model) layout() {
 	m.movePlaceEvents(0)
 	m.rebuildPerson()
 	m.ensureTreeVisible()
-	m.buildHelp()
+	m.rebuildOverlay()
 }
 
 func (m *Model) setStatus(s string) { m.status, m.statusErr = s, false }
@@ -216,6 +219,9 @@ func (m *Model) switchTo(v view) {
 	}
 	if v == viewPlaces {
 		m.ensurePlaces()
+	}
+	if v == viewMap {
+		m.ensureMap()
 	}
 	m.active = v
 }
@@ -297,6 +303,8 @@ func (m *Model) handleKey(msg tea.KeyMsg) tea.Cmd {
 		handled, cmd = m.updateEvents(msg)
 	case viewPlaces:
 		handled, cmd = m.updatePlaces(msg)
+	case viewMap:
+		handled, cmd = m.updateMap(msg)
 	case viewStats:
 		handled, cmd = m.updateStats(msg)
 	}
@@ -309,18 +317,18 @@ func (m *Model) handleKey(msg tea.KeyMsg) tea.Cmd {
 	case "q":
 		return tea.Quit
 	case "?", "f1":
-		m.showHelp = true
-		m.buildHelp()
-		m.help.reset()
+		m.openOverlay("Help")
+	case "L":
+		m.openOverlay("Licenses")
 	case "/":
 		m.switchTo(viewSearch)
 	case "tab":
 		m.cycle(1)
 	case "shift+tab":
 		m.cycle(-1)
-	case "1", "2", "3", "4", "5", "6":
+	case "1", "2", "3", "4", "5", "6", "7":
 		m.switchTo(view(key[0] - '1'))
-	case "alt+1", "alt+2", "alt+3", "alt+4", "alt+5", "alt+6":
+	case "alt+1", "alt+2", "alt+3", "alt+4", "alt+5", "alt+6", "alt+7":
 		m.switchTo(view(key[4] - '1'))
 	case "backspace", "b", "[", "alt+left":
 		m.back()
@@ -334,6 +342,23 @@ func (m *Model) handleKey(msg tea.KeyMsg) tea.Cmd {
 	return nil
 }
 
+// openOverlay shows the help or the licenses over the current view.
+func (m *Model) openOverlay(title string) {
+	m.showHelp = true
+	m.overlay = title
+	m.rebuildOverlay()
+	m.help.reset()
+}
+
+// rebuildOverlay regenerates the overlay content, e.g. after a resize.
+func (m *Model) rebuildOverlay() {
+	if m.overlay == "Licenses" {
+		m.buildLicenses()
+	} else {
+		m.buildHelp()
+	}
+}
+
 // typing reports whether keys currently go to a text input.
 func (m *Model) typing() bool {
 	return !m.showHelp && (m.active == viewSearch ||
@@ -345,7 +370,7 @@ func (m *Model) typing() bool {
 // keys through.
 func isViewKey(key string) bool {
 	switch key {
-	case "tab", "shift+tab", "alt+1", "alt+2", "alt+3", "alt+4", "alt+5", "alt+6":
+	case "tab", "shift+tab", "alt+1", "alt+2", "alt+3", "alt+4", "alt+5", "alt+6", "alt+7":
 		return true
 	}
 	return false
@@ -383,6 +408,8 @@ func (m Model) View() string {
 		body = m.viewEvents(h)
 	case m.active == viewPlaces:
 		body = m.viewPlaces(h)
+	case m.active == viewMap:
+		body = m.viewMap(h)
 	case m.active == viewStats:
 		body = m.viewStats(h)
 	}
@@ -421,7 +448,7 @@ func (m Model) viewHeader() string {
 		}
 	}
 	if m.showHelp {
-		tabs = append(tabs, m.st.tabActive.Render("[Help]"))
+		tabs = append(tabs, m.st.tabActive.Render("["+m.overlay+"]"))
 	}
 	return fit(title, m.width) + "\n" + fit(strings.Join(tabs, " "), m.width)
 }
@@ -438,7 +465,7 @@ func (m Model) viewFooter() string {
 	case m.showHelp:
 		hints = [][2]string{{"↑↓", "scroll"}, {"any key", "close"}}
 	case m.active == viewSearch:
-		hints = [][2]string{{"type", "search"}, {"↑↓", "select"}, {"enter", "open"}, {"esc", "clear/back"}, {"tab/alt+1-6", "views"}, {"?", "help"}}
+		hints = [][2]string{{"type", "search"}, {"↑↓", "select"}, {"enter", "open"}, {"esc", "clear/back"}, {"tab/alt+1-7", "views"}, {"?", "help"}}
 	case m.active == viewPerson:
 		hints = [][2]string{{"↑↓", "relatives"}, {"enter", "go"}, {"←→", "history"}, {"t/d", "trees"}, {"c", "context"}, {"m", "mark"}, {"/", "search"}, {"?", "help"}}
 	case m.active == viewTree:
@@ -451,8 +478,10 @@ func (m Model) viewFooter() string {
 		hints = [][2]string{{"type", "filter"}, {"enter", "done"}, {"esc", "clear"}}
 	case m.active == viewPlaces && m.places.detail != nil:
 		hints = [][2]string{{"↑↓", "select"}, {"enter", "open person"}, {"esc", "back to places"}, {"?", "help"}}
+	case m.active == viewMap:
+		hints = [][2]string{{"arrows", "pan"}, {"+/-", "zoom"}, {"n/N", "next/previous place"}, {"enter", "events here"}, {"0/w", "fit places/world"}, {"L", "licenses"}, {"?", "help"}}
 	case m.active == viewPlaces:
-		hints = [][2]string{{"↑↓", "select"}, {"←→", "collapse/expand"}, {"enter", "events here"}, {"f", "filter"}, {"-/+", "collapse/expand all"}, {"?", "help"}}
+		hints = [][2]string{{"↑↓", "select"}, {"←→", "collapse/expand"}, {"enter", "events here"}, {"f", "filter"}, {"M", "map"}, {"?", "help"}}
 	case m.active == viewStats:
 		hints = [][2]string{{"↑↓", "surnames"}, {"enter", "search surname"}, {"?", "help"}}
 	}

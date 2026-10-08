@@ -9,6 +9,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/efi/goged/gedcom"
+	"github.com/efi/goged/worldmap"
 	"github.com/muesli/termenv"
 )
 
@@ -485,8 +486,8 @@ func TestEventsView(t *testing.T) {
 
 func TestStatsView(t *testing.T) {
 	a := newApp(t, Options{})
-	a.press("alt+6")
-	a.contains("[6 Stats]", "Encoding", "UTF-8", "Individuals", "24  (10 male, 13 female, 1 other/unknown)", "Generations", "Longest lived",
+	a.press("alt+7")
+	a.contains("[7 Stats]", "Encoding", "UTF-8", "Individuals", "24  (10 male, 13 female, 1 other/unknown)", "Generations", "Longest lived",
 		"Mary Smith, ~80 years", "Most common surnames", "Smith")
 	a.press("end")
 	a.contains("Warnings (0)", "none — the file looks consistent", "Most common given names")
@@ -494,13 +495,13 @@ func TestStatsView(t *testing.T) {
 	if a.currentID() != "I4" || a.m.active != viewPerson {
 		t.Errorf("longest lived link should open Mary, got %s", a.currentID())
 	}
-	a.press("6", "home", "down", "enter")
+	a.press("7", "home", "down", "enter")
 	if a.m.active != viewSearch || a.m.search.input.Value() != `surname:"Smith"` {
 		t.Fatalf("active=%v query=%q", a.m.active, a.m.search.input.Value())
 	}
 	a.contains("11 matches") // includes Jane Doe, née Smith by marriage
 	a.press("tab")           // -> person (a current person exists)
-	a.press("tab", "tab", "tab", "tab")
+	a.press("tab", "tab", "tab", "tab", "tab")
 	a.press("pgdown", "pgup", "up", "down")
 	if a.m.active != viewStats {
 		t.Errorf("active = %v", a.m.active)
@@ -515,7 +516,7 @@ func TestStatsWarnings(t *testing.T) {
 	m := New(doc, Options{})
 	a := &app{t: t, m: m}
 	a.resize(120, 40)
-	a.press("alt+6")
+	a.press("alt+7")
 	a.contains("Warnings (2)", "refers to missing family @F9@", "missing TRLR")
 }
 
@@ -556,6 +557,10 @@ func TestViewSwitching(t *testing.T) {
 		t.Errorf("active = %v", a.m.active)
 	}
 	a.press("tab")
+	if a.m.active != viewMap {
+		t.Errorf("active = %v", a.m.active)
+	}
+	a.press("tab")
 	if a.m.active != viewStats {
 		t.Errorf("active = %v", a.m.active)
 	}
@@ -575,11 +580,11 @@ func TestViewSwitching(t *testing.T) {
 	}
 	a.openPerson("I3")
 	var seq []view
-	for range 6 {
+	for range 7 {
 		a.press("tab")
 		seq = append(seq, a.m.active)
 	}
-	want := []view{viewTree, viewEvents, viewPlaces, viewStats, viewSearch, viewPerson}
+	want := []view{viewTree, viewEvents, viewPlaces, viewMap, viewStats, viewSearch, viewPerson}
 	for i := range want {
 		if seq[i] != want[i] {
 			t.Fatalf("tab sequence = %v, want %v", seq, want)
@@ -643,7 +648,7 @@ func TestLayoutFitsWindow(t *testing.T) {
 		a := newApp(t, Options{})
 		a.openPerson("I3")
 		a.resize(size[0], size[1])
-		for _, keys := range [][]string{{"1"}, {"2"}, {"3"}, {"d"}, {"4"}, {"5"}, {"enter"}, {"6"}, {"?"}} {
+		for _, keys := range [][]string{{"1"}, {"2"}, {"3"}, {"d"}, {"4"}, {"5"}, {"enter"}, {"6"}, {"7"}, {"?"}, {"L"}} {
 			a.press(keys...)
 			v := a.view()
 			lines := strings.Split(v, "\n")
@@ -656,7 +661,7 @@ func TestLayoutFitsWindow(t *testing.T) {
 					t.Errorf("%dx%d %v: line too wide (%d): %q", size[0], size[1], keys, w, l)
 				}
 			}
-			if keys[0] == "?" {
+			if keys[0] == "?" || keys[0] == "L" {
 				a.press("x")
 			}
 			if keys[0] == "1" {
@@ -677,8 +682,11 @@ func TestEmptyDocumentViews(t *testing.T) {
 	a.press("enter", "down")
 	a.press("5")
 	a.contains("[5 Places]", "0 places · 0 events with a place")
-	a.press("enter", "left", "right", "-", "+", "down")
+	a.press("enter", "left", "right", "-", "+", "down", "M")
 	a.press("6")
+	a.contains("[6 Map]", "no place in this file has coordinates")
+	a.press("n", "enter", "+", "-", "left", "0", "w")
+	a.press("7")
 	a.contains("Individuals")
 	if a.m.View() == "" {
 		t.Error("empty view")
@@ -788,7 +796,176 @@ func TestPlacesView(t *testing.T) {
 	a.press("f")
 	a.typ("köln")
 	a.press("tab")
-	if a.m.places.editing || a.m.active != viewStats {
+	if a.m.places.editing || a.m.active != viewMap {
 		t.Errorf("tab leaves the filter: editing=%v active=%v", a.m.places.editing, a.m.active)
 	}
 }
+
+func TestMapView(t *testing.T) {
+	a := newApp(t, Options{})
+	a.resize(120, 36)
+	a.press("alt+6")
+	if a.m.active != viewMap {
+		t.Fatalf("alt+6 opens the map, got %v", a.m.active)
+	}
+	a.contains("[6 Map]", "Map (experimental)", "10 places with coordinates, 1 without",
+		"◉ Leeds, Yorkshire, England · 53.80°N 1.55°W · 9 events · 6 people",
+		"Map data: Made with Natural Earth (public domain) · press L for licenses")
+	if len(a.m.mapv.places) != 10 || a.m.mapv.places[0].Name != "Leeds" || a.m.mapv.places[1].Name != "Manchester" {
+		t.Errorf("places = %d, first %q, %q", len(a.m.mapv.places), a.m.mapv.places[0].Name, a.m.mapv.places[1].Name)
+	}
+	// The initial view fits all places: Toronto and Köln are both visible.
+	frameHasRune := func(r rune) bool { return strings.ContainsRune(a.view(), r) }
+	if !frameHasRune('◉') || !strings.Contains(a.view(), "Toronto") {
+		t.Errorf("overview should show the selected marker and Toronto:\n%s", a.view())
+	}
+	if !strings.ContainsAny(a.view(), "⠁⠂⠄⡀⠈⠐⠠⢀") {
+		t.Error("the map should contain braille line art")
+	}
+
+	zoom := a.m.mapv.view.Zoom
+	a.press("+", "+")
+	if a.m.mapv.view.Zoom != zoom+1 {
+		t.Errorf("zoom = %v, want %v", a.m.mapv.view.Zoom, zoom+1)
+	}
+	a.press("-")
+	if a.m.mapv.view.Zoom != zoom+0.5 {
+		t.Errorf("zoom out = %v", a.m.mapv.view.Zoom)
+	}
+	for range 40 {
+		a.press("+")
+	}
+	if a.m.mapv.view.Zoom != worldmapMaxZoom() {
+		t.Errorf("zoom clamps at the maximum: %v", a.m.mapv.view.Zoom)
+	}
+	for range 60 {
+		a.press("-")
+	}
+	if a.m.mapv.view.Zoom != worldmapMinZoom() {
+		t.Errorf("zoom clamps at the minimum: %v", a.m.mapv.view.Zoom)
+	}
+
+	a.press("0")
+	x0, y0 := a.m.mapv.view.X, a.m.mapv.view.Y
+	a.press("right", "down")
+	if a.m.mapv.view.X <= x0 || a.m.mapv.view.Y <= y0 {
+		t.Error("right/down pan east/south")
+	}
+	a.press("left", "up", "h", "k", "l", "j")
+	if diff := a.m.mapv.view.X - x0; diff > 1e-9 || diff < -1e-9 {
+		t.Errorf("panning back returns to the start: %v", diff)
+	}
+	for range 50 {
+		a.press("left", "up")
+	}
+	if a.m.mapv.view.X != 0 || a.m.mapv.view.Y != 0 {
+		t.Errorf("the center stays on the map: %v,%v", a.m.mapv.view.X, a.m.mapv.view.Y)
+	}
+
+	// Cycle through places; the view follows the selection.
+	a.press("n")
+	a.contains("◉ Manchester, Lancashire, England")
+	if a.m.mapv.view.X != a.m.mapv.markers[1].X {
+		t.Error("n centers on the next place")
+	}
+	a.press("N", "N")
+	if a.m.mapv.sel != 9 {
+		t.Errorf("N wraps around: sel %d", a.m.mapv.sel)
+	}
+	a.press("p", "space", "c")
+	a.press("w")
+	a.contains("center 0.00°N 0.00°E")
+
+	// Enter lists the events at the place.
+	a.press("0", "enter")
+	if a.m.active != viewPlaces || a.m.places.detail == nil || a.m.places.detail.Name != "York" {
+		t.Fatalf("enter opens the place: %v %v", a.m.active, a.m.places.detail)
+	}
+	a.contains("Events in York, Yorkshire, England")
+}
+
+func TestPlacesToMap(t *testing.T) {
+	a := newApp(t, Options{})
+	a.resize(120, 36)
+	a.press("alt+5", "down", "down") // Canada, Ontario, Toronto
+	a.press("M")
+	if a.m.active != viewMap || a.m.mapv.places[a.m.mapv.sel].Name != "Toronto" {
+		t.Fatalf("M shows Toronto on the map: %v", a.m.active)
+	}
+	if a.m.mapv.view.Zoom < 7 {
+		t.Errorf("a single place is shown zoomed in: %v", a.m.mapv.view.Zoom)
+	}
+	a.press("5", "up", "up", "down", "down", "down") // England
+	if a.m.selectedPlace().Name != "England" {
+		t.Fatalf("selected %q", a.m.selectedPlace().Name)
+	}
+	a.press("M")
+	if a.m.active != viewMap {
+		t.Fatal("M on a region without coordinates of its own")
+	}
+	// The view fits the English places, which excludes Toronto and Köln.
+	for i, p := range a.m.mapv.places {
+		_, _, visible := a.m.mapv.view.Locate(a.m.mapv.markers[i].X, a.m.mapv.markers[i].Y, a.m.width, a.m.mapRows())
+		english := strings.HasSuffix(p.Full, "England")
+		if visible != english {
+			t.Errorf("%s visible=%v", p.Full, visible)
+		}
+	}
+	a.press("5")
+	for range 11 { // from England down to France
+		a.press("down")
+	}
+	if a.m.selectedPlace().Name != "France" {
+		t.Fatalf("selected %q", a.m.selectedPlace().Name)
+	}
+	a.press("M")
+	a.contains("France has no coordinates")
+}
+
+func TestLicensesScreen(t *testing.T) {
+	a := newApp(t, Options{})
+	a.press("esc", "alt+4") // in the search box, L would be typed
+	a.press("L")
+	if !a.m.showHelp || a.m.overlay != "Licenses" {
+		t.Fatal("L opens the licenses")
+	}
+	a.contains("[Licenses]", "Map data", "Natural Earth", "public domain")
+	text := ""
+	for _, l := range a.m.help.lines {
+		text += l.plain() + "\n"
+	}
+	for _, want := range []string{"Third-party software", "Go standard library", "github.com/charmbracelet/bubbletea", "golang.org/x/text", "MIT License"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("licenses lack %q", want)
+		}
+	}
+	a.resize(90, 30) // the overlay content survives a resize
+	if a.m.overlay != "Licenses" || !strings.Contains(a.view(), "Natural Earth") {
+		t.Error("resize rebuilt the wrong overlay")
+	}
+	a.press("x")
+	if a.m.showHelp {
+		t.Error("any key closes the licenses")
+	}
+	a.press("?")
+	a.contains("[Help]")
+	if !strings.Contains(helpText(), "Map (experimental)") || !strings.Contains(helpText(), "PLAC.MAP.LATI") {
+		t.Error("help explains the map")
+	}
+}
+
+func TestFormatLatLon(t *testing.T) {
+	tests := map[[2]float64]string{
+		{53.7997, -1.5492}: "53.80°N 1.55°W",
+		{-33.87, 151.21}:   "33.87°S 151.21°E",
+		{0, 0}:             "0.00°N 0.00°E",
+	}
+	for in, want := range tests {
+		if got := formatLatLon(in[0], in[1]); got != want {
+			t.Errorf("formatLatLon(%v) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+func worldmapMaxZoom() float64 { return worldmap.MaxZoom }
+func worldmapMinZoom() float64 { return worldmap.MinZoom }

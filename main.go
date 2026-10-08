@@ -18,8 +18,10 @@ import (
 	"github.com/efi/goged/chart"
 	"github.com/efi/goged/gedcom"
 	"github.com/efi/goged/genealogy"
+	"github.com/efi/goged/licenses"
 	"github.com/efi/goged/search"
 	"github.com/efi/goged/tui"
+	"github.com/efi/goged/worldmap"
 )
 
 // version is set at build time with -ldflags "-X main.version=...".
@@ -70,6 +72,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, startTUI tuiR
 		ascii    = fs.Bool("ascii", false, "draw trees with ASCII characters only")
 		person   = fs.String("person", "", "open the browser at the person with `ID`")
 		showVer  = fs.Bool("version", false, "print the version and exit")
+		showLic  = fs.Bool("licenses", false, "print the licenses of the map data and the third-party software")
 	)
 	fs.Usage = func() {
 		fmt.Fprint(stderr, usageText)
@@ -97,6 +100,10 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, startTUI tuiR
 
 	if *showVer {
 		fmt.Fprintln(stdout, "goged", version)
+		return 0
+	}
+	if *showLic {
+		fmt.Fprintf(stdout, "%s\n\n%s", worldmap.License, licenses.ThirdParty)
 		return 0
 	}
 	if len(positional) != 1 {

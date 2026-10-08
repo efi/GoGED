@@ -1,2 +1,3 @@
 # Keep GEDCOM test data byte-for-byte identical on every platform.
 *.ged -text
+*.bin binary

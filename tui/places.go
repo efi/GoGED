@@ -287,6 +287,11 @@ func (m *Model) updatePlaces(msg tea.KeyMsg) (bool, tea.Cmd) {
 	case "f", "e":
 		p.editing = true
 		return true, p.input.Focus()
+	case "M":
+		if sel != nil {
+			m.switchTo(viewMap)
+			m.selectMapPlace(sel)
+		}
 	case "x", "esc":
 		if p.input.Value() == "" {
 			return false, nil

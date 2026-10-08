@@ -1,6 +1,11 @@
 package tui
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/efi/goged/licenses"
+	"github.com/efi/goged/worldmap"
+)
 
 // helpSections lists key bindings and the query syntax. Each entry is a
 // pair of key (or example) and description; a single string is a heading.
@@ -8,12 +13,13 @@ var helpSections = [][]string{
 	{"Global"},
 	{"/", "search for people"},
 	{"tab, shift+tab", "next / previous view"},
-	{"1 … 6", "search, person, tree, events, places, stats (alt+1 … alt+6 also work while typing)"},
+	{"1 … 7", "search, person, tree, events, places, map, stats (alt+1 … alt+7 also work while typing)"},
 	{"b, backspace, [", "back to the previous person"},
 	{"]", "forward in history"},
 	{"i", "show the current person"},
 	{"m", "mark the current person as reference (relationships are shown relative to them); again to clear"},
 	{"?", "this help"},
+	{"L", "licenses of the map data and the software goged is built with"},
 	{"q, ctrl+c", "quit"},
 	{""},
 	{"Search"},
@@ -52,6 +58,15 @@ var helpSections = [][]string{
 	{"- / +", "collapse / expand all places"},
 	{"enter", "list the events at the place and all places within it; enter again opens the person, esc returns"},
 	{"f", "filter places by name; enter to finish, esc to clear"},
+	{"M", "show the selected place on the map"},
+	{""},
+	{"Map (experimental)"},
+	{"arrows  h j k l", "pan the map"},
+	{"+ / -", "zoom in / out"},
+	{"n / N", "next / previous place with coordinates (most events first)"},
+	{"enter", "list the events at the selected place"},
+	{"0 / w / c", "fit all places / show the whole world / center on the selected place"},
+	{"coordinates", "are read from PLAC.MAP.LATI and LONG, e.g. LATI N50.781464, LONG E10.786089"},
 	{""},
 	{"Search syntax"},
 	{"smith", "people with a name word starting with smith (diacritics are ignored)"},
@@ -108,6 +123,25 @@ func (m *Model) buildHelp() {
 				ls = append(ls, textLine(span{pad(k, keyW), m.st.key}, span{d, m.st.name.UnsetBold()}))
 			}
 		}
+	}
+	m.help.set(ls)
+}
+
+// buildLicenses shows the license of the map data and of the third-party
+// software compiled into goged.
+func (m *Model) buildLicenses() {
+	var ls []line
+	ls = append(ls, m.sectionLine("Map data"))
+	for _, l := range strings.Split(worldmap.License, "\n") {
+		ls = append(ls, textLine(span{l, m.st.name.UnsetBold()}))
+	}
+	ls = append(ls, textLine(), m.sectionLine("Third-party software"))
+	for _, l := range strings.Split(strings.TrimRight(licenses.ThirdParty, "\n"), "\n") {
+		if strings.HasPrefix(l, "== ") {
+			ls = append(ls, textLine(span{strings.TrimPrefix(l, "== "), m.st.name}))
+			continue
+		}
+		ls = append(ls, textLine(span{l, m.st.dim}))
 	}
 	m.help.set(ls)
 }
