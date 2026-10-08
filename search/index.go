@@ -1,0 +1,444 @@
+package search
+
+import (
+	"sort"
+	"strings"
+
+	"github.com/efi/goged/gedcom"
+)
+
+// Result is a matching individual with its relevance score.
+type Result struct {
+	Individual *gedcom.Individual
+	Score      int
+}
+
+type foldedName struct {
+	full    string   // "john william smith"
+	given   []string // ["john", "william"]
+	surname string   // "van der berg"
+	words   []string // all words of the name
+}
+
+type eventSpan struct {
+	lo, hi int
+	ok     bool
+	place  string
+}
+
+type entry struct {
+	ind         *gedcom.Individual
+	id          string
+	names       []foldedName
+	soundex     []string
+	birth       eventSpan
+	death       eventSpan
+	hasBirth    bool
+	hasDeath    bool
+	events      []eventSpan
+	occupations string
+	notes       string
+	sources     string
+	text        string // all values of the record, for any:
+	sortKey     string
+}
+
+// Index holds pre-folded search data for every individual of a document.
+type Index struct {
+	doc     *gedcom.Document
+	entries []*entry // sorted alphabetically by surname, given name
+}
+
+// NewIndex builds the search index for doc.
+func NewIndex(doc *gedcom.Document) *Index {
+	ix := &Index{doc: doc, entries: make([]*entry, 0, len(doc.Individuals))}
+	for _, ind := range doc.Individuals {
+		ix.entries = append(ix.entries, newEntry(ind))
+	}
+	sort.SliceStable(ix.entries, func(i, j int) bool { return ix.entries[i].sortKey < ix.entries[j].sortKey })
+	return ix
+}
+
+// Len returns the number of indexed individuals.
+func (ix *Index) Len() int { return len(ix.entries) }
+
+// eventYears returns the year span an event date may denote, widened for
+// approximate and open-ended dates so that searches are forgiving.
+func eventYears(d gedcom.Date) (lo, hi int, ok bool) {
+	lo, hi, ok = d.YearRange()
+	if !ok {
+		return 0, 0, false
+	}
+	switch d.Modifier {
+	case gedcom.DateAbout, gedcom.DateCalculated, gedcom.DateEstimated:
+		lo, hi = lo-2, hi+2
+	case gedcom.DateBefore:
+		lo = hi - 10
+	case gedcom.DateAfter:
+		hi = lo + 10
+	}
+	return lo, hi, true
+}
+
+func spanOf(e *gedcom.Event) eventSpan {
+	if e == nil {
+		return eventSpan{}
+	}
+	s := eventSpan{place: Fold(e.Place.String())}
+	s.lo, s.hi, s.ok = eventYears(e.Date)
+	return s
+}
+
+func newEntry(ind *gedcom.Individual) *entry {
+	e := &entry{ind: ind, id: Fold(ind.ID)}
+	seenSoundex := map[string]bool{}
+	for _, n := range ind.Names {
+		fn := foldedName{
+			full:    Fold(collapse(n.Given + " " + n.Surname + " " + n.Suffix + " " + n.Nickname)),
+			surname: Fold(n.Surname),
+			given:   words(Fold(n.Given)),
+		}
+		fn.words = words(fn.full)
+		e.names = append(e.names, fn)
+		for _, w := range fn.words {
+			if sx := Soundex(w); sx != "" && !seenSoundex[sx] {
+				seenSoundex[sx] = true
+				e.soundex = append(e.soundex, sx)
+			}
+		}
+	}
+
+	if b := ind.FirstDatedEvent(gedcom.BirthTags...); b != nil {
+		e.birth, e.hasBirth = spanOf(b), true
+	}
+	if d := ind.FirstDatedEvent(gedcom.DeathTags...); d != nil {
+		e.death, e.hasDeath = spanOf(d), true
+	}
+
+	var occ, notes, srcs []string
+	for _, ev := range ind.Events {
+		e.events = append(e.events, spanOf(ev))
+		if ev.Tag == "OCCU" {
+			occ = append(occ, ev.Value)
+		}
+		notes = append(notes, ev.Notes...)
+	}
+	for _, f := range ind.FamiliesAsSpouse() {
+		for _, ev := range f.Events {
+			e.events = append(e.events, spanOf(ev))
+		}
+	}
+	notes = append(notes, ind.Notes()...)
+	for _, c := range ind.Citations() {
+		srcs = append(srcs, c.Text, c.Page)
+	}
+	e.occupations = Fold(strings.Join(occ, "\n"))
+	e.notes = Fold(strings.Join(notes, "\n"))
+	e.sources = Fold(strings.Join(srcs, "\n"))
+
+	var text []string
+	ind.Node.Walk(func(n *gedcom.Node) bool {
+		if n.Value != "" && !n.IsPointer() {
+			text = append(text, n.Value)
+		}
+		return true
+	})
+	text = append(text, notes...)
+	text = append(text, srcs...)
+	e.text = Fold(strings.Join(text, "\n"))
+
+	n := ind.Name()
+	e.sortKey = Fold(n.Surname) + "\x00" + Fold(n.Given) + "\x00" + Fold(n.Suffix) + "\x00" + sortableYear(ind) + "\x00" + ind.ID
+	return e
+}
+
+func collapse(s string) string { return strings.Join(strings.Fields(s), " ") }
+
+// sortableYear renders the birth year so that it sorts lexically; people
+// without a known birth sort last.
+func sortableYear(ind *gedcom.Individual) string {
+	k, ok := ind.BirthDate().Key()
+	if !ok {
+		return "~"
+	}
+	s := make([]byte, 12)
+	k += 1 << 30 // keep positive
+	for i := len(s) - 1; i >= 0; i-- {
+		s[i] = byte('0' + k%10)
+		k /= 10
+	}
+	return string(s)
+}
+
+// Search returns the individuals matching every term of q, best matches
+// first; equally good matches are ordered by name.
+func (ix *Index) Search(q Query) []Result {
+	results := make([]Result, 0, 64)
+	for _, e := range ix.entries {
+		score, ok := ix.match(e, q)
+		if ok {
+			results = append(results, Result{Individual: e.ind, Score: score})
+		}
+	}
+	sort.SliceStable(results, func(i, j int) bool { return results[i].Score > results[j].Score })
+	return results
+}
+
+// SearchString parses and runs a query.
+func (ix *Index) SearchString(s string) ([]Result, error) {
+	q, err := Parse(s)
+	if err != nil {
+		return nil, err
+	}
+	return ix.Search(q), nil
+}
+
+func (ix *Index) match(e *entry, q Query) (int, bool) {
+	total := 0
+	for i := range q.Terms {
+		t := &q.Terms[i]
+		score := ix.matchTerm(e, t)
+		if t.Negate {
+			if score > 0 {
+				return 0, false
+			}
+			continue
+		}
+		if score == 0 {
+			return 0, false
+		}
+		total += score
+	}
+	return total, true
+}
+
+// Scores for name matches.
+const (
+	scoreSubstring = 1
+	scorePrefix    = 2
+	scoreWord      = 3
+	scoreID        = 10
+)
+
+// matchWords scores how well needle matches a list of words.
+func matchWords(needle string, list []string) int {
+	best := 0
+	for _, w := range list {
+		switch {
+		case w == needle:
+			return scoreWord
+		case strings.HasPrefix(w, needle):
+			best = max(best, scorePrefix)
+		case len(needle) >= 3 && strings.Contains(w, needle):
+			best = max(best, scoreSubstring)
+		}
+	}
+	return best
+}
+
+func (e *entry) matchName(needle string) int {
+	best := 0
+	for _, n := range e.names {
+		if strings.ContainsAny(needle, " -") {
+			if n.full == needle {
+				return scoreWord
+			}
+			if strings.Contains(n.full, needle) {
+				best = max(best, scorePrefix)
+			}
+			continue
+		}
+		best = max(best, matchWords(needle, n.words))
+	}
+	return best
+}
+
+func (e *entry) matchGiven(needle string) int {
+	best := 0
+	for _, n := range e.names {
+		best = max(best, matchWords(needle, n.given))
+	}
+	return best
+}
+
+func (e *entry) matchSurname(needle string) int {
+	best := 0
+	for _, n := range e.names {
+		switch {
+		case n.surname == needle:
+			return scoreWord
+		case strings.ContainsAny(needle, " -"):
+			if strings.Contains(n.surname, needle) {
+				best = max(best, scorePrefix)
+			}
+		default:
+			best = max(best, matchWords(needle, words(n.surname)))
+		}
+	}
+	return best
+}
+
+func boolScore(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
+}
+
+// matchVital matches born:/died: terms against a birth or death event.
+func matchVital(t *Term, has bool, s eventSpan) bool {
+	if !has {
+		return false
+	}
+	if t.isYears {
+		return s.ok && t.years.intersects(s.lo, s.hi)
+	}
+	return strings.Contains(s.place, t.folded)
+}
+
+func (ix *Index) matchTerm(e *entry, t *Term) int {
+	switch t.Field {
+	case FieldText:
+		if t.folded == e.id {
+			return scoreID
+		}
+		if t.isYears {
+			return boolScore(matchVital(t, e.hasBirth, e.birth) || matchVital(t, e.hasDeath, e.death))
+		}
+		return e.matchName(t.folded)
+	case FieldName:
+		return e.matchName(t.folded)
+	case FieldGiven:
+		return e.matchGiven(t.folded)
+	case FieldSurname:
+		return e.matchSurname(t.folded)
+	case FieldBorn:
+		return boolScore(matchVital(t, e.hasBirth, e.birth))
+	case FieldDied:
+		return boolScore(matchVital(t, e.hasDeath, e.death))
+	case FieldPlace:
+		for _, s := range e.events {
+			if strings.Contains(s.place, t.folded) {
+				return 1
+			}
+		}
+		return 0
+	case FieldYear:
+		for _, s := range e.events {
+			if s.ok && t.years.intersects(s.lo, s.hi) {
+				return 1
+			}
+		}
+		return 0
+	case FieldAlive:
+		return boolScore(e.aliveDuring(t.years))
+	case FieldSex:
+		return boolScore(string(e.ind.Sex) == t.sex)
+	case FieldID:
+		return boolScore(e.id == t.folded)
+	case FieldOccupation:
+		return boolScore(strings.Contains(e.occupations, t.folded))
+	case FieldNote:
+		return boolScore(strings.Contains(e.notes, t.folded))
+	case FieldSource:
+		return boolScore(strings.Contains(e.sources, t.folded))
+	case FieldAny:
+		return boolScore(strings.Contains(e.text, t.folded))
+	case FieldTag:
+		return boolScore(matchTagPath(e.ind.Node, t.tagPath, t.tagVal))
+	case FieldHas:
+		return boolScore(e.has(t.folded))
+	case FieldSounds:
+		for _, sx := range e.soundex {
+			if sx == t.soundex {
+				return 1
+			}
+		}
+		return 0
+	}
+	return 0
+}
+
+// aliveDuring reports whether the person may have been alive at some point
+// in the year range, assuming a lifespan of at most 100 years when only one
+// end of the life is known.
+func (e *entry) aliveDuring(r yearRange) bool {
+	const maxAge = 100
+	switch {
+	case e.birth.ok && e.death.ok:
+		return r.intersects(e.birth.lo, e.death.hi)
+	case e.birth.ok:
+		return r.intersects(e.birth.lo, e.birth.hi+maxAge)
+	case e.death.ok:
+		return r.intersects(e.death.lo-maxAge, e.death.hi)
+	}
+	return false
+}
+
+func (e *entry) has(what string) bool {
+	ind := e.ind
+	switch what {
+	case "birth":
+		return ind.FirstEvent(gedcom.BirthTags...) != nil
+	case "death":
+		return ind.IsDeceased()
+	case "parents":
+		return len(ind.Parents()) > 0
+	case "father":
+		return ind.Father() != nil
+	case "mother":
+		return ind.Mother() != nil
+	case "spouse":
+		return len(ind.Spouses()) > 0
+	case "children":
+		return len(ind.Children()) > 0
+	case "siblings":
+		return len(ind.Siblings()) > 0 || len(ind.HalfSiblings()) > 0
+	case "notes":
+		return e.notes != ""
+	case "sources":
+		return len(ind.Citations()) > 0
+	case "media":
+		found := false
+		ind.Node.Walk(func(n *gedcom.Node) bool {
+			if n.Tag == "OBJE" {
+				found = true
+			}
+			return !found
+		})
+		return found
+	case "occupation":
+		return len(ind.EventsWithTag("OCCU")) > 0
+	}
+	return false
+}
+
+// matchTagPath reports whether a chain of tags exists below n (at any depth
+// for the first tag) and, if val is non-empty, whether the last node's
+// value contains it.
+func matchTagPath(n *gedcom.Node, path []string, val string) bool {
+	found := false
+	n.Walk(func(c *gedcom.Node) bool {
+		if found {
+			return false
+		}
+		if c != n && c.Tag == path[0] && followPath(c, path[1:], val) {
+			found = true
+			return false
+		}
+		return true
+	})
+	return found
+}
+
+func followPath(n *gedcom.Node, rest []string, val string) bool {
+	if len(rest) == 0 {
+		return val == "" || strings.Contains(Fold(n.Value), val)
+	}
+	for _, c := range n.Children {
+		if c.Tag == rest[0] && followPath(c, rest[1:], val) {
+			return true
+		}
+	}
+	return false
+}
