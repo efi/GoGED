@@ -272,6 +272,7 @@ func TestMusterFile(t *testing.T) {
 		// part of the surname. Titles (NPFX) are not given names.
 		{[]string{"-q", "stradonitz"}, []string{"I13    Stradonitz, Maria von            1910–\nI30    von Stradonitz, Erich Karl       1855–\n"}},
 		{[]string{"-q", "freiherr"}, []string{"I30    von Stradonitz, Erich Karl"}},
+		{[]string{"-q", "elton"}, []string{"I32    Dwight, Reginald Kenneth  (as Elton John)\n"}},
 		{[]string{"-q", "born:1794"}, []string{"I29    Frantz, Eva"}},
 		// Brzozowo is the Polish name in the place record of Brosowo.
 		{[]string{"-q", "place:brzozowo"}, []string{"I1     Mustermann, Max Manfred"}},

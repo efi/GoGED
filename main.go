@@ -210,7 +210,12 @@ func printQuery(doc *gedcom.Document, q string, stdout, stderr io.Writer) int {
 		if b := ind.FirstDatedEvent(gedcom.BirthTags...); b != nil {
 			place = b.Place.String()
 		}
-		fmt.Fprintln(stdout, strings.TrimRight(fmt.Sprintf("%-6s %-32s %-12s %s", ind.ID, ind.SortName(), ind.Lifespan(), place), " "))
+		line := strings.TrimRight(fmt.Sprintf("%-6s %-32s %-12s %s", ind.ID, ind.SortName(), ind.Lifespan(), place), " ")
+		if r.NameIndex > 0 && r.NameIndex < len(ind.Names) {
+			// The query matched an alternate name; show it.
+			line += "  (as " + ind.Names[r.NameIndex].String() + ")"
+		}
+		fmt.Fprintln(stdout, line)
 	}
 	return 0
 }
