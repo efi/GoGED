@@ -64,7 +64,7 @@ func Compute(doc *gedcom.Document) Stats {
 		}
 		n := ind.Name()
 		if n.Surname != "" {
-			surnames[n.Surname]++
+			surnames[n.FullSurname()]++
 		}
 		if f := strings.Fields(n.Given); len(f) > 0 {
 			given[f[0]]++

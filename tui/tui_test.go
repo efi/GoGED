@@ -309,6 +309,14 @@ func TestPersonViewAdoption(t *testing.T) {
 	a.contains("Son           Markus Schüchter (1963–)  (adopted)")
 }
 
+func TestPersonViewTitles(t *testing.T) {
+	a := newMusterApp(t)
+	a.openPerson("I30")
+	a.contains("Freiherr Erich Karl von Stradonitz\n", "Also known as Erich Karl Freiherr von Stradonitz\n")
+	a.openPerson("I32")
+	a.contains("Also known as Sir Elton John (pseudonym)")
+}
+
 func TestPersonViewDetails(t *testing.T) {
 	a := newApp(t, Options{})
 	a.openPerson("I21")

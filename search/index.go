@@ -96,8 +96,8 @@ func newEntry(ind *gedcom.Individual) *entry {
 	e := &entry{ind: ind, id: Fold(ind.ID)}
 	for _, n := range ind.Names {
 		fn := foldedName{
-			full:    Fold(collapse(n.Given + " " + n.Surname + " " + n.Suffix + " " + n.Nickname)),
-			surname: Fold(n.Surname),
+			full:    Fold(collapse(n.Prefix + " " + n.Given + " " + n.FullSurname() + " " + n.Suffix + " " + n.Nickname)),
+			surname: Fold(n.FullSurname()),
 			given:   words(Fold(n.Given)),
 		}
 		fn.words = words(fn.full)
@@ -147,7 +147,7 @@ func newEntry(ind *gedcom.Individual) *entry {
 	e.text = Fold(strings.Join(text, "\n")) + "\n" + e.notes + "\n" + e.sources
 
 	n := ind.Name()
-	e.sortKey = Fold(n.Surname) + "\x00" + Fold(n.Given) + "\x00" + Fold(n.Suffix) + "\x00" + sortableYear(ind) + "\x00" + ind.ID
+	e.sortKey = Fold(n.SortSurname()) + "\x00" + Fold(n.Given) + "\x00" + Fold(n.Suffix) + "\x00" + sortableYear(ind) + "\x00" + ind.ID
 	return e
 }
 

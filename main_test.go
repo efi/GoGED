@@ -263,9 +263,16 @@ func TestMusterFile(t *testing.T) {
 		{[]string{"-stats"}, []string{"(UTF-8, GEDCOM 5.5.1)", "Individuals:   37 (21 male, 16 female", "Families:      18", "Sources:       11", "Years:         1794–2005", "Warnings:      0"}},
 		{[]string{"-q", "surname:muller"}, []string{"I22    Müller, Karl Junior              1933–1980", "I37    Müller, Roswitha"}},
 		{[]string{"-q", "given:desire"}, []string{"I7     Mustermann, Desiré Jeanette"}},
+		// Maria's "von" is recorded as SPFX and is not sorted; Erich Karl's is
+		// part of the surname. Titles (NPFX) are not given names.
+		{[]string{"-q", "stradonitz"}, []string{"I13    Stradonitz, Maria von            1910–\nI30    von Stradonitz, Erich Karl       1855–\n"}},
+		{[]string{"-q", "freiherr"}, []string{"I30    von Stradonitz, Erich Karl"}},
 		{[]string{"-q", "born:1794"}, []string{"I29    Frantz, Eva"}},
 		{[]string{"-relate", "I3,I7"}, []string{"Desiré Jeanette Mustermann is Leon Mustermann's half-sister."}},
 		{[]string{"-relate", "I6,I19"}, []string{"Gerold Freiwein is Markus Schüchter's adoptive father."}},
+	}
+	if r := runCLI(t, "", "-q", "given:freiherr", muster); r.stdout != "" {
+		t.Errorf("a title matched as given name: %q", r.stdout)
 	}
 	for _, c := range cases {
 		r := runCLI(t, "", append(c.args, muster)...)

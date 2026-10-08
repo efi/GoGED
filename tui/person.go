@@ -64,16 +64,8 @@ func (m *Model) rebuildPerson() {
 		facts = append(facts, life)
 	}
 	ls = append(ls, dimLine(m, strings.Join(facts, " · ")))
-	n := ind.Name()
-	if n.Prefix != "" || n.Nickname != "" {
-		var extra []string
-		if n.Prefix != "" {
-			extra = append(extra, "title "+n.Prefix)
-		}
-		if n.Nickname != "" {
-			extra = append(extra, "called "+n.Nickname)
-		}
-		ls = append(ls, dimLine(m, strings.Join(extra, " · ")))
+	if n := ind.Name(); n.Nickname != "" {
+		ls = append(ls, dimLine(m, "called "+n.Nickname))
 	}
 	for _, alt := range ind.Names[min(1, len(ind.Names)):] {
 		text := alt.String()

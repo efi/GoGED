@@ -60,6 +60,11 @@ func TestNameSubstructures(t *testing.T) {
 	if n.Full != "Maria /Garcia/ III" {
 		t.Errorf("Full = %q", n.Full)
 	}
+	// SPFX missing from the surname is added for display and moved to the
+	// end for sorting.
+	if n.String() != "Dr. Maria de Garcia III" || n.SurnameFirst() != "Garcia, Maria de III" || n.FullSurname() != "de Garcia" || n.SortSurname() != "Garcia" {
+		t.Errorf("String %q, SurnameFirst %q, FullSurname %q, SortSurname %q", n.String(), n.SurnameFirst(), n.FullSurname(), n.SortSurname())
+	}
 	// The NAME value wins over substructures when both are present.
 	n2 := doc.Individual("I2").Name()
 	if n2.Given != "Ann" || n2.Surname != "Lee" {
@@ -67,5 +72,51 @@ func TestNameSubstructures(t *testing.T) {
 	}
 	if (&Individual{}).Name().String() != "" {
 		t.Error("no names")
+	}
+}
+
+func TestNamePrefixes(t *testing.T) {
+	// From the GEDCOM-L sample file: the title in NPFX is repeated in the
+	// name value; "von" is a sorting prefix only when it is recorded in SPFX.
+	doc := mustParse(t, `0 HEAD
+0 @I1@ INDI
+1 NAME Freiherr Erich Karl /von Stradonitz/
+2 GIVN Erich, Karl
+2 NPFX Freiherr
+2 SURN von Stradonitz
+0 @I2@ INDI
+1 NAME Maria /von Stradonitz/
+2 GIVN Maria
+2 SPFX von
+2 SURN Stradonitz
+0 @I3@ INDI
+1 NAME Sir Elton /John/
+2 NPFX sir
+0 @I4@ INDI
+1 NAME Drew /Barrymore/
+2 NPFX Dr
+0 @I5@ INDI
+1 NAME /van der Berg/
+2 SPFX van der
+0 @I6@ INDI
+1 NAME Jan /Vandenberg/
+2 SPFX van
+0 TRLR
+`)
+	tests := []struct {
+		id, given, natural, surnameFirst string
+	}{
+		{"I1", "Erich Karl", "Freiherr Erich Karl von Stradonitz", "von Stradonitz, Erich Karl"},
+		{"I2", "Maria", "Maria von Stradonitz", "Stradonitz, Maria von"},
+		{"I3", "Elton", "sir Elton John", "John, Elton"},
+		{"I4", "Drew", "Dr Drew Barrymore", "Barrymore, Drew"}, // "Dr" is not the start of "Drew"
+		{"I5", "", "van der Berg", "Berg, van der"},
+		{"I6", "Jan", "Jan Vandenberg", "Vandenberg, Jan"},
+	}
+	for _, tt := range tests {
+		n := doc.Individual(tt.id).Name()
+		if n.Given != tt.given || n.String() != tt.natural || n.SurnameFirst() != tt.surnameFirst {
+			t.Errorf("%s: given %q, String %q, SurnameFirst %q", tt.id, n.Given, n.String(), n.SurnameFirst())
+		}
 	}
 }
