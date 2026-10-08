@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"unicode/utf8"
 )
 
 // The fuzz targets run their seed corpus as regular tests; run them with
@@ -15,6 +16,10 @@ func FuzzParse(f *testing.F) {
 		f.Fatal(err)
 	}
 	f.Add(sample)
+	if muster, err := os.ReadFile(filepath.Join("..", "testdata", "Muster_GEDCOM_UTF-8.ged")); err == nil {
+		f.Add(muster)
+	}
+	f.Add([]byte("0 HEAD\n0 @I1@ INDI\n1 RESN privacy\n1 ADOP\n2 FAMC @F1@\n3 ADOP WIFE\n1 FAMC @F1@\n2 PEDI adopted\n1 ALIA @I1@\n1 ASSO @I1@\n0 @F1@ FAM\n1 WIFE @I1@\n1 CHIL @I1@\n2 _MREL Step\n0 @L1@ _LOC\n1 _LOC @L1@\n"))
 	f.Add([]byte("0 HEAD\n1 CHAR ANSEL\n0 @I1@ INDI\n1 NAME J\xe2os\xe8e\n0 TRLR\n"))
 	f.Add([]byte("0 HEAD\n0 @I1@ INDI\n1 FAMC @F1@\n1 FAMS @F1@\n0 @F1@ FAM\n1 HUSB @I1@\n1 CHIL @I1@\n"))
 	f.Add([]byte("\xff\xfe0\x00 \x00H\x00E\x00A\x00D\x00"))
@@ -24,18 +29,32 @@ func FuzzParse(f *testing.F) {
 		if err != nil {
 			return
 		}
-		for _, ind := range doc.Individuals {
-			_ = ind.Lifespan()
-			_ = ind.DisplayName()
-			_ = ind.Siblings()
-			_ = ind.HalfSiblings()
-			_ = ind.Citations()
-			_ = ind.Notes()
-		}
-		for _, e := range doc.Events() {
-			_ = e.Label()
-			_ = e.Date.String()
-			_, _ = e.Date.Key()
+		for _, d := range []*Document{doc, doc.Redacted()} {
+			for _, ind := range d.Individuals {
+				_ = ind.Lifespan()
+				_ = ind.DisplayName()
+				_ = ind.SortName()
+				_ = ind.Siblings()
+				_ = ind.HalfSiblings()
+				_ = ind.ParentLinks()
+				_ = ind.Father()
+				_ = ind.Citations()
+				_ = ind.Notes()
+				_ = ind.Aliases()
+				_ = ind.Changed()
+				for _, a := range ind.Associations() {
+					_ = a.Label()
+				}
+			}
+			for _, e := range d.Events() {
+				_ = e.Label()
+				_ = e.Detail()
+				_ = e.Facts()
+				_ = e.Place.Names()
+				_ = e.Date.String()
+				_, _ = e.Date.Fit(12)
+				_, _ = e.Date.Key()
+			}
 		}
 	})
 }
@@ -53,6 +72,11 @@ func FuzzParseDate(f *testing.F) {
 		_ = d.String()
 		_ = d.ShortYear()
 		_ = d.Year()
+		for _, w := range []int{0, 1, 9, 19} {
+			if short, _ := d.Fit(w); utf8.RuneCountInString(short) > w {
+				t.Fatalf("%q: Fit(%d) = %q", s, w, short)
+			}
+		}
 		if k, ok := d.Key(); ok {
 			lo, hi, _ := d.Span()
 			if lo > hi {
