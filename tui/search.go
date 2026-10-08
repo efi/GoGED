@@ -104,7 +104,7 @@ func (m *Model) updateSearch(msg tea.KeyMsg) (bool, tea.Cmd) {
 			}
 			m.switchTo(prev)
 		}
-	case "tab", "shift+tab", "f1", "alt+1", "alt+2", "alt+3", "alt+4", "alt+5":
+	case "f1":
 		return false, nil
 	case "?":
 		// Show help, unless the user is in the middle of typing a query.
@@ -113,6 +113,9 @@ func (m *Model) updateSearch(msg tea.KeyMsg) (bool, tea.Cmd) {
 		}
 		return true, m.typeInSearch(msg)
 	default:
+		if isViewKey(msg.String()) {
+			return false, nil
+		}
 		return true, m.typeInSearch(msg)
 	}
 	return true, nil

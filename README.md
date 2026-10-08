@@ -7,7 +7,7 @@ all from the keyboard.
 
 ```
  goged  family.ged · 24 people · 9 families
- 1 Search  [2 Person]  3 Tree   4 Events   5 Stats
+ 1 Search  [2 Person]  3 Tree   4 Events   5 Places   6 Stats
   John Smith
   male · I3 · 1817–1880
 
@@ -48,6 +48,10 @@ all from the keyboard.
   re-rootable, and adjustable from 2 to 12 generations.
 - **Events browser** listing all (or only the vital) events of the file in
   chronological order, with a filter for type, year range, place and names.
+- **Places browser**: every place in the file arranged by jurisdiction
+  (country → county → town) with the number of events and people, collapsible
+  and filterable. Select a place to list everything that happened there and in
+  the places within it, then open the people involved.
 - **Relationship calculator**: mark a reference person and every person view
   tells how they are related ("Harold Smith's third cousin", "half-great-aunt",
   "brother-in-law", "husband's aunt"), including the closest common ancestors.
@@ -113,6 +117,7 @@ goged -timeline I14 family.ged             # life events incl. relatives
 goged -relate I20,I23 family.ged           # how is I23 related to I20?
 goged -events 'type:marr place:leeds' family.ged
 goged -events '' -all family.ged           # every event, chronologically
+goged -places family.ged                   # place hierarchy with counts
 goged -stats family.ged                    # statistics and warnings
 ```
 
@@ -151,7 +156,7 @@ Try it with the sample file in [`testdata/family.ged`](testdata/family.ged).
 | Where   | Keys | Action |
 |---------|------|--------|
 | Global  | `/` | search |
-|         | `tab` / `shift+tab`, `1`…`5` (`alt+1`…`alt+5` while typing) | switch view: search, person, tree, events, stats |
+|         | `tab` / `shift+tab`, `1`…`6` (`alt+1`…`alt+6` while typing) | switch view: search, person, tree, events, places, stats |
 |         | `b`, `backspace`, `[` / `]` | back / forward in history |
 |         | `m` | mark the current person as reference for relationships (again to clear) |
 |         | `?` | help · `q`, `ctrl+c` quit |
@@ -164,6 +169,9 @@ Try it with the sample file in [`testdata/family.ged`](testdata/family.ged).
 |         | `enter` / `space` | open person / make them the root |
 |         | `p` `d` `v`, `+` `-` | pedigree, descendants, toggle; more or fewer generations |
 | Events  | `f`, `a`, `x`, `enter` | edit filter, all/important events, clear filter, open person |
+| Places  | `←` `→` (`h` `l`), `-` / `+` | collapse/expand a place (or go to the enclosing/first contained place); collapse/expand all |
+|         | `enter`, `esc` | list the events at a place and within it (enter again opens the person); back to the places |
+|         | `f`, `x` | filter places by name, clear the filter |
 | Stats   | `enter` | list everybody with the selected surname |
 
 ## Search syntax
@@ -216,7 +224,7 @@ build date; a second run on the same day replaces that day's release.
 | Package | Contents |
 |---------|----------|
 | [`gedcom`](gedcom) | line parser, character set detection and ANSEL decoding, node tree, typed model (individuals, families, events, names, places, sources, notes), dates and calendars |
-| [`genealogy`](genealogy) | relationship calculator, life timelines, statistics |
+| [`genealogy`](genealogy) | relationship calculator, life timelines, place hierarchy, statistics |
 | [`search`](search) | query language, diacritic folding, Soundex, person index, event filter |
 | [`chart`](chart) | pedigree and descendant charts with node positions for navigation |
 | [`tui`](tui) | the Bubble Tea interface |

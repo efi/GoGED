@@ -64,6 +64,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, startTUI tuiR
 		relate   = fs.String("relate", "", "print how two people are related, e.g. -relate I1,I20 (`ID1,ID2`)")
 		events   = fs.String("events", "", "print events matching `FILTER`, e.g. \"type:marr 1850..1870\"")
 		allEv    = fs.Bool("all", false, "with -events: include all events, not only births, marriages and deaths")
+		places   = fs.Bool("places", false, "print all places as a hierarchy with the number of events and people")
 		stats    = fs.Bool("stats", false, "print statistics and warnings about the file")
 		gens     = fs.Int("gen", 4, "number of `generations` shown in trees")
 		ascii    = fs.Bool("ascii", false, "draw trees with ASCII characters only")
@@ -167,6 +168,9 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, startTUI tuiR
 		return 0
 	case set["events"]:
 		return printEvents(doc, *events, *allEv, stdout, stderr)
+	case *places:
+		printPlaces(doc, stdout)
+		return 0
 	case *stats:
 		printStats(doc, filepath.Base(path), stdout)
 		return 0
@@ -274,6 +278,23 @@ func printEvents(doc *gedcom.Document, filter string, all bool, stdout, stderr i
 		fmt.Fprintln(stdout, strings.TrimRight(fmt.Sprintf("%-20s %-18s %-36s %s", date, label, strings.Join(names, " & "), ev.Place.String()), " "))
 	}
 	return 0
+}
+
+func printPlaces(doc *gedcom.Document, w io.Writer) {
+	word := func(n int, one, many string) string {
+		if n == 1 {
+			return one
+		}
+		return many
+	}
+	genealogy.Places(doc).Walk(func(n *genealogy.PlaceNode) bool {
+		if n.Depth > 0 {
+			name := strings.Repeat("  ", n.Depth-1) + n.Name
+			line := fmt.Sprintf("%-40s %5d %-6s %5d %s", name, n.Count(), word(n.Count(), "event", "events"), n.People(), word(n.People(), "person", "people"))
+			fmt.Fprintln(w, line)
+		}
+		return true
+	})
 }
 
 func printStats(doc *gedcom.Document, name string, w io.Writer) {

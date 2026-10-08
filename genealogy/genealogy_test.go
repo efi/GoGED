@@ -1,6 +1,7 @@
 package genealogy
 
 import (
+	"fmt"
 	"math"
 	"path/filepath"
 	"strings"
@@ -436,5 +437,103 @@ func TestStatsEmptyAndLoops(t *testing.T) {
 	s := Compute(doc)
 	if s.Generations < 1 || s.EarliestYear != 0 || s.Lifespans != 0 || s.AverageLifespan != 0 {
 		t.Errorf("stats = %+v", s)
+	}
+}
+
+// placeOutline renders a place tree as "name (events/people)" lines.
+func placeOutline(root *PlaceNode) string {
+	var b strings.Builder
+	root.Walk(func(n *PlaceNode) bool {
+		if n.Depth > 0 {
+			fmt.Fprintf(&b, "%s%s (%d/%d)\n", strings.Repeat("  ", n.Depth-1), n.Name, n.Count(), n.People())
+		}
+		return true
+	})
+	return b.String()
+}
+
+func TestPlaces(t *testing.T) {
+	root := Places(loadSample(t))
+	want := `Canada (1/1)
+  Ontario (1/1)
+    Toronto (1/1)
+England (19/11)
+  Lancashire (8/6)
+    Liverpool (1/1)
+    Manchester (6/4)
+    Salford (1/1)
+  Yorkshire (11/7)
+    Hull (1/1)
+    Leeds (9/6)
+      St Peter's (1/1)
+      St Peter's Churchyard (1/1)
+    York (1/1)
+France (1/1)
+Preußen (1/1)
+  Köln (1/1)
+`
+	if got := placeOutline(root); got != want {
+		t.Errorf("place tree:\n%s\nwant:\n%s", got, want)
+	}
+	if root.Count() != 22 || root.Depth != 0 || root.Name != "" {
+		t.Errorf("root = %+v", root)
+	}
+
+	leeds := root.Children[1].Children[1].Children[1]
+	if leeds.Name != "Leeds" || leeds.Full != "Leeds, Yorkshire, England" || leeds.Depth != 3 {
+		t.Fatalf("leeds = %+v", leeds)
+	}
+	if got := strings.Join(leeds.Path(), " > "); got != "England > Yorkshire > Leeds" {
+		t.Errorf("Path = %q", got)
+	}
+	if len(leeds.Events) != 7 {
+		t.Errorf("events exactly at Leeds = %d", len(leeds.Events))
+	}
+	all := leeds.AllEvents()
+	if len(all) != 9 {
+		t.Fatalf("events in Leeds and below = %d", len(all))
+	}
+	for i := 1; i < len(all); i++ {
+		if all[i-1].Date.Compare(all[i].Date) > 0 {
+			t.Fatal("AllEvents is not chronological")
+		}
+	}
+	if all[0].Tag != "BIRT" || all[0].Individual.ID != "I1" {
+		t.Errorf("first event at Leeds = %s %v", all[0].Tag, all[0].Individual)
+	}
+	if leeds.Parent.Name != "Yorkshire" || leeds.Children[0].Full != "St Peter's, Leeds, Yorkshire, England" {
+		t.Error("parent/children links")
+	}
+	if len(root.Path()) != 0 {
+		t.Error("root has an empty path")
+	}
+}
+
+func TestPlacesMergeCaseAndSkipBlanks(t *testing.T) {
+	doc := mustParse(t, `0 HEAD
+0 @I1@ INDI
+1 BIRT
+2 PLAC Leeds, Yorkshire, England
+1 DEAT
+2 PLAC leeds,  YORKSHIRE ,england
+1 BURI
+2 PLAC , Yorkshire, England
+1 RESI
+2 PLAC
+1 CENS
+2 DATE 1851
+0 TRLR
+`)
+	root := Places(doc)
+	want := "England (3/1)\n  Yorkshire (3/1)\n    Leeds (2/1)\n"
+	if got := placeOutline(root); got != want {
+		t.Errorf("place tree:\n%s\nwant:\n%s", got, want)
+	}
+	yorkshire := root.Children[0].Children[0]
+	if len(yorkshire.Events) != 1 || yorkshire.Events[0].Tag != "BURI" {
+		t.Errorf("a place with an empty smallest part belongs to its county: %+v", yorkshire.Events)
+	}
+	if empty := Places(mustParse(t, "0 HEAD\n0 TRLR\n")); empty.Count() != 0 || len(empty.Children) != 0 {
+		t.Error("empty document")
 	}
 }

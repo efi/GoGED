@@ -18,11 +18,12 @@ const (
 	viewPerson
 	viewTree
 	viewEvents
+	viewPlaces
 	viewStats
 	viewCount
 )
 
-var viewNames = [viewCount]string{"Search", "Person", "Tree", "Events", "Stats"}
+var viewNames = [viewCount]string{"Search", "Person", "Tree", "Events", "Places", "Stats"}
 
 // Options configure the interface.
 type Options struct {
@@ -62,6 +63,7 @@ type Model struct {
 	person personState
 	tree   treeState
 	ev     eventsState
+	places placesState
 	stats  statsState
 }
 
@@ -81,6 +83,7 @@ func New(doc *gedcom.Document, opts Options) Model {
 	}
 	m.search = newSearchState()
 	m.ev = newEventsState()
+	m.places = newPlacesState()
 	m.tree.gens = opts.Generations
 	m.runSearch()
 	m.active = viewSearch
@@ -129,8 +132,11 @@ func (m *Model) bodyHeight() int { return max(1, m.height-3) }
 func (m *Model) layout() {
 	m.search.input.Width = max(10, m.width-12)
 	m.ev.input.Width = max(10, m.width-12)
+	m.places.input.Width = max(10, m.width-12)
 	m.moveSearch(0)
 	m.moveEvents(0)
+	m.movePlaces(0)
+	m.movePlaceEvents(0)
 	m.rebuildPerson()
 	m.ensureTreeVisible()
 	m.buildHelp()
@@ -208,6 +214,9 @@ func (m *Model) switchTo(v view) {
 	if v == viewEvents {
 		m.ensureEvents()
 	}
+	if v == viewPlaces {
+		m.ensurePlaces()
+	}
 	m.active = v
 }
 
@@ -270,6 +279,10 @@ func (m *Model) handleKey(msg tea.KeyMsg) tea.Cmd {
 		if handled, cmd := m.updateEventsFilter(msg); handled {
 			return cmd
 		}
+	case m.active == viewPlaces && m.places.editing:
+		if handled, cmd := m.updatePlacesFilter(msg); handled {
+			return cmd
+		}
 	}
 
 	// View specific keys.
@@ -282,6 +295,8 @@ func (m *Model) handleKey(msg tea.KeyMsg) tea.Cmd {
 		handled, cmd = m.updateTree(msg)
 	case viewEvents:
 		handled, cmd = m.updateEvents(msg)
+	case viewPlaces:
+		handled, cmd = m.updatePlaces(msg)
 	case viewStats:
 		handled, cmd = m.updateStats(msg)
 	}
@@ -303,9 +318,9 @@ func (m *Model) handleKey(msg tea.KeyMsg) tea.Cmd {
 		m.cycle(1)
 	case "shift+tab":
 		m.cycle(-1)
-	case "1", "2", "3", "4", "5":
+	case "1", "2", "3", "4", "5", "6":
 		m.switchTo(view(key[0] - '1'))
-	case "alt+1", "alt+2", "alt+3", "alt+4", "alt+5":
+	case "alt+1", "alt+2", "alt+3", "alt+4", "alt+5", "alt+6":
 		m.switchTo(view(key[4] - '1'))
 	case "backspace", "b", "[", "alt+left":
 		m.back()
@@ -321,7 +336,19 @@ func (m *Model) handleKey(msg tea.KeyMsg) tea.Cmd {
 
 // typing reports whether keys currently go to a text input.
 func (m *Model) typing() bool {
-	return !m.showHelp && (m.active == viewSearch || (m.active == viewEvents && m.ev.editing))
+	return !m.showHelp && (m.active == viewSearch ||
+		(m.active == viewEvents && m.ev.editing) ||
+		(m.active == viewPlaces && m.places.editing))
+}
+
+// isViewKey reports whether a key switches views; text inputs let these
+// keys through.
+func isViewKey(key string) bool {
+	switch key {
+	case "tab", "shift+tab", "alt+1", "alt+2", "alt+3", "alt+4", "alt+5", "alt+6":
+		return true
+	}
+	return false
 }
 
 // cycle moves to the next or previous view, skipping views that need a
@@ -354,6 +381,8 @@ func (m Model) View() string {
 		body = m.viewTree(h)
 	case m.active == viewEvents:
 		body = m.viewEvents(h)
+	case m.active == viewPlaces:
+		body = m.viewPlaces(h)
 	case m.active == viewStats:
 		body = m.viewStats(h)
 	}
@@ -409,7 +438,7 @@ func (m Model) viewFooter() string {
 	case m.showHelp:
 		hints = [][2]string{{"↑↓", "scroll"}, {"any key", "close"}}
 	case m.active == viewSearch:
-		hints = [][2]string{{"type", "search"}, {"↑↓", "select"}, {"enter", "open"}, {"esc", "clear/back"}, {"tab/alt+1-5", "views"}, {"?", "help"}}
+		hints = [][2]string{{"type", "search"}, {"↑↓", "select"}, {"enter", "open"}, {"esc", "clear/back"}, {"tab/alt+1-6", "views"}, {"?", "help"}}
 	case m.active == viewPerson:
 		hints = [][2]string{{"↑↓", "relatives"}, {"enter", "go"}, {"←→", "history"}, {"t/d", "trees"}, {"c", "context"}, {"m", "mark"}, {"/", "search"}, {"?", "help"}}
 	case m.active == viewTree:
@@ -418,6 +447,12 @@ func (m Model) viewFooter() string {
 		hints = [][2]string{{"type", "filter"}, {"enter", "done"}, {"esc", "clear"}}
 	case m.active == viewEvents:
 		hints = [][2]string{{"↑↓", "select"}, {"enter", "open"}, {"f", "filter"}, {"a", "all/important"}, {"?", "help"}}
+	case m.active == viewPlaces && m.places.editing:
+		hints = [][2]string{{"type", "filter"}, {"enter", "done"}, {"esc", "clear"}}
+	case m.active == viewPlaces && m.places.detail != nil:
+		hints = [][2]string{{"↑↓", "select"}, {"enter", "open person"}, {"esc", "back to places"}, {"?", "help"}}
+	case m.active == viewPlaces:
+		hints = [][2]string{{"↑↓", "select"}, {"←→", "collapse/expand"}, {"enter", "events here"}, {"f", "filter"}, {"-/+", "collapse/expand all"}, {"?", "help"}}
 	case m.active == viewStats:
 		hints = [][2]string{{"↑↓", "surnames"}, {"enter", "search surname"}, {"?", "help"}}
 	}

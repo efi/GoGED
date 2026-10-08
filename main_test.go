@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -142,6 +143,31 @@ func TestStatsFlag(t *testing.T) {
 	r = runCLI(t, "0 HEAD\n0 @I1@ INDI\n1 FAMS @F1@\n", "-stats", "-")
 	if !strings.Contains(r.stdout, "Warnings:      2") || !strings.Contains(r.stdout, "refers to missing family @F1@") {
 		t.Errorf("stats with warnings:\n%s", r.stdout)
+	}
+}
+
+func TestPlacesFlag(t *testing.T) {
+	r := runCLI(t, "", "-places", sample)
+	if r.code != 0 {
+		t.Fatal(r.stderr)
+	}
+	lines := strings.Split(strings.TrimSuffix(r.stdout, "\n"), "\n")
+	if len(lines) != 17 {
+		t.Fatalf("%d lines:\n%s", len(lines), r.stdout)
+	}
+	row := func(name string, events int, ev string, people int, pe string) string {
+		return fmt.Sprintf("%-40s %5d %-6s %5d %s", name, events, ev, people, pe)
+	}
+	for i, want := range map[int]string{
+		0:  row("Canada", 1, "event", 1, "person"),
+		3:  row("England", 19, "events", 11, "people"),
+		10: row("    Leeds", 9, "events", 6, "people"),
+		11: row("      St Peter's", 1, "event", 1, "person"),
+		16: row("  Köln", 1, "event", 1, "person"),
+	} {
+		if lines[i] != want {
+			t.Errorf("line %d = %q, want %q", i, lines[i], want)
+		}
 	}
 }
 

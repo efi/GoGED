@@ -82,11 +82,12 @@ func (m *Model) updateEventsFilter(msg tea.KeyMsg) (bool, tea.Cmd) {
 		m.moveEvents(-m.eventsListHeight())
 	case "pgdown":
 		m.moveEvents(m.eventsListHeight())
-	case "tab", "shift+tab", "alt+1", "alt+2", "alt+3", "alt+4", "alt+5":
-		e.editing = false
-		e.input.Blur()
-		return false, nil
 	default:
+		if isViewKey(msg.String()) {
+			e.editing = false
+			e.input.Blur()
+			return false, nil
+		}
 		var cmd tea.Cmd
 		e.input, cmd = e.input.Update(msg)
 		e.cursor, e.offset = 0, 0
@@ -165,11 +166,19 @@ func (m Model) viewEvents(h int) string {
 		out = append(out, fit(m.st.dim.Render(fmt.Sprintf("  %d %s", len(e.list), scope)), m.width))
 	}
 
+	out = append(out, m.eventRows(e.list, e.cursor, e.offset, h-len(out))...)
+	return strings.Join(out, "\n")
+}
+
+// eventRows renders up to n rows of an event list starting at offset, with
+// the row at cursor highlighted: date, event, people involved and place.
+func (m Model) eventRows(list []*gedcom.Event, cursor, offset, n int) []string {
+	var out []string
 	dateW, labelW := 20, 18
 	nameW := clamp((m.width-dateW-labelW-4)*3/5, 12, 40)
 	placeW := max(0, m.width-2-dateW-labelW-nameW-3)
-	for i := e.offset; i < len(e.list) && len(out) < h; i++ {
-		ev := e.list[i]
+	for i := offset; i < len(list) && len(out) < n; i++ {
+		ev := list[i]
 		date := ev.Date.String()
 		if !ev.Date.IsValid() {
 			date = "—"
@@ -183,7 +192,7 @@ func (m Model) viewEvents(h int) string {
 			label += ": " + d
 		}
 		who := strings.Join(names, " & ")
-		if i == e.cursor {
+		if i == cursor {
 			row := pad(date, dateW) + " " + pad(label, labelW) + " " + pad(who, nameW) + " " + ev.Place.String()
 			out = append(out, fit(m.st.selected.Render("▸ "+strings.TrimRight(row, " ")), m.width))
 			continue
@@ -192,5 +201,5 @@ func (m Model) viewEvents(h int) string {
 			m.st.name.Render(pad(who, nameW)) + " " + m.st.dim.Render(pad(ev.Place.String(), placeW))
 		out = append(out, fit(row, m.width))
 	}
-	return strings.Join(out, "\n")
+	return out
 }

@@ -478,15 +478,15 @@ func TestEventsView(t *testing.T) {
 	}
 	a.press("f")
 	a.press("down", "pgdown", "pgup", "up", "tab")
-	if a.m.ev.editing || a.m.active != viewStats {
+	if a.m.ev.editing || a.m.active != viewPlaces {
 		t.Errorf("tab leaves the filter and switches view: editing=%v active=%v", a.m.ev.editing, a.m.active)
 	}
 }
 
 func TestStatsView(t *testing.T) {
 	a := newApp(t, Options{})
-	a.press("alt+5")
-	a.contains("[5 Stats]", "Encoding", "UTF-8", "Individuals", "24  (10 male, 13 female, 1 other/unknown)", "Generations", "Longest lived",
+	a.press("alt+6")
+	a.contains("[6 Stats]", "Encoding", "UTF-8", "Individuals", "24  (10 male, 13 female, 1 other/unknown)", "Generations", "Longest lived",
 		"Mary Smith, ~80 years", "Most common surnames", "Smith")
 	a.press("end")
 	a.contains("Warnings (0)", "none — the file looks consistent", "Most common given names")
@@ -494,13 +494,13 @@ func TestStatsView(t *testing.T) {
 	if a.currentID() != "I4" || a.m.active != viewPerson {
 		t.Errorf("longest lived link should open Mary, got %s", a.currentID())
 	}
-	a.press("5", "home", "down", "enter")
+	a.press("6", "home", "down", "enter")
 	if a.m.active != viewSearch || a.m.search.input.Value() != `surname:"Smith"` {
 		t.Fatalf("active=%v query=%q", a.m.active, a.m.search.input.Value())
 	}
 	a.contains("11 matches") // includes Jane Doe, née Smith by marriage
 	a.press("tab")           // -> person (a current person exists)
-	a.press("tab", "tab", "tab")
+	a.press("tab", "tab", "tab", "tab")
 	a.press("pgdown", "pgup", "up", "down")
 	if a.m.active != viewStats {
 		t.Errorf("active = %v", a.m.active)
@@ -515,7 +515,7 @@ func TestStatsWarnings(t *testing.T) {
 	m := New(doc, Options{})
 	a := &app{t: t, m: m}
 	a.resize(120, 40)
-	a.press("alt+5")
+	a.press("alt+6")
 	a.contains("Warnings (2)", "refers to missing family @F9@", "missing TRLR")
 }
 
@@ -552,6 +552,10 @@ func TestViewSwitching(t *testing.T) {
 		t.Errorf("tab without a person skips person and tree: %v", a.m.active)
 	}
 	a.press("tab")
+	if a.m.active != viewPlaces {
+		t.Errorf("active = %v", a.m.active)
+	}
+	a.press("tab")
 	if a.m.active != viewStats {
 		t.Errorf("active = %v", a.m.active)
 	}
@@ -571,11 +575,11 @@ func TestViewSwitching(t *testing.T) {
 	}
 	a.openPerson("I3")
 	var seq []view
-	for range 5 {
+	for range 6 {
 		a.press("tab")
 		seq = append(seq, a.m.active)
 	}
-	want := []view{viewTree, viewEvents, viewStats, viewSearch, viewPerson}
+	want := []view{viewTree, viewEvents, viewPlaces, viewStats, viewSearch, viewPerson}
 	for i := range want {
 		if seq[i] != want[i] {
 			t.Fatalf("tab sequence = %v, want %v", seq, want)
@@ -639,7 +643,7 @@ func TestLayoutFitsWindow(t *testing.T) {
 		a := newApp(t, Options{})
 		a.openPerson("I3")
 		a.resize(size[0], size[1])
-		for _, keys := range [][]string{{"1"}, {"2"}, {"3"}, {"d"}, {"4"}, {"5"}, {"?"}} {
+		for _, keys := range [][]string{{"1"}, {"2"}, {"3"}, {"d"}, {"4"}, {"5"}, {"enter"}, {"6"}, {"?"}} {
 			a.press(keys...)
 			v := a.view()
 			lines := strings.Split(v, "\n")
@@ -672,6 +676,9 @@ func TestEmptyDocumentViews(t *testing.T) {
 	a.contains("0 important events")
 	a.press("enter", "down")
 	a.press("5")
+	a.contains("[5 Places]", "0 places · 0 events with a place")
+	a.press("enter", "left", "right", "-", "+", "down")
+	a.press("6")
 	a.contains("Individuals")
 	if a.m.View() == "" {
 		t.Error("empty view")
@@ -679,5 +686,109 @@ func TestEmptyDocumentViews(t *testing.T) {
 	// Person and tree views without a current person.
 	if !strings.Contains(a.m.viewPerson(5), "No person selected") || !strings.Contains(a.m.viewTree(5), "No person selected") {
 		t.Error("placeholder views")
+	}
+}
+
+func TestPlacesView(t *testing.T) {
+	a := newApp(t, Options{})
+	a.press("alt+5")
+	if a.m.active != viewPlaces {
+		t.Fatalf("alt+5 opens places, got %v", a.m.active)
+	}
+	a.contains("[5 Places]", "11 places · 22 events with a place",
+		"▸ ▾ Canada", "▾ England", "Yorkshire", "St Peter's Churchyard", "Preußen", "Köln")
+	if len(a.m.places.rows) != 17 {
+		t.Errorf("visible places = %d, want 17", len(a.m.places.rows))
+	}
+	// Collapse and expand.
+	a.press("down", "down", "down") // Canada, Ontario, Toronto, England
+	if sel := a.m.selectedPlace(); sel.Name != "England" {
+		t.Fatalf("selected %q", sel.Name)
+	}
+	a.contains("19 events    11 people", "1 event      1 person")
+	if plural(1, "person", "people") != "1 person" || plural(0, "event", "events") != "0 events" {
+		t.Error("plural")
+	}
+	a.press("left")
+	a.contains("▸ ▹ England")
+	a.notContains("Lancashire")
+	a.press("left") // already collapsed and top level: stays
+	if a.m.selectedPlace().Name != "England" {
+		t.Error("left on a collapsed top-level place stays")
+	}
+	a.press("right")
+	a.contains("Lancashire")
+	a.press("right", "right") // into Lancashire, then Liverpool
+	if sel := a.m.selectedPlace(); sel.Name != "Liverpool" {
+		t.Fatalf("selected %q", sel.Name)
+	}
+	a.press("right") // a leaf: nothing happens
+	a.press("left")  // to Lancashire
+	if a.m.selectedPlace().Name != "Lancashire" {
+		t.Errorf("left goes to the enclosing place, got %q", a.m.selectedPlace().Name)
+	}
+	a.press("-")
+	if len(a.m.places.rows) != 4 || a.m.selectedPlace().Name != "England" {
+		t.Errorf("collapse all: %d rows, selected %q", len(a.m.places.rows), a.m.selectedPlace().Name)
+	}
+	a.press("+")
+	if len(a.m.places.rows) != 17 || a.m.selectedPlace().Name != "England" {
+		t.Errorf("expand all: %d rows, selected %q", len(a.m.places.rows), a.m.selectedPlace().Name)
+	}
+
+	// Events at a place and the places within it.
+	a.press("down", "down", "down", "down", "down", "down", "down") // Lancashire (3 towns), Yorkshire, Hull, Leeds
+	if a.m.selectedPlace().Name != "Leeds" {
+		t.Fatalf("selected %q", a.m.selectedPlace().Name)
+	}
+	a.press("enter")
+	a.contains("Events in Leeds, Yorkshire, England · 9 events · 6 people", "12 Mar 1790", "St Peter's Churchyard")
+	if len(a.m.places.events) != 9 {
+		t.Errorf("events = %d", len(a.m.places.events))
+	}
+	a.press("end", "home", "pgdown", "pgup", "down", "up")
+	a.press("enter")
+	if a.m.active != viewPerson || a.currentID() != "I1" {
+		t.Fatalf("enter opens William: %v %s", a.m.active, a.currentID())
+	}
+	a.press("5")
+	a.contains("Events in Leeds") // the place list is remembered
+	a.press("esc")
+	a.contains("▸     ▾ Leeds")
+
+	// Filtering shows matches with their enclosing and contained places.
+	a.press("f")
+	a.typ("peter")
+	a.contains("Filter: peter", "England", "Yorkshire", "Leeds", "St Peter's", "St Peter's Churchyard")
+	a.notContains("Lancashire", "Canada")
+	if len(a.m.places.rows) != 5 {
+		t.Errorf("filtered rows = %d", len(a.m.places.rows))
+	}
+	a.press("enter")
+	a.press("left") // collapsing is disabled while filtering
+	if len(a.m.places.rows) != 5 {
+		t.Error("collapse while filtering")
+	}
+	a.press("x")
+	if len(a.m.places.rows) != 17 {
+		t.Errorf("clearing the filter restores the tree: %d rows", len(a.m.places.rows))
+	}
+	a.press("f")
+	a.typ("yorks")
+	if len(a.m.places.rows) != 7 { // England, Yorkshire and everything in it
+		t.Errorf("rows = %d", len(a.m.places.rows))
+	}
+	a.press("down", "up")
+	a.typ("x")
+	a.contains("no place matches the filter")
+	a.press("esc")
+	if a.m.places.editing || a.m.places.input.Value() != "" {
+		t.Error("esc clears the filter")
+	}
+	a.press("f")
+	a.typ("köln")
+	a.press("tab")
+	if a.m.places.editing || a.m.active != viewStats {
+		t.Errorf("tab leaves the filter: editing=%v active=%v", a.m.places.editing, a.m.active)
 	}
 }
