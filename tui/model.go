@@ -129,6 +129,8 @@ func (m *Model) bodyHeight() int { return max(1, m.height-3) }
 func (m *Model) layout() {
 	m.search.input.Width = max(10, m.width-12)
 	m.ev.input.Width = max(10, m.width-12)
+	m.moveSearch(0)
+	m.moveEvents(0)
 	m.rebuildPerson()
 	m.ensureTreeVisible()
 	m.buildHelp()

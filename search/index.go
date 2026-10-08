@@ -21,6 +21,7 @@ type foldedName struct {
 	given   []string // ["john", "william"]
 	surname string   // "van der berg"
 	words   []string // all words of the name
+	soundex []string // Soundex codes of the words
 }
 
 type eventSpan struct {
@@ -33,7 +34,6 @@ type entry struct {
 	ind         *gedcom.Individual
 	id          string
 	names       []foldedName
-	soundex     []string
 	birth       eventSpan
 	death       eventSpan
 	hasBirth    bool
@@ -94,7 +94,6 @@ func spanOf(e *gedcom.Event) eventSpan {
 
 func newEntry(ind *gedcom.Individual) *entry {
 	e := &entry{ind: ind, id: Fold(ind.ID)}
-	seenSoundex := map[string]bool{}
 	for _, n := range ind.Names {
 		fn := foldedName{
 			full:    Fold(collapse(n.Given + " " + n.Surname + " " + n.Suffix + " " + n.Nickname)),
@@ -102,13 +101,12 @@ func newEntry(ind *gedcom.Individual) *entry {
 			given:   words(Fold(n.Given)),
 		}
 		fn.words = words(fn.full)
-		e.names = append(e.names, fn)
 		for _, w := range fn.words {
-			if sx := Soundex(w); sx != "" && !seenSoundex[sx] {
-				seenSoundex[sx] = true
-				e.soundex = append(e.soundex, sx)
+			if sx := Soundex(w); sx != "" {
+				fn.soundex = append(fn.soundex, sx)
 			}
 		}
+		e.names = append(e.names, fn)
 	}
 
 	if b := ind.FirstDatedEvent(gedcom.BirthTags...); b != nil {
@@ -324,6 +322,15 @@ func (ix *Index) matchTerm(e *entry, t *Term) (int, int) {
 		return e.matchGiven(t.folded)
 	case FieldSurname:
 		return e.matchSurname(t.folded)
+	case FieldSounds:
+		return e.bestName(func(n *foldedName) int {
+			for _, sx := range n.soundex {
+				if sx == t.soundex {
+					return 1
+				}
+			}
+			return 0
+		})
 	}
 	return ix.matchField(e, t), -1
 }
@@ -367,13 +374,6 @@ func (ix *Index) matchField(e *entry, t *Term) int {
 		return boolScore(matchTagPath(e.ind.Node, t.tagPath, t.tagVal))
 	case FieldHas:
 		return boolScore(e.has(t.folded))
-	case FieldSounds:
-		for _, sx := range e.soundex {
-			if sx == t.soundex {
-				return 1
-			}
-		}
-		return 0
 	}
 	return 0
 }

@@ -56,9 +56,11 @@ func TestFoldDecomposedAndCombining(t *testing.T) {
 			t.Errorf("Fold(%q) = %q, want %q", in, got, want)
 		}
 	}
-	// The cache returns the same answer on repeated calls.
-	if Fold("Ørsted") != Fold("Ørsted") || Fold("Ørsted") != "orsted" {
-		t.Error("cached folding")
+	// The second call is served from the rune cache.
+	for range 2 {
+		if got := Fold("Ørsted Ł"); got != "orsted l" {
+			t.Errorf("Fold = %q", got)
+		}
 	}
 }
 
@@ -374,6 +376,10 @@ func TestSearchMatchedName(t *testing.T) {
 	rs, _ = ix.SearchString("born:1845 frederick")
 	if len(rs) != 1 || rs[0].NameIndex != 1 {
 		t.Errorf("aka match = %+v", rs)
+	}
+	rs, _ = ix.SearchString("~smyth given:jane")
+	if len(rs) != 1 || rs[0].NameIndex != 1 {
+		t.Errorf("soundex match on alternate name = %+v", rs)
 	}
 	rs, _ = ix.SearchString("sex:m")
 	if rs[0].NameIndex != 0 {

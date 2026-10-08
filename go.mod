@@ -1,6 +1,6 @@
 module github.com/efi/goged
 
-go 1.24.7
+go 1.24.2
 
 require (
 	github.com/charmbracelet/bubbles v1.0.0

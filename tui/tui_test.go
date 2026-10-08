@@ -202,6 +202,19 @@ func TestSearchErrorsAndNavigation(t *testing.T) {
 	}
 }
 
+func TestResizeKeepsSelectionVisible(t *testing.T) {
+	a := newApp(t, Options{})
+	a.press("pgdown", "pgdown")
+	if a.m.search.cursor != 23 {
+		t.Fatalf("cursor = %d", a.m.search.cursor)
+	}
+	a.resize(100, 12)
+	if s := a.m.search; s.cursor < s.offset || s.cursor >= s.offset+a.m.searchListHeight() {
+		t.Errorf("selection off screen after resize: cursor %d offset %d", s.cursor, s.offset)
+	}
+	a.contains("▸ White, Sarah")
+}
+
 func TestEscReturnsToPreviousView(t *testing.T) {
 	a := newApp(t, Options{})
 	a.openPerson("I3")
