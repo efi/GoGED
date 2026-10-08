@@ -12,6 +12,7 @@ type Name struct {
 	Prefix        string // NPFX, e.g. "Dr." or "Freiherr"
 	Suffix        string // text after the surname or NSFX, e.g. "Jr."
 	Nickname      string // NICK
+	CallName      string // _RUFNAME: the given name the person is called by (GEDCOM-L)
 	SurnamePrefix string // SPFX, e.g. "van"
 	Type          string // TYPE, e.g. "birth", "aka", "married"
 }
@@ -52,6 +53,7 @@ func nameFromNode(node *Node) Name {
 	}
 	n.Prefix = collapseSpaces(node.Val("NPFX"))
 	n.Nickname = collapseSpaces(node.Val("NICK"))
+	n.CallName = collapseSpaces(node.Val("_RUFNAME"))
 	n.SurnamePrefix = collapseSpaces(node.Val("SPFX"))
 	// The name value usually repeats the prefix ("Dr. John /Smith/"); it
 	// is a title, not a given name.

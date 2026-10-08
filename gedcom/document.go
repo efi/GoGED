@@ -20,6 +20,7 @@ type Citation struct {
 	Source *Source // nil for inline sources and unresolved pointers
 	Text   string  // title of the source or the inline source text
 	Page   string  // PAGE: where in the source the information was found
+	Quote  string  // DATA.TEXT: the text as found in the source
 	Path   string  // tag path of the citation, e.g. "INDI.BIRT.SOUR"
 }
 
@@ -31,9 +32,11 @@ type Document struct {
 	Families    []*Family     // in file order
 	Sources     []*Source
 	Locations   []*Location // _LOC place records
-	Warnings    []Warning
-	Encoding    Encoding
-	Version     string // HEAD.GEDC.VERS
+	// Associations are the ASSO and _ASSO links of all records.
+	Associations []*Association
+	Warnings     []Warning
+	Encoding     Encoding
+	Version      string // HEAD.GEDC.VERS
 	// Redactions counts the records and structures withheld by Redacted.
 	Redactions int
 
@@ -44,6 +47,7 @@ type Document struct {
 	fams      map[string]*Family
 	sources   map[string]*Source
 	locations map[string]*Location
+	aliasedBy map[*Individual][]*Individual
 }
 
 // normalizeID accepts "I1" or "@I1@" and returns "I1".
@@ -126,7 +130,7 @@ func (d *Document) citationsIn(n *Node) []Citation {
 		if c == n || c.Tag != "SOUR" {
 			return true
 		}
-		cit := Citation{Page: strings.TrimSpace(c.Val("PAGE")), Path: c.TagPath()}
+		cit := Citation{Page: strings.TrimSpace(c.Val("PAGE")), Path: c.TagPath(), Quote: strings.TrimSpace(c.Path("DATA", "TEXT").valueOrEmpty())}
 		if c.IsPointer() {
 			cit.Source = d.sources[StripXref(c.Value)]
 			if cit.Source != nil {
@@ -224,6 +228,7 @@ func newDocument(records []*Node, warnings []Warning) *Document {
 		d.buildFamily(f)
 	}
 	d.linkFamilies()
+	d.linkAssociations()
 	return d
 }
 
@@ -241,6 +246,11 @@ func (d *Document) buildIndividual(ind *Individual) {
 			ind.Names = append(ind.Names, nameFromNode(c))
 		case c.Tag == "SEX":
 			ind.Sex = parseSex(c.Value)
+		case c.Tag == "ALIA" && !c.IsPointer() && strings.TrimSpace(c.Value) != "":
+			// Some programs record an alias name instead of a link.
+			n := ParseName(c.Value)
+			n.Type = "alias"
+			ind.Names = append(ind.Names, n)
 		case isEventNode(c):
 			e := newEvent(d, c)
 			e.Individual = ind

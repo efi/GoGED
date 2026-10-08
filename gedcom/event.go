@@ -258,6 +258,38 @@ func (e *Event) Detail() string {
 	return v
 }
 
+// Fact is a labeled detail of an event.
+type Fact struct {
+	Label, Value string
+}
+
+// factTags are the event details returned by Facts, in order.
+var factTags = []struct{ tag, label string }{
+	{"RELI", "religion"},
+	{"AGNC", "agency"},
+	{"_GODP", "godparents"},
+	{"_WITN", "witnesses"},
+}
+
+// Facts returns the details recorded for the event besides the date, place,
+// value and cause: the address, the religion (RELI), the responsible agency
+// (AGNC), and godparents (_GODP) and witnesses (_WITN) recorded as text by
+// some programs.
+func (e *Event) Facts() []Fact {
+	var out []Fact
+	if e.Address != "" {
+		out = append(out, Fact{"address", e.Address})
+	}
+	for _, ft := range factTags {
+		for _, c := range e.Node.All(ft.tag) {
+			if v := strings.TrimSpace(strings.ReplaceAll(c.Value, "\n", " ")); v != "" {
+				out = append(out, Fact{ft.label, v})
+			}
+		}
+	}
+	return out
+}
+
 // Principals returns the people the event belongs to.
 func (e *Event) Principals() []*Individual {
 	if e.Individual != nil {
@@ -301,7 +333,8 @@ func newEvent(doc *Document, n *Node) *Event {
 		}
 		var keep []string
 		for _, p := range parts {
-			if p = strings.TrimSpace(p); p != "" {
+			// CITY and the like often repeat the address lines.
+			if p = strings.TrimSpace(p); p != "" && !strings.Contains(strings.Join(keep, "\n"), p) {
 				keep = append(keep, p)
 			}
 		}

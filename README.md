@@ -38,7 +38,9 @@ all from the keyboard.
   married names included, phonetic Soundex matching) and over any other
   property: dates, places, occupations, notes, sources, arbitrary GEDCOM tags.
 - **Person view** with parents, siblings and half-siblings, every family with
-  spouse and children, notes and sources. All relatives are links: move the
+  spouse and children, associated people (godparents, witnesses, friends:
+  `ASSO`, `_ASSO`) and records that may describe the same person (`ALIA`),
+  notes and sources with quoted text. All relatives are links: move the
   cursor and press enter to jump; go back and forward like in a web browser.
 - **Life timeline** of important events in chronological order, with the
   person's age at each event, optionally interleaved with the births,

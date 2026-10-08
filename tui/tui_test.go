@@ -325,6 +325,36 @@ func TestRestrictedNotice(t *testing.T) {
 	a.contains("1 May 1933          Birth  Wenningen", "confidential")
 }
 
+func TestPersonViewAssociations(t *testing.T) {
+	a := newMusterApp(t)
+	a.resize(130, 150)
+	a.openPerson("I35")
+	a.contains("Associations", "Same person?  Herbert Mustermann (1905–)  (alias record)",
+		"Godparent of  Karl Müller Junior (1933–1980)", "Record last changed 29 Sep 2012 20:46:42")
+	a.openPerson("I1")
+	a.contains("male · I1 · 1943– · ref. 1\n", "call name Max\n",
+		"Witness       Otto Mustermann (–aft.1943)  (at marriage 12 Sep 1968)",
+		"witnesses: Otto Mustermann, Franz-Xaver Gabler", "address: Kölner Dom",
+		"GenWiki: GEDCOM Kennzeichen FAM — Vereinbarung F4", "“F4 Standesamtliche und kirchliche Trauung")
+	a.openPerson("I4")
+	a.contains("Witness of    Max Manfred Mustermann & Erika Gabler  (at marriage 12 Sep 1968)")
+	a.openPerson("I32")
+	a.contains("Associate of  Hans Mustermann (1942–)  (langjähriger Weggefährte)",
+		"              Dave Sample spielte von 1971 bis 1999 in der Elton John Band")
+	a.openPerson("I37")
+	a.contains("religion: evangelisch", "godparents: Max Herbert Mustermann, Musiker")
+	// Associations are links.
+	a.openPerson("I22")
+	a.contains("Godparent     Max Herbert Mustermann\n")
+	for i := 0; i < 10 && !strings.Contains(a.view(), "▸ Godparent"); i++ {
+		a.press("down")
+	}
+	a.press("enter")
+	if a.currentID() != "I35" {
+		t.Errorf("enter on the godparent opened %s", a.currentID())
+	}
+}
+
 func TestPersonViewTitles(t *testing.T) {
 	a := newMusterApp(t)
 	a.openPerson("I30")

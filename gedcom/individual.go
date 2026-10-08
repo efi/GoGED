@@ -439,6 +439,38 @@ func (ind *Individual) ChildLink(f *Family) (link FamilyLink, ok bool) {
 // Notes returns the text of all notes attached directly to the record.
 func (ind *Individual) Notes() []string { return ind.doc.notesOf(ind.Node) }
 
+// RefNumbers returns the user reference numbers (REFN) of the record.
+func (ind *Individual) RefNumbers() []string { return refNumbers(ind.Node) }
+
+// Changed returns when the record was last changed (CHAN), e.g.
+// "29 Sep 2012 20:46:42", or "".
+func (ind *Individual) Changed() string { return changed(ind.Node) }
+
+func refNumbers(n *Node) []string {
+	var out []string
+	for _, c := range n.All("REFN") {
+		if v := strings.TrimSpace(c.Value); v != "" {
+			out = append(out, v)
+		}
+	}
+	return out
+}
+
+func changed(n *Node) string {
+	date := n.Path("CHAN", "DATE")
+	if date == nil {
+		return ""
+	}
+	s := strings.TrimSpace(date.Value)
+	if d := ParseDate(s); d.IsValid() {
+		s = d.String()
+	}
+	if t := date.Val("TIME"); t != "" {
+		s += " " + t
+	}
+	return s
+}
+
 // Citations returns all source citations anywhere in the record.
 func (ind *Individual) Citations() []Citation { return ind.doc.citationsIn(ind.Node) }
 
@@ -509,6 +541,12 @@ func (f *Family) Marriage() *Event { return f.FirstEvent("MARR") }
 
 // Notes returns the text of the notes attached to the family record.
 func (f *Family) Notes() []string { return f.doc.notesOf(f.Node) }
+
+// Citations returns all source citations anywhere in the family record.
+func (f *Family) Citations() []Citation { return f.doc.citationsIn(f.Node) }
+
+// Changed returns when the record was last changed (CHAN), or "".
+func (f *Family) Changed() string { return changed(f.Node) }
 
 // Title describes the family by its partners, e.g. "John Smith & Mary Jones".
 func (f *Family) Title() string {

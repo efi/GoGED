@@ -239,6 +239,13 @@ func printTimeline(ind *gedcom.Individual, w io.Writer) {
 		if r := e.Event.Restriction; r != "" {
 			rest = append(rest, r)
 		}
+		if e.Own() {
+			for _, f := range e.Event.Facts() {
+				if f.Label != "address" {
+					rest = append(rest, f.Label+": "+f.Value)
+				}
+			}
+		}
 		lineText := fmt.Sprintf("  %-22s %s", date, title)
 		if len(rest) > 0 {
 			lineText += "  (" + strings.Join(rest, "; ") + ")"

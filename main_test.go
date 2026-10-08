@@ -278,6 +278,7 @@ func TestMusterFile(t *testing.T) {
 		{[]string{"-places"}, []string{"  Berlin                                     6 events     6 people\n    Tempelhof                                5 events     5 people\n"}},
 		{[]string{"-relate", "I3,I7"}, []string{"Desiré Jeanette Mustermann is Leon Mustermann's half-sister."}},
 		{[]string{"-relate", "I6,I19"}, []string{"Gerold Freiwein is Markus Schüchter's adoptive father."}},
+		{[]string{"-timeline", "I37"}, []string{"Christening  (Wenningen, Hochsauerlandkreis, Nordrhein-Westfalen, Deutschland; religion: evangelisch; godparents: Max Herbert Mustermann, Musiker)"}},
 		{[]string{"-relate", "I22,I1"}, []string{"Max Manfred Mustermann is Karl Müller Junior's co-father-in-law.\nRelated through Friedhelm Müller.\n"}},
 	}
 	if r := runCLI(t, "", "-q", "given:freiherr", muster); r.stdout != "" {

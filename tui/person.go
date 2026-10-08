@@ -63,9 +63,19 @@ func (m *Model) rebuildPerson() {
 	if life := ind.Lifespan(); life != "" {
 		facts = append(facts, life)
 	}
+	for _, ref := range ind.RefNumbers() {
+		facts = append(facts, "ref. "+ref)
+	}
 	ls = append(ls, dimLine(m, strings.Join(facts, " · ")))
+	var called []string
+	if n := ind.Name(); n.CallName != "" {
+		called = append(called, "call name "+n.CallName)
+	}
 	if n := ind.Name(); n.Nickname != "" {
-		ls = append(ls, dimLine(m, "called "+n.Nickname))
+		called = append(called, "called "+n.Nickname)
+	}
+	if len(called) > 0 {
+		ls = append(ls, dimLine(m, strings.Join(called, " · ")))
 	}
 	for _, alt := range ind.Names[min(1, len(ind.Names)):] {
 		text := alt.String()
@@ -151,6 +161,17 @@ func (m *Model) rebuildPerson() {
 			l, _ := c.ChildLink(f)
 			ls = append(ls, m.relativeLine(gendered(c.Sex, "Son", "Daughter", "Child"), c, pedigreeSuffix(l.Of(ind))))
 		}
+		for _, note := range f.Notes() {
+			for _, w := range wrap(note, textW-2) {
+				ls = append(ls, dimLine(m, "  "+w))
+			}
+		}
+	}
+
+	// Associations and records that may describe the same person.
+	if assoc := m.associationLines(ind, textW); len(assoc) > 0 {
+		ls = append(ls, blank, m.sectionLine("Associations"))
+		ls = append(ls, assoc...)
 	}
 
 	// Events.
@@ -162,8 +183,13 @@ func (m *Model) rebuildPerson() {
 	for _, e := range timeline {
 		ls = append(ls, m.timelineLine(e))
 		if e.Own() {
-			for _, note := range e.Event.Notes {
-				for _, w := range wrap(note, textW-22) {
+			var extra []string
+			for _, f := range e.Event.Facts() {
+				extra = append(extra, f.Label+": "+f.Value)
+			}
+			extra = append(extra, e.Event.Notes...)
+			for _, text := range extra {
+				for _, w := range wrap(text, textW-22) {
 					ls = append(ls, dimLine(m, strings.Repeat(" ", 20)+w))
 				}
 			}
@@ -182,7 +208,11 @@ func (m *Model) rebuildPerson() {
 			}
 		}
 	}
-	if cits := ind.Citations(); len(cits) > 0 {
+	cits := ind.Citations()
+	for _, f := range ind.FamiliesAsSpouse() {
+		cits = append(cits, f.Citations()...)
+	}
+	if len(cits) > 0 {
 		ls = append(ls, blank, m.sectionLine("Sources"))
 		seen := map[string]bool{}
 		for _, c := range cits {
@@ -190,14 +220,100 @@ func (m *Model) rebuildPerson() {
 			if c.Page != "" {
 				text += " — " + c.Page
 			}
-			if seen[text] {
+			if seen[text+"\x00"+c.Quote] {
 				continue
 			}
-			seen[text] = true
+			seen[text+"\x00"+c.Quote] = true
 			ls = append(ls, textLine(span{text, m.st.dim.UnsetForeground()}))
+			if c.Quote != "" {
+				for _, w := range wrap("“"+c.Quote+"”", textW-2) {
+					ls = append(ls, dimLine(m, "  "+w))
+				}
+			}
 		}
 	}
+	if ch := ind.Changed(); ch != "" {
+		ls = append(ls, blank, dimLine(m, "Record last changed "+ch))
+	}
 	m.person.doc.set(ls)
+}
+
+// associationLines lists the records that may describe the same person
+// (ALIA), the people associated with ind (ASSO) and the people ind is
+// associated with.
+func (m *Model) associationLines(ind *gedcom.Individual, textW int) []line {
+	var ls []line
+	for _, a := range ind.Aliases() {
+		ls = append(ls, m.relativeLine("Same person?", a, "  (alias record)"))
+	}
+	// labelFor fits the relation into the label column: "Godparent",
+	// "Witness" for "Witness of marriage" at a marriage, or "Associate" with
+	// the relation in the context.
+	labelFor := func(a *gedcom.Association, suffix string) (string, string) {
+		full := a.Label()
+		if len(full+suffix) < labelWidth {
+			return full + suffix, ""
+		}
+		first, rest, _ := strings.Cut(full, " ")
+		if strings.HasPrefix(rest, "of ") && len(first+suffix) < labelWidth {
+			if a.Event != nil && strings.Contains(strings.ToLower(rest), strings.ToLower(a.Event.Label())) {
+				return first + suffix, ""
+			}
+			return first + suffix, strings.ToLower(full)
+		}
+		if r := strings.TrimSpace(a.Relation); r != "" && !strings.Contains(r, "_") {
+			full = r // as written, e.g. "langjähriger Weggefährte"
+		}
+		return "Associate" + suffix, full
+	}
+	context := func(a *gedcom.Association, extra string) string {
+		var parts []string
+		if extra != "" {
+			parts = append(parts, extra)
+		}
+		if e := a.Event; e != nil {
+			at := "at " + strings.ToLower(e.Label())
+			if e.Date.IsValid() {
+				at += " " + e.Date.String()
+			}
+			parts = append(parts, at)
+		}
+		if len(parts) == 0 {
+			return ""
+		}
+		return "  (" + strings.Join(parts, " · ") + ")"
+	}
+	notes := func(a *gedcom.Association) {
+		for _, note := range a.Notes {
+			for _, w := range wrap(note, textW-labelWidth-2) {
+				ls = append(ls, dimLine(m, strings.Repeat(" ", labelWidth)+w))
+			}
+		}
+	}
+	for _, a := range ind.Associations() {
+		label, extra := labelFor(a, "")
+		ls = append(ls, m.relativeLine(label, a.To, context(a, extra)))
+		notes(a)
+	}
+	for _, a := range ind.AssociatedBy() {
+		label, extra := labelFor(a, " of")
+		ps := a.Principals()
+		if len(ps) == 0 {
+			continue
+		}
+		spans := []span{{pad(label, labelWidth), m.st.label}}
+		if a.Family != nil {
+			spans = append(spans, span{a.Family.Title(), m.st.name})
+		} else {
+			spans = append(spans, m.personSpans(ps[0])...)
+		}
+		if c := context(a, extra); c != "" {
+			spans = append(spans, span{c, m.st.dim})
+		}
+		ls = append(ls, line{spans: spans, target: ps[0]})
+		notes(a)
+	}
+	return ls
 }
 
 // relationshipLine describes how ind relates to the reference person.
