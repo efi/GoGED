@@ -82,7 +82,68 @@ func Relate(a, b *gedcom.Individual) Relationship {
 			return r
 		}
 	}
+	if r, ok := twoMarriages(a, b); ok {
+		return r
+	}
 	return Relationship{Description: "no relationship found"}
+}
+
+// near reports whether a blood relationship is at most two generations
+// long: parents, children, siblings, grandparents and grandchildren.
+func near(r Relationship) bool { return r.Kind == KindBlood && r.UpA+r.UpB <= 2 }
+
+// twoMarriages finds close relationships across two marriages: b is a close
+// relative of the spouse of a's close relative (the father-in-law of a's son
+// is a's co-father-in-law), or b is married to a close relative of a's
+// spouse ("wife's brother's wife").
+func twoMarriages(a, b *gedcom.Individual) (Relationship, bool) {
+	var relatives []*gedcom.Individual
+	relatives = append(relatives, a.Children()...)
+	relatives = append(relatives, a.Siblings()...)
+	relatives = append(relatives, a.HalfSiblings()...)
+	relatives = append(relatives, a.BirthParents()...)
+	for _, rel := range relatives {
+		ra, ok := blood(a, rel, true)
+		if !ok || !near(ra) {
+			continue
+		}
+		for _, s := range rel.Spouses() {
+			if s == a || s == b {
+				continue
+			}
+			rb, ok := blood(s, b, true)
+			if !ok || !near(rb) {
+				continue
+			}
+			desc := ra.Description + "'s " + gendered(s.Sex, "husband", "wife", "spouse") + "'s " + rb.Description
+			switch {
+			case ra.UpA == 0 && ra.UpB == 1 && rb.UpA == 1 && rb.UpB == 0:
+				desc = "co-" + gendered(b.Sex, "father", "mother", "parent") + "-in-law"
+			case ra.UpA == 1 && ra.UpB == 0 && rb.UpA == 0 && rb.UpB == 1:
+				desc = gendered(b.Sex, "stepbrother", "stepsister", "stepsibling")
+			}
+			return Relationship{Kind: KindMarriage, Description: desc, Via: rel}, true
+		}
+	}
+	for _, s := range a.Spouses() {
+		for _, t := range b.Spouses() {
+			if t == s || t == a {
+				continue
+			}
+			r, ok := blood(s, t, true)
+			if !ok || !near(r) {
+				continue
+			}
+			desc := gendered(s.Sex, "husband", "wife", "spouse") + "'s "
+			if r.UpA == 1 && r.UpB == 0 {
+				desc += gendered(b.Sex, "stepfather", "stepmother", "step-parent")
+			} else {
+				desc += r.Description + "'s " + gendered(b.Sex, "husband", "wife", "spouse")
+			}
+			return Relationship{Kind: KindMarriage, Description: desc, Via: s}, true
+		}
+	}
+	return Relationship{}, false
 }
 
 // kin returns the blood or adoptive relationship of b to a, excluding a

@@ -81,7 +81,7 @@ func TestRelateSample(t *testing.T) {
 		{"I3", "I10", "brother-in-law", KindMarriage},
 		{"I15", "I9", "brother-in-law", KindMarriage},
 		{"I13", "I3", "father-in-law", KindMarriage},
-		{"I13", "I6", "no relationship found", KindNone}, // husband's stepmother: too distant
+		{"I13", "I6", "husband's stepmother", KindMarriage},
 		{"I3", "I13", "daughter-in-law", KindMarriage},
 		{"I12", "I22", "wife of nephew", KindMarriage},
 		{"I22", "I12", "husband's aunt", KindMarriage},
@@ -187,6 +187,100 @@ func TestTimelineAdoptiveRelatives(t *testing.T) {
 	}
 	if len(got) != 1 || got[0] != "Birth of adoptive daughter Rose Smith" {
 		t.Errorf("adoptive daughter: %q", got)
+	}
+}
+
+func TestRelateTwoMarriages(t *testing.T) {
+	doc, err := gedcom.ParseFile(filepath.Join("..", "testdata", "Muster_GEDCOM_UTF-8.ged"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Karl Müller Junior's son Friedhelm married Max's daughter Christiane.
+	r := Relate(doc.Individual("I22"), doc.Individual("I1"))
+	if r.Description != "co-father-in-law" || r.Kind != KindMarriage || r.Via.ID != "I21" {
+		t.Errorf("co-father-in-law: %+v", r)
+	}
+	if r := Relate(doc.Individual("I22"), doc.Individual("I2")); r.Description != "co-mother-in-law" {
+		t.Errorf("co-mother-in-law: %q", r.Description)
+	}
+
+	// M and F have son S and daughter D; D married H, whose brother is B
+	// and whose mother W later married M2. S married W2, whose sister is X;
+	// X married Y. M2 has a son C with another wife.
+	doc = mustParse(t, `0 HEAD
+0 @M@ INDI
+1 SEX M
+0 @F@ INDI
+1 SEX F
+0 @S@ INDI
+1 SEX M
+1 FAMC @F1@
+0 @D@ INDI
+1 SEX F
+1 FAMC @F1@
+0 @H@ INDI
+1 SEX M
+1 FAMC @F3@
+0 @B@ INDI
+1 SEX M
+1 FAMC @F3@
+0 @W@ INDI
+1 SEX F
+0 @W2@ INDI
+1 SEX F
+1 FAMC @F5@
+0 @X@ INDI
+1 SEX F
+1 FAMC @F5@
+0 @Y@ INDI
+1 SEX M
+0 @M2@ INDI
+1 SEX M
+0 @C@ INDI
+1 SEX M
+1 FAMC @F7@
+0 @F1@ FAM
+1 HUSB @M@
+1 WIFE @F@
+1 CHIL @S@
+1 CHIL @D@
+0 @F2@ FAM
+1 HUSB @H@
+1 WIFE @D@
+0 @F3@ FAM
+1 WIFE @W@
+1 CHIL @H@
+1 CHIL @B@
+0 @F4@ FAM
+1 HUSB @S@
+1 WIFE @W2@
+0 @F5@ FAM
+1 CHIL @W2@
+1 CHIL @X@
+0 @F6@ FAM
+1 HUSB @Y@
+1 WIFE @X@
+0 @F8@ FAM
+1 HUSB @M2@
+1 WIFE @W@
+0 @F7@ FAM
+1 HUSB @M2@
+1 CHIL @C@
+0 TRLR
+`)
+	tests := []struct{ a, b, want string }{
+		{"M", "W", "co-mother-in-law"},
+		{"D", "B", "brother-in-law"},
+		{"S", "B", "sister's husband's brother"},
+		{"S", "Y", "wife's sister's husband"},
+		{"H", "C", "stepbrother"},
+		{"D", "M2", "husband's stepfather"},
+		{"S", "C", "no relationship found"},
+	}
+	for _, tt := range tests {
+		if got := Relate(doc.Individual(tt.a), doc.Individual(tt.b)).Description; got != tt.want {
+			t.Errorf("Relate(%s, %s) = %q, want %q", tt.a, tt.b, got, tt.want)
+		}
 	}
 }
 

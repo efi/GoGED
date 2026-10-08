@@ -59,9 +59,9 @@ all from the keyboard.
   compiled into the executable, so goged stays a single file.
 - **Relationship calculator**: mark a reference person and every person view
   tells how they are related ("Harold Smith's third cousin", "half-great-aunt",
-  "brother-in-law", "husband's aunt", "adoptive father"), including the
-  closest common ancestors. Blood relationships follow birth links only;
-  adoptive, foster and step links are named as such.
+  "brother-in-law", "husband's aunt", "co-father-in-law", "adoptive father"),
+  including the closest common ancestors. Blood relationships follow birth
+  links only; adoptive, foster and step links are named as such.
 - **Statistics and validation**: counts, time span, generations, lifespans,
   most common names and all warnings found while reading the file.
 - **Privacy**: data marked confidential or private (`RESN`) is hidden unless
