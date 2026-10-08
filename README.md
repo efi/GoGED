@@ -5,32 +5,22 @@ Search people by name and any other property, read their life events in
 order, jump between relatives, and explore pedigree and descendant trees —
 all from the keyboard.
 
-```
- goged  family.ged · 24 people · 9 families
- 1 Search  [2 Person]  3 Tree   4 Events   5 Places   6 Map   7 Stats
-  John Smith
-  male · I3 · 1817–1880
+The screenshots below use the [GEDCOM-L sample file](testdata/Muster_GEDCOM_UTF-8.ged).
 
-  Parents
-▸ Father        William Smith (1790–1850)
-  Mother        Elizabeth Brown (c.1795–1860)
+![Search for people born between 1930 and 1950, with lifespans and birth places](docs/screenshot-search.png)\
+*Search with a year range; results show lifespans and birth places.*
 
-  Siblings
-  Sister        Mary Smith (1819–1899)
+![Person view of Markus Schüchter, described as the nephew of the marked reference person, with birth and adoptive parents](docs/screenshot-relationship.png)\
+*Person view with the relationship to a marked reference person, and birth and adoptive parents.*
 
-  Family with Ann Taylor  married 1840, Manchester, Lancashire, England
-  Wife          Ann Taylor (1820–1845)
-  Son           Thomas Smith (1842–1910)
+![Pedigree chart of Leon Mustermann over four generations](docs/screenshot-pedigree.png)\
+*Pedigree chart of ancestors.*
 
-  Events
-  2 Feb 1817          Birth  Leeds, Yorkshire, England
-  10 Feb 1817         Christening  St Peter's, Leeds, Yorkshire, England
-  1819                Birth of sister Mary Smith  Leeds, Yorkshire, England · age ~2
-  from 1835 to 1870   Occupation  Mill worker
-  1840                Marriage with Ann Taylor  Manchester, Lancashire, England · age ~23
-  5 May 1842          Birth of son Thomas Smith  Manchester, Lancashire, England · age 25
-↑↓ relatives  enter go  ←→ history  t/d trees  c context  m mark  / search  ? help
-```
+![Descendant chart of Otto Mustermann, with an adopted grandchild](docs/screenshot-descendants.png)\
+*Descendant chart with spouses, marriage years and an adopted child.*
+
+![Map around Brosowo with coastlines, rivers and borders](docs/screenshot-map.png)\
+*The experimental map shows places that have coordinates.*
 
 ## Features
 
