@@ -1,0 +1,314 @@
+package gedcom
+
+import (
+	"path/filepath"
+	"reflect"
+	"strings"
+	"testing"
+)
+
+func loadSample(t testing.TB) *Document {
+	t.Helper()
+	doc, err := ParseFile(filepath.Join("..", "testdata", "family.ged"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return doc
+}
+
+func ids(list []*Individual) string {
+	var out []string
+	for _, ind := range list {
+		out = append(out, ind.ID)
+	}
+	return strings.Join(out, ",")
+}
+
+func TestIndividualAccessors(t *testing.T) {
+	doc := loadSample(t)
+	john := doc.Individual("@I3@")
+	if john == nil {
+		t.Fatal("I3 not found")
+	}
+	if john.DisplayName() != "John Smith" || john.SortName() != "Smith, John" {
+		t.Errorf("names: %q / %q", john.DisplayName(), john.SortName())
+	}
+	if john.Sex != SexMale || john.Sex.String() != "male" {
+		t.Errorf("sex = %v", john.Sex)
+	}
+	if john.Document() != doc {
+		t.Error("Document()")
+	}
+	if got := john.Lifespan(); got != "1817–1880" {
+		t.Errorf("Lifespan = %q", got)
+	}
+	if got := john.Birth().Place.String(); got != "Leeds, Yorkshire, England" {
+		t.Errorf("birth place = %q", got)
+	}
+	if ids(john.Parents()) != "I1,I2" {
+		t.Errorf("parents = %s", ids(john.Parents()))
+	}
+	if john.Father().ID != "I1" || john.Mother().ID != "I2" {
+		t.Error("father/mother")
+	}
+	if ids(john.Spouses()) != "I5,I6" {
+		t.Errorf("spouses = %s", ids(john.Spouses()))
+	}
+	if ids(john.Children()) != "I7,I8,I9" {
+		t.Errorf("children = %s", ids(john.Children()))
+	}
+	if ids(john.Siblings()) != "I4" {
+		t.Errorf("siblings = %s", ids(john.Siblings()))
+	}
+	if len(john.FamiliesAsSpouse()) != 2 || len(john.FamiliesAsChild()) != 1 {
+		t.Error("family links")
+	}
+	if notes := john.Notes(); len(notes) != 1 || !strings.HasSuffix(notes[0], "\nHe married twice.") {
+		t.Errorf("notes = %q", notes)
+	}
+	if got := len(john.EventsWithTag("OCCU")); got != 1 {
+		t.Errorf("OCCU events = %d", got)
+	}
+
+	thomas := doc.Individual("I7")
+	if ids(thomas.HalfSiblings()) != "I8,I9" {
+		t.Errorf("half siblings = %s", ids(thomas.HalfSiblings()))
+	}
+	if len(thomas.Siblings()) != 0 {
+		t.Errorf("Thomas has no full siblings, got %s", ids(thomas.Siblings()))
+	}
+	emma := doc.Individual("I8")
+	if ids(emma.Siblings()) != "I9" || ids(emma.HalfSiblings()) != "I7" {
+		t.Errorf("Emma siblings %s half %s", ids(emma.Siblings()), ids(emma.HalfSiblings()))
+	}
+
+	william := doc.Individual("I1")
+	if notes := william.Notes(); len(notes) != 1 || notes[0] != "William was a hand-loom weaver in the parish of St Peter, Leeds.\nHis will was proved at York in 1850." {
+		t.Errorf("shared note = %q", notes)
+	}
+	cits := william.Citations()
+	if len(cits) != 1 || cits[0].Source == nil || cits[0].Text != "Parish register of St Peter, Leeds" || cits[0].Page != "Baptisms 1790, folio 12" || cits[0].Path != "INDI.BIRT.SOUR" {
+		t.Errorf("citations = %+v", cits)
+	}
+	if got := william.Death().Detail(); got != "cause: Consumption" {
+		t.Errorf("death detail = %q", got)
+	}
+	if william.Father() != nil || william.Mother() != nil || len(william.Parents()) != 0 {
+		t.Error("William has no parents")
+	}
+}
+
+func TestLifespans(t *testing.T) {
+	doc := loadSample(t)
+	tests := map[string]string{
+		"I1":  "1790–1850",
+		"I2":  "c.1795–1860",
+		"I13": "1844–",
+		"I15": "1845–",
+	}
+	for id, want := range tests {
+		if got := doc.Individual(id).Lifespan(); got != want {
+			t.Errorf("%s Lifespan = %q, want %q", id, got, want)
+		}
+	}
+	doc2 := mustParse(t, "0 HEAD\n0 @I1@ INDI\n1 BIRT\n2 DATE 1900\n1 DEAT Y\n0 @I2@ INDI\n0 @I3@ INDI\n1 BURI\n2 DATE 1950\n0 @I4@ INDI\n1 CHR\n2 DATE BEF 1800\n0 TRLR\n")
+	for id, want := range map[string]string{"I1": "1900–?", "I2": "", "I3": "–1950", "I4": "bef.1800–"} {
+		if got := doc2.Individual(id).Lifespan(); got != want {
+			t.Errorf("%s Lifespan = %q, want %q", id, got, want)
+		}
+	}
+	if doc2.Individual("I2").DisplayName() != "(unnamed)" || doc2.Individual("I2").SortName() != "(unnamed)" {
+		t.Error("unnamed placeholder")
+	}
+}
+
+func TestAlternateNames(t *testing.T) {
+	doc := loadSample(t)
+	jane := doc.Individual("I13")
+	if len(jane.Names) != 2 || jane.Names[1].Type != "married" || jane.Names[1].String() != "Jane Smith" {
+		t.Errorf("names = %+v", jane.Names)
+	}
+	fritz := doc.Individual("I15")
+	if fritz.DisplayName() != "Friedrich Müller" {
+		t.Errorf("DisplayName = %q", fritz.DisplayName())
+	}
+}
+
+func TestAdoption(t *testing.T) {
+	doc := loadSample(t)
+	rose := doc.Individual("I21")
+	links := rose.FamiliesAsChild()
+	if len(links) != 1 || links[0].Pedigree != "adopted" || links[0].IsBirth() {
+		t.Errorf("links = %+v", links)
+	}
+	// With no birth family, the adoptive family provides the parents.
+	if rose.Father() == nil || rose.Father().ID != "I14" {
+		t.Errorf("father = %v", rose.Father())
+	}
+}
+
+func TestFamilyAccessors(t *testing.T) {
+	doc := loadSample(t)
+	f := doc.Family("F6")
+	if f.Title() != "Friedrich Müller & Emma Smith" {
+		t.Errorf("Title = %q", f.Title())
+	}
+	if f.Marriage() == nil || f.Marriage().Date.Year() != 1870 {
+		t.Error("marriage")
+	}
+	if div := f.FirstEvent("DIV"); div == nil || !div.IsVital() || div.Label() != "Divorce" {
+		t.Error("divorce")
+	}
+	if f.Partner(f.Husband) != f.Wife || f.Partner(f.Wife) != f.Husband || f.Partner(doc.Individual("I1")) != nil {
+		t.Error("Partner")
+	}
+	marr := f.Marriage()
+	if ids(marr.Principals()) != "I15,I8" {
+		t.Errorf("principals = %s", ids(marr.Principals()))
+	}
+	lonely := &Family{Wife: doc.Individual("I2")}
+	if lonely.Title() != "? & Elizabeth Brown" {
+		t.Errorf("Title = %q", lonely.Title())
+	}
+	if len(f.Notes()) != 0 {
+		t.Error("no family notes expected")
+	}
+}
+
+func TestEvents(t *testing.T) {
+	doc := loadSample(t)
+	all := doc.Events()
+	if len(all) != 54 {
+		t.Errorf("only %d events", len(all))
+	}
+	arthur := doc.Individual("I14")
+	milt := arthur.FirstEvent("_MILT")
+	if milt == nil {
+		t.Fatal("_MILT not recognized as event")
+	}
+	if milt.Label() != "Military service" || milt.Date.Modifier != DateFromTo || milt.Place.Name != "France" {
+		t.Errorf("milt = %+v", milt)
+	}
+	if ids(milt.Principals()) != "I14" {
+		t.Error("principals")
+	}
+	occu := doc.Individual("I3").FirstEvent("OCCU")
+	if occu.Class() != ClassAttribute || occu.Detail() != "Mill worker" || occu.IsVital() {
+		t.Errorf("occu = %+v", occu)
+	}
+}
+
+func TestEventDetailsAndLabels(t *testing.T) {
+	doc := mustParse(t, `0 HEAD
+0 @I1@ INDI
+1 EVEN
+2 TYPE Award
+2 DATE 1920
+1 FACT Tall
+2 TYPE Height
+1 _CUSTOM
+2 PLAC Somewhere
+1 _NODATE something
+1 BIRT Y
+2 ADDR 12 High Street
+3 CONT Flat 2
+3 CITY Leeds
+3 CTRY England
+2 NOTE Born at home
+1 RESI
+2 DATE 1930
+0 TRLR
+`)
+	ind := doc.Individual("I1")
+	var labels []string
+	for _, e := range ind.Events {
+		labels = append(labels, e.Label())
+	}
+	if want := []string{"Award", "Height", "Custom", "Birth", "Residence"}; !reflect.DeepEqual(labels, want) {
+		t.Errorf("labels = %q, want %q", labels, want)
+	}
+	if d := ind.Events[1].Detail(); d != "Tall" {
+		t.Errorf("FACT detail = %q", d)
+	}
+	birth := ind.Birth()
+	if birth.Detail() != "" {
+		t.Errorf("'Y' should not be a detail: %q", birth.Detail())
+	}
+	if birth.Address != "12 High Street, Flat 2, Leeds, England" {
+		t.Errorf("address = %q", birth.Address)
+	}
+	if len(birth.Notes) != 1 || birth.Notes[0] != "Born at home" {
+		t.Errorf("event notes = %q", birth.Notes)
+	}
+	if got := EventLabel("_MY_THING"); got != "My thing" {
+		t.Errorf("EventLabel = %q", got)
+	}
+	if got := EventLabel("_"); got != "_" {
+		t.Errorf("EventLabel(_) = %q", got)
+	}
+}
+
+func TestEventTagsByLabel(t *testing.T) {
+	got := EventTagsByLabel("bir")
+	if len(got) != 1 || got[0] != "BIRT" {
+		t.Errorf("bir -> %v", got)
+	}
+	marr := EventTagsByLabel("marriage")
+	if len(marr) != 5 { // MARR, MARB, MARC, MARL, MARS
+		t.Errorf("marriage -> %v", marr)
+	}
+	if EventTagsByLabel(" ") != nil {
+		t.Error("empty prefix")
+	}
+}
+
+func TestPlace(t *testing.T) {
+	p := Place{Name: " Leeds ,Yorkshire,, England "}
+	if got := p.Parts(); !reflect.DeepEqual(got, []string{"Leeds", "Yorkshire", "England"}) {
+		t.Errorf("Parts = %q", got)
+	}
+	if p.String() != "Leeds, Yorkshire, England" || p.Short() != "Leeds" {
+		t.Errorf("String/Short = %q/%q", p.String(), p.Short())
+	}
+	if (Place{}).Short() != "" {
+		t.Error("empty Short")
+	}
+}
+
+func TestSexParsing(t *testing.T) {
+	tests := map[string]Sex{"M": SexMale, "f": SexFemale, "male": SexMale, "X": SexIntersex, "U": SexUnknown, "": SexUnknown}
+	for in, want := range tests {
+		if got := parseSex(in); got != want {
+			t.Errorf("parseSex(%q) = %q", in, got)
+		}
+	}
+	for s, want := range map[Sex]string{SexMale: "male", SexFemale: "female", SexIntersex: "intersex", SexUnknown: "unknown"} {
+		if s.String() != want {
+			t.Errorf("%q.String() = %q", s, s.String())
+		}
+	}
+}
+
+func TestSourceRecords(t *testing.T) {
+	doc := mustParse(t, `0 HEAD
+0 @S1@ SOUR
+1 TITL A long
+2 CONC  title
+0 @S2@ SOUR
+1 ABBR Abbr
+0 @S3@ SOUR
+0 @I1@ INDI
+1 SOUR Inline source text
+1 SOUR @S9@
+1 SOUR
+2 TITL Titled inline
+0 TRLR
+`)
+	if doc.Source("S1").Title != "A long title" || doc.Source("S2").Title != "Abbr" || doc.Source("S3").Title != "Source S3" {
+		t.Errorf("titles: %q %q %q", doc.Source("S1").Title, doc.Source("S2").Title, doc.Source("S3").Title)
+	}
+	cits := doc.Individual("I1").Citations()
+	if len(cits) != 3 || cits[0].Text != "Inline source text" || cits[1].Text != "@S9@" || cits[2].Text != "Titled inline" {
+		t.Errorf("citations = %+v", cits)
+	}
+}

@@ -1,0 +1,310 @@
+0 HEAD
+1 SOUR GOGED_SAMPLE
+2 NAME goged sample data
+2 VERS 1.0
+1 DATE 8 OCT 2026
+1 SUBM @U1@
+1 GEDC
+2 VERS 5.5.1
+2 FORM LINEAGE-LINKED
+1 CHAR UTF-8
+0 @U1@ SUBM
+1 NAME goged
+0 @I1@ INDI
+1 NAME William /Smith/
+2 GIVN William
+2 SURN Smith
+1 SEX M
+1 BIRT
+2 DATE 12 MAR 1790
+2 PLAC Leeds, Yorkshire, England
+2 SOUR @S1@
+3 PAGE Baptisms 1790, folio 12
+1 OCCU Weaver
+1 DEAT
+2 DATE 4 JAN 1850
+2 PLAC Leeds, Yorkshire, England
+2 CAUS Consumption
+1 BURI
+2 DATE 8 JAN 1850
+2 PLAC St Peter's Churchyard, Leeds, Yorkshire, England
+1 NOTE @N1@
+1 FAMS @F1@
+0 @I2@ INDI
+1 NAME Elizabeth /Brown/
+1 SEX F
+1 BIRT
+2 DATE ABT 1795
+2 PLAC York, Yorkshire, England
+1 DEAT
+2 DATE 1860
+2 PLAC Leeds, Yorkshire, England
+1 FAMS @F1@
+0 @I3@ INDI
+1 NAME John /Smith/
+1 SEX M
+1 BIRT
+2 DATE 2 FEB 1817
+2 PLAC Leeds, Yorkshire, England
+1 CHR
+2 DATE 10 FEB 1817
+2 PLAC St Peter's, Leeds, Yorkshire, England
+1 OCCU Mill worker
+2 DATE FROM 1835 TO 1870
+1 CENS
+2 DATE 30 MAR 1851
+2 PLAC Manchester, Lancashire, England
+2 SOUR @S2@
+3 PAGE HO107/2229 folio 316
+1 DEAT
+2 DATE 1880
+2 PLAC Manchester, Lancashire, England
+1 NOTE John moved to Manchester around 1839 to work in the cotton mills.
+2 CONT He married twice.
+1 FAMC @F1@
+1 FAMS @F2@
+1 FAMS @F3@
+0 @I4@ INDI
+1 NAME Mary /Smith/
+1 SEX F
+1 BIRT
+2 DATE 1819
+2 PLAC Leeds, Yorkshire, England
+1 DEAT
+2 DATE 1899
+1 FAMC @F1@
+1 FAMS @F4@
+0 @I5@ INDI
+1 NAME Ann /Taylor/
+1 SEX F
+1 BIRT
+2 DATE 1820
+1 DEAT
+2 DATE 1845
+2 PLAC Manchester, Lancashire, England
+1 FAMS @F2@
+0 @I6@ INDI
+1 NAME Sarah /White/
+1 SEX F
+1 BIRT
+2 DATE 1825
+1 DEAT
+2 DATE 1890
+1 FAMS @F3@
+0 @I7@ INDI
+1 NAME Thomas /Smith/
+1 SEX M
+1 BIRT
+2 DATE 5 MAY 1842
+2 PLAC Manchester, Lancashire, England
+1 OCCU Engineer
+1 DEAT
+2 DATE 1910
+1 FAMC @F2@
+1 FAMS @F5@
+0 @I8@ INDI
+1 NAME Emma /Smith/
+1 SEX F
+1 BIRT
+2 DATE 1848
+2 PLAC Manchester, Lancashire, England
+1 FAMC @F3@
+1 FAMS @F6@
+0 @I9@ INDI
+1 NAME George /Smith/
+1 SEX M
+1 BIRT
+2 DATE 1850
+1 DEAT
+2 DATE 1851
+1 FAMC @F3@
+0 @I10@ INDI
+1 NAME Robert /Jones/
+1 SEX M
+1 BIRT
+2 DATE 1815
+1 FAMS @F4@
+0 @I11@ INDI
+1 NAME Henry /Jones/
+1 SEX M
+1 BIRT
+2 DATE 1840
+1 FAMC @F4@
+1 FAMS @F7@
+0 @I12@ INDI
+1 NAME Alice /Jones/
+1 SEX F
+1 BIRT
+2 DATE 1842
+1 FAMC @F4@
+0 @I13@ INDI
+1 NAME Jane /Doe/
+1 SEX F
+1 NAME Jane /Smith/
+2 TYPE married
+1 BIRT
+2 DATE 1844
+1 FAMS @F5@
+0 @I14@ INDI
+1 NAME Arthur /Smith/
+1 SEX M
+1 BIRT
+2 DATE 1866
+2 PLAC Salford, Lancashire, England
+1 _MILT
+2 DATE FROM 1914 TO 1918
+2 PLAC France
+1 DEAT
+2 DATE 1940
+1 FAMC @F5@
+1 FAMS @F8@
+0 @I15@ INDI
+1 NAME Friedrich /Müller/
+1 NAME Frederick /Miller/
+2 TYPE aka
+1 SEX M
+1 BIRT
+2 DATE 1845
+2 PLAC Köln, Preußen
+1 IMMI
+2 DATE 1866
+2 PLAC Hull, Yorkshire, England
+1 FAMS @F6@
+0 @I16@ INDI
+1 NAME Edith /Miller/
+1 SEX F
+1 BIRT
+2 DATE 1872
+1 FAMC @F6@
+0 @I17@ INDI
+1 NAME Clara /Green/
+1 SEX F
+1 BIRT
+2 DATE 1841
+1 FAMS @F7@
+0 @I18@ INDI
+1 NAME Walter /Jones/
+1 SEX M
+1 BIRT
+2 DATE 1863
+1 EMIG
+2 DATE 1905
+2 PLAC Liverpool, Lancashire, England
+1 IMMI
+2 DATE 1905
+2 PLAC Toronto, Ontario, Canada
+1 FAMC @F7@
+1 FAMS @F9@
+0 @I19@ INDI
+1 NAME Lucy /King/
+1 SEX F
+1 BIRT
+2 DATE 1868
+1 FAMS @F8@
+0 @I20@ INDI
+1 NAME Harold /Smith/
+1 SEX M
+1 BIRT
+2 DATE 1891
+1 FAMC @F8@
+0 @I21@ INDI
+1 NAME Rose /Smith/
+1 SEX F
+1 BIRT
+2 DATE 1893
+1 FAMC @F8@
+2 PEDI adopted
+0 @I22@ INDI
+1 NAME Grace /Hill/
+1 SEX F
+1 BIRT
+2 DATE 1865
+1 FAMS @F9@
+0 @I23@ INDI
+1 NAME Dorothy /Jones/
+1 SEX F
+1 BIRT
+2 DATE 1889
+1 FAMC @F9@
+0 @I24@ INDI
+1 NAME Infant /Smith/
+1 SEX U
+1 BIRT
+2 DATE 1895
+1 DEAT
+2 DATE 1895
+1 FAMC @F8@
+0 @F1@ FAM
+1 HUSB @I1@
+1 WIFE @I2@
+1 MARR
+2 DATE 15 JUN 1815
+2 PLAC Leeds, Yorkshire, England
+1 CHIL @I3@
+1 CHIL @I4@
+0 @F2@ FAM
+1 HUSB @I3@
+1 WIFE @I5@
+1 MARR
+2 DATE 1840
+2 PLAC Manchester, Lancashire, England
+1 CHIL @I7@
+0 @F3@ FAM
+1 HUSB @I3@
+1 WIFE @I6@
+1 MARR
+2 DATE 1847
+1 CHIL @I8@
+1 CHIL @I9@
+0 @F4@ FAM
+1 HUSB @I10@
+1 WIFE @I4@
+1 MARR
+2 DATE 1838
+1 CHIL @I11@
+1 CHIL @I12@
+0 @F5@ FAM
+1 HUSB @I7@
+1 WIFE @I13@
+1 MARR
+2 DATE 1865
+1 CHIL @I14@
+0 @F6@ FAM
+1 HUSB @I15@
+1 WIFE @I8@
+1 MARR
+2 DATE 1870
+1 DIV
+2 DATE 1885
+1 CHIL @I16@
+0 @F7@ FAM
+1 HUSB @I11@
+1 WIFE @I17@
+1 MARR
+2 DATE 1862
+1 CHIL @I18@
+0 @F8@ FAM
+1 HUSB @I14@
+1 WIFE @I19@
+1 MARR
+2 DATE 1890
+1 CHIL @I20@
+1 CHIL @I21@
+1 CHIL @I24@
+0 @F9@ FAM
+1 HUSB @I18@
+1 WIFE @I22@
+1 MARR
+2 DATE 1888
+2 PLAC Leeds, Yorkshire, England
+1 CHIL @I23@
+0 @N1@ NOTE William was a hand-loom weaver in the parish of St Pet
+1 CONC er, Leeds.
+1 CONT His will was proved at York in 1850.
+0 @S1@ SOUR
+1 TITL Parish register of St Peter, Leeds
+1 AUTH Church of England
+0 @S2@ SOUR
+1 TITL 1851 Census of England and Wales
+1 PUBL The National Archives
+0 TRLR

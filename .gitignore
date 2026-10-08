@@ -1,0 +1,5 @@
+/goged
+/dist/
+*.test
+*.out
+coverage.*
