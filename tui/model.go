@@ -5,6 +5,7 @@ package tui
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/efi/goged/gedcom"
@@ -36,6 +37,8 @@ type Options struct {
 	Generations int
 	// ASCII draws trees with ASCII characters only.
 	ASCII bool
+	// Today is the date used for "On this day"; zero means the current date.
+	Today time.Time
 }
 
 // Model is the Bubble Tea model of the application.

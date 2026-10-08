@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/efi/goged/genealogy"
@@ -82,6 +83,9 @@ func (m *Model) ensureStats() {
 		}
 	}
 
+	ls = append(ls, blank)
+	ls = append(ls, m.onThisDay(row)...)
+
 	ls = append(ls, blank, m.sectionLine(fmt.Sprintf("Warnings (%d)", len(m.doc.Warnings))))
 	if len(m.doc.Warnings) == 0 {
 		ls = append(ls, dimLine(m, "none — the file looks consistent"))
@@ -94,6 +98,49 @@ func (m *Model) ensureStats() {
 		ls = append(ls, dimLine(m, w.String()))
 	}
 	m.stats.doc.set(ls)
+}
+
+// onThisDay lists the events that happened on today's day and month in
+// earlier years; each line links to the person (or the first partner).
+func (m *Model) onThisDay(row func(label, value string) line) []line {
+	today := m.opts.Today
+	if today.IsZero() {
+		today = time.Now()
+	}
+	day := today.Format("2 January")
+	ls := []line{m.sectionLine("On this day (" + day + ")")}
+	annivs := genealogy.OnThisDay(m.doc, today)
+	if len(annivs) == 0 {
+		return append(ls, dimLine(m, "no events recorded for "+day))
+	}
+	for _, a := range annivs {
+		year := fmt.Sprint(a.Year)
+		if a.Year <= 0 {
+			year = fmt.Sprintf("%d BC", 1-a.Year)
+		}
+		switch a.YearsAgo {
+		case 0:
+			year += " · today"
+		case 1:
+			year += " · 1 year ago"
+		default:
+			year += fmt.Sprintf(" · %d years ago", a.YearsAgo)
+		}
+		var names []string
+		people := a.Event.Principals()
+		for _, p := range people {
+			names = append(names, p.DisplayName())
+		}
+		l := row(year, a.Event.Label()+"  "+strings.Join(names, " & "))
+		if place := a.Event.Place.String(); place != "" {
+			l.spans = append(l.spans, span{"  " + place, m.st.dim})
+		}
+		if len(people) > 0 {
+			l.target = people[0]
+		}
+		ls = append(ls, l)
+	}
+	return ls
 }
 
 func (m *Model) updateStats(msg tea.KeyMsg) (bool, tea.Cmd) {

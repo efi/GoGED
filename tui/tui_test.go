@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -601,6 +602,29 @@ func TestStatsView(t *testing.T) {
 	if a.m.active != viewStats {
 		t.Errorf("active = %v", a.m.active)
 	}
+}
+
+func TestStatsOnThisDay(t *testing.T) {
+	a := &app{t: t, m: New(loadSample(t), Options{Today: time.Date(2026, time.January, 4, 9, 0, 0, 0, time.Local)})}
+	a.resize(120, 80)
+	a.press("alt+7", "end")
+	a.contains("On this day (4 January)\n", "1850 · 176 years ago  Death  William Smith  Leeds, Yorkshire, England")
+	view := a.view()
+	if strings.Index(view, "On this day") > strings.Index(view, "Warnings (0)") || strings.Index(view, "On this day") < strings.Index(view, "Most common given names") {
+		t.Errorf("On this day belongs between the given names and the warnings:\n%s", view)
+	}
+	for i := 0; i < 50 && !strings.Contains(a.view(), "▸ 1850"); i++ {
+		a.press("down")
+	}
+	a.press("enter")
+	if a.currentID() != "I1" || a.m.active != viewPerson {
+		t.Errorf("enter opened %s", a.currentID())
+	}
+
+	a = &app{t: t, m: New(loadSample(t), Options{Today: time.Date(2026, time.January, 5, 9, 0, 0, 0, time.Local)})}
+	a.resize(120, 80)
+	a.press("alt+7", "end")
+	a.contains("On this day (5 January)", "no events recorded for 5 January")
 }
 
 func TestStatsWarnings(t *testing.T) {

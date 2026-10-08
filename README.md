@@ -65,7 +65,8 @@ all from the keyboard.
   including the closest common ancestors. Blood relationships follow birth
   links only; adoptive, foster and step links are named as such.
 - **Statistics and validation**: counts, time span, generations, lifespans,
-  most common names and all warnings found while reading the file.
+  most common names, the events that happened on this day in earlier years,
+  and all warnings found while reading the file.
 - **Privacy**: data marked confidential or private (`RESN`) is hidden unless
   you ask for it.
 - **Batch mode** for scripts: print search results, charts, timelines,

@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/efi/goged/gedcom"
 )
@@ -842,5 +843,59 @@ func TestPlaceCoordinates(t *testing.T) {
 	}
 	if got := root.Located(); len(got) != 1 || got[0] != leeds {
 		t.Errorf("Located = %v", got)
+	}
+}
+
+func TestOnThisDay(t *testing.T) {
+	doc := mustParse(t, `0 HEAD
+0 @I1@ INDI
+1 NAME Ann /Day/
+1 BIRT
+2 DATE 15 JUN 1815
+1 CHR
+2 DATE ABT 15 JUN 1815
+1 OCCU Baker
+2 DATE JUN 1830
+1 RESI
+2 DATE 15 JUN 2030
+1 DEAT
+2 DATE @#DJULIAN@ 3 JUN 1880
+1 BURI
+2 DATE 29 FEB 1884
+1 FAMS @F1@
+0 @I2@ INDI
+1 NAME Bob /Day/
+1 FAMS @F1@
+0 @F1@ FAM
+1 HUSB @I2@
+1 WIFE @I1@
+1 MARR
+2 DATE INT 15 JUN 1840 (Midsummer)
+0 TRLR
+`)
+	describe := func(as []Anniversary) string {
+		var out []string
+		for _, a := range as {
+			out = append(out, fmt.Sprintf("%s %d %d", a.Event.Tag, a.Year, a.YearsAgo))
+		}
+		return strings.Join(out, ", ")
+	}
+	day := func(y int, m time.Month, d int) time.Time { return time.Date(y, m, d, 12, 0, 0, 0, time.UTC) }
+	// Approximate dates, months without a day and future dates do not
+	// count; the Julian 3 June 1880 is 15 June in the Gregorian calendar.
+	if got := describe(OnThisDay(doc, day(2026, time.June, 15))); got != "BIRT 1815 211, MARR 1840 186, DEAT 1880 146" {
+		t.Errorf("15 June: %s", got)
+	}
+	if got := describe(OnThisDay(doc, day(2026, time.February, 28))); got != "BURI 1884 142" {
+		t.Errorf("28 February in a common year: %s", got)
+	}
+	if got := describe(OnThisDay(doc, day(2028, time.February, 28))); got != "" {
+		t.Errorf("28 February in a leap year: %s", got)
+	}
+	if got := describe(OnThisDay(doc, day(2028, time.February, 29))); got != "BURI 1884 144" {
+		t.Errorf("29 February: %s", got)
+	}
+	if got := describe(OnThisDay(doc, day(1815, time.June, 15))); got != "BIRT 1815 0" {
+		t.Errorf("on the day itself: %s", got)
 	}
 }
