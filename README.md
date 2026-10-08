@@ -58,7 +58,9 @@ all from the keyboard.
   compiled into the executable, so goged stays a single file.
 - **Relationship calculator**: mark a reference person and every person view
   tells how they are related ("Harold Smith's third cousin", "half-great-aunt",
-  "brother-in-law", "husband's aunt"), including the closest common ancestors.
+  "brother-in-law", "husband's aunt", "adoptive father"), including the
+  closest common ancestors. Blood relationships follow birth links only;
+  adoptive, foster and step links are named as such.
 - **Statistics and validation**: counts, time span, generations, lifespans,
   most common names and all warnings found while reading the file.
 - **Batch mode** for scripts: print search results, charts, timelines,
@@ -78,8 +80,9 @@ all from the keyboard.
   to a common timeline for sorting and age calculation. Common deviations such
   as full month names, `Abt.`, `circa` or ISO dates are accepted too.
 - `CONT`/`CONC` continuation lines, shared notes (`NOTE`/`SNOTE` records),
-  source citations, adoption (`PEDI`) and custom `_TAGS`; any custom tag with a
-  date or place is treated as an event.
+  source citations, adoption and fostering (`PEDI`, per parent through
+  `ADOP`.`FAMC`.`ADOP` or `_FREL`/`_MREL`) and custom `_TAGS`; any custom tag
+  with a date or place is treated as an event.
 
 ## Installation
 

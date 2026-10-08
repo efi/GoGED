@@ -96,6 +96,7 @@ func TestRelateFlag(t *testing.T) {
 		{"I22,I15", []string{"No relationship found between Grace Hill and Friedrich Müller."}},
 		{"I3, I3", []string{"John Smith and John Smith are the same person."}},
 		{"I3,I1", []string{"William Smith is John Smith's father."}},
+		{"I20,I21", []string{"Rose Smith is Harold Smith's adoptive sister.", "Closest common ancestors: Arthur Smith & Lucy King (1 and 1 generations up)."}},
 	}
 	for _, tt := range tests {
 		r := runCLI(t, "", "-relate", tt.ids, sample)
@@ -264,6 +265,7 @@ func TestMusterFile(t *testing.T) {
 		{[]string{"-q", "given:desire"}, []string{"I7     Mustermann, Desiré Jeanette"}},
 		{[]string{"-q", "born:1794"}, []string{"I29    Frantz, Eva"}},
 		{[]string{"-relate", "I3,I7"}, []string{"Desiré Jeanette Mustermann is Leon Mustermann's half-sister."}},
+		{[]string{"-relate", "I6,I19"}, []string{"Gerold Freiwein is Markus Schüchter's adoptive father."}},
 	}
 	for _, c := range cases {
 		r := runCLI(t, "", append(c.args, muster)...)

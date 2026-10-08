@@ -44,6 +44,18 @@ func newApp(t *testing.T, opts Options) *app {
 	return a
 }
 
+// newMusterApp opens the GEDCOM-L sample file.
+func newMusterApp(t *testing.T) *app {
+	t.Helper()
+	doc, err := gedcom.ParseFile(filepath.Join("..", "testdata", "Muster_GEDCOM_UTF-8.ged"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := &app{t: t, m: New(doc, Options{Title: "Muster_GEDCOM_UTF-8.ged"})}
+	a.resize(110, 60)
+	return a
+}
+
 func (a *app) send(msg tea.Msg) tea.Cmd {
 	model, cmd := a.m.Update(msg)
 	a.m = model.(Model)
@@ -282,10 +294,25 @@ func TestPersonLinks(t *testing.T) {
 	}
 }
 
+func TestPersonViewAdoption(t *testing.T) {
+	a := newMusterApp(t)
+	a.openPerson("I6")
+	a.contains("Father        Wilhelm Schüchter (1936–1964)\n", "Mother        Mathilde Mustermann (1939–1970)\n",
+		"Father        Gerold Freiwein (1938–)  (adopted)", "Mother        Brigitte Marquardt (1942–)  (adopted)")
+	if n := strings.Count(a.view(), "Mother        Mathilde Mustermann"); n != 1 {
+		t.Errorf("Mathilde is listed %d times:\n%s", n, a.view())
+	}
+	a.openPerson("I17")
+	a.contains("Son           Markus Schüchter (1963–)\n")
+	a.notContains("(adopted)")
+	a.openPerson("I19")
+	a.contains("Son           Markus Schüchter (1963–)  (adopted)")
+}
+
 func TestPersonViewDetails(t *testing.T) {
 	a := newApp(t, Options{})
 	a.openPerson("I21")
-	a.contains("Father        Arthur Smith (1866–1940)  (adopted)", "Brother       Harold Smith", "Sibling       Infant Smith")
+	a.contains("Father        Arthur Smith (1866–1940)  (adopted)", "Brother       Harold Smith (1891–)  (adoptive)", "Sibling       Infant Smith (1895–1895)  (adoptive)")
 	a.openPerson("I13")
 	a.contains("Also known as Jane Smith (married)")
 	a.openPerson("I8")

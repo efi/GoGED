@@ -154,7 +154,7 @@ William Smith (1790–1850)
     │   │           └── Arthur Smith (1866–1940)
     │   │               └── ⚭ Lucy King (1868–)  m. 1890
     │   │                   ├── Harold Smith (1891–)
-    │   │                   ├── Rose Smith (1893–)
+    │   │                   ├── Rose Smith (1893–)  (adopted)
     │   │                   └── Infant Smith (1895–1895)
     │   └── ⚭ Sarah White (1825–1890)  m. 1847
     │       ├── Emma Smith (1848–)
@@ -297,7 +297,29 @@ func TestLoopsTerminate(t *testing.T) {
 	if c := Pedigree(doc.Individual("I1"), Options{Generations: 6}); len(c.Nodes) != 6 {
 		t.Errorf("pedigree of a self-loop has %d nodes", len(c.Nodes))
 	}
-	if c := Descendants(doc.Individual("I1"), Options{Generations: 6}); len(c.Nodes) != 6 {
-		t.Errorf("descendants of a self-loop has %d nodes", len(c.Nodes))
+	// The person's second appearance (as their own child) is not expanded.
+	if c := Descendants(doc.Individual("I1"), Options{Generations: 6}); len(c.Nodes) != 2 || !strings.HasSuffix(c.LineText(2), "(see above)") {
+		t.Errorf("descendants of a self-loop:\n%s", c)
+	}
+}
+
+func TestDescendantsAdoptionAndRepeats(t *testing.T) {
+	doc, err := gedcom.ParseFile(filepath.Join("..", "testdata", "Muster_GEDCOM_UTF-8.ged"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Gerold adopted Markus in both of his marriages.
+	want := `Gerold Freiwein (1938–)
+├── ⚭ Mathilde Mustermann (1939–1970)  m. 1966
+│   └── Markus Schüchter (1963–)  (adopted)
+└── ⚭ Brigitte Marquardt (1942–)  m. 1972
+    └── Markus Schüchter (1963–)  (adopted)  (see above)
+`
+	c := Descendants(doc.Individual("I19"), Options{})
+	if got := c.String(); got != want {
+		t.Errorf("got:\n%s\nwant:\n%s", got, want)
+	}
+	if n := c.Nodes[c.NodeAt(4)]; n.Ind.ID != "I6" || n.More || len(n.Down) != 0 {
+		t.Errorf("repeated node = %+v", n)
 	}
 }

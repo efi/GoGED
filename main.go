@@ -251,7 +251,7 @@ func printRelationship(a, b *gedcom.Individual, w io.Writer) {
 		return
 	}
 	fmt.Fprintf(w, "%s is %s's %s.\n", b.DisplayName(), a.DisplayName(), r.Description)
-	if r.Kind == genealogy.KindBlood && len(r.CommonAncestors) > 0 && r.UpA > 0 && r.UpB > 0 {
+	if (r.Kind == genealogy.KindBlood || r.Kind == genealogy.KindAdoptive) && len(r.CommonAncestors) > 0 && r.UpA > 0 && r.UpB > 0 {
 		var names []string
 		for _, c := range r.CommonAncestors {
 			names = append(names, c.DisplayName())

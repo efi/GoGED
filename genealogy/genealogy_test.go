@@ -70,9 +70,9 @@ func TestRelateSample(t *testing.T) {
 		{"I14", "I16", "half first cousin", KindBlood},
 		{"I14", "I8", "half-aunt", KindBlood},
 		{"I8", "I14", "half-nephew", KindBlood},
-		{"I20", "I21", "sister", KindBlood},
+		{"I20", "I21", "adoptive sister", KindAdoptive},
 		{"I20", "I24", "sibling", KindBlood},
-		{"I19", "I21", "daughter", KindBlood},
+		{"I19", "I21", "adoptive daughter", KindAdoptive},
 		{"I3", "I5", "wife", KindMarriage},
 		{"I5", "I3", "husband", KindMarriage},
 		{"I6", "I7", "stepson", KindMarriage},
@@ -132,6 +132,118 @@ func TestRelateDetails(t *testing.T) {
 	}
 	if got := Relate(nil, doc.Individual("I1")); got.Kind != KindNone {
 		t.Errorf("nil: %+v", got)
+	}
+}
+
+func TestRelateAdoption(t *testing.T) {
+	// Markus (I6) is the birth son of Wilhelm (I18) and Mathilde (I17).
+	// Gerold (I19), Mathilde's second husband, adopted him alone; later
+	// Gerold's second wife Brigitte (I20) adopted him too.
+	doc, err := gedcom.ParseFile(filepath.Join("..", "testdata", "Muster_GEDCOM_UTF-8.ged"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tests := []struct {
+		a, b string
+		want string
+		kind Kind
+	}{
+		{"I6", "I18", "father", KindBlood},
+		{"I6", "I17", "mother", KindBlood},
+		{"I6", "I19", "adoptive father", KindAdoptive},
+		{"I6", "I20", "adoptive mother", KindAdoptive},
+		{"I19", "I6", "adoptive son", KindAdoptive},
+		{"I20", "I6", "adoptive son", KindAdoptive},
+		{"I17", "I19", "husband", KindMarriage},
+	}
+	for _, tt := range tests {
+		r := Relate(doc.Individual(tt.a), doc.Individual(tt.b))
+		if r.Description != tt.want || r.Kind != tt.kind {
+			t.Errorf("Relate(%s, %s) = %q (kind %d), want %q (kind %d)", tt.a, tt.b, r.Description, r.Kind, tt.want, tt.kind)
+		}
+	}
+	if r := Relate(doc.Individual("I6"), doc.Individual("I19")); r.Pedigree != gedcom.PedigreeAdopted || idsOf(r.CommonAncestors) != "I19" {
+		t.Errorf("adoptive father: %+v", r)
+	}
+}
+
+func TestTimelineAdoptiveRelatives(t *testing.T) {
+	doc := loadSample(t)
+	var got []string
+	for _, e := range Timeline(doc.Individual("I21"), TimelineOptions{Relatives: true}) {
+		if !e.Own() {
+			got = append(got, e.Title())
+		}
+	}
+	want := "Birth of adoptive sibling Infant Smith|Death of adoptive sibling Infant Smith|Death of adoptive father Arthur Smith"
+	if strings.Join(got, "|") != want {
+		t.Errorf("relatives' events = %q", got)
+	}
+	got = nil
+	for _, e := range Timeline(doc.Individual("I14"), TimelineOptions{Relatives: true}) {
+		if e.Relative != nil && e.Relative.ID == "I21" {
+			got = append(got, e.Title())
+		}
+	}
+	if len(got) != 1 || got[0] != "Birth of adoptive daughter Rose Smith" {
+		t.Errorf("adoptive daughter: %q", got)
+	}
+}
+
+func TestRelateNonBirthKinds(t *testing.T) {
+	// P1 and P2 have a birth son B, a foster daughter F, a stepson S and an
+	// adopted grandchild G (adopted by B); G's birth father is X.
+	doc := mustParse(t, `0 HEAD
+0 @P1@ INDI
+1 SEX M
+0 @P2@ INDI
+1 SEX F
+0 @B@ INDI
+1 SEX M
+1 FAMC @F1@
+0 @F@ INDI
+1 SEX F
+1 FAMC @F1@
+2 PEDI foster
+0 @S@ INDI
+1 SEX M
+1 FAMC @F1@
+2 PEDI step
+0 @G@ INDI
+1 SEX F
+1 FAMC @F2@
+2 PEDI adopted
+1 FAMC @F3@
+0 @X@ INDI
+1 SEX M
+0 @F1@ FAM
+1 HUSB @P1@
+1 WIFE @P2@
+1 CHIL @B@
+1 CHIL @F@
+1 CHIL @S@
+0 @F2@ FAM
+1 HUSB @B@
+1 CHIL @G@
+0 @F3@ FAM
+1 HUSB @X@
+1 CHIL @G@
+0 TRLR
+`)
+	tests := []struct{ a, b, want string }{
+		{"B", "F", "foster sister"},
+		{"F", "B", "foster brother"},
+		{"B", "S", "stepbrother"},
+		{"S", "P1", "stepfather"},
+		{"G", "P1", "adoptive grandfather"},
+		{"G", "F", "foster aunt"},
+		{"G", "X", "father"},
+		{"X", "B", "no relationship found"},
+	}
+	for _, tt := range tests {
+		if got := Relate(doc.Individual(tt.a), doc.Individual(tt.b)).Description; got != tt.want {
+			t.Errorf("Relate(%s, %s) = %q, want %q", tt.a, tt.b, got, tt.want)
+		}
 	}
 }
 

@@ -40,18 +40,106 @@ func (s Sex) String() string {
 	return "unknown"
 }
 
-// FamilyLink connects a child to a family it belongs to. Pedigree records
-// the PEDI value ("birth", "adopted", "foster", "sealed", ...), which is
-// empty when the file does not say.
-type FamilyLink struct {
-	Family   *Family
-	Pedigree string
+// Pedigree is the kind of link between a child and a parent, recorded with
+// the PEDI tag and related conventions.
+type Pedigree string
+
+// Pedigree values. PedigreeUnknown is used when the file does not say; it is
+// treated like a birth link.
+const (
+	PedigreeUnknown Pedigree = ""
+	PedigreeBirth   Pedigree = "birth"
+	PedigreeAdopted Pedigree = "adopted"
+	PedigreeFoster  Pedigree = "foster"
+	PedigreeSealed  Pedigree = "sealed"
+	PedigreeStep    Pedigree = "step"
+	PedigreeOther   Pedigree = "other"
+)
+
+// ParsePedigree normalizes a PEDI value. Besides the GEDCOM 5.5.1 and 7
+// values it accepts the _FREL/_MREL values of other programs ("Natural",
+// "Step", ...).
+func ParsePedigree(v string) Pedigree {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "", "unknown":
+		return PedigreeUnknown
+	case "birth", "natural", "biological":
+		return PedigreeBirth
+	case "adopted", "adoption", "adoptive":
+		return PedigreeAdopted
+	case "foster":
+		return PedigreeFoster
+	case "sealed", "sealing":
+		return PedigreeSealed
+	case "step", "stepchild":
+		return PedigreeStep
+	}
+	return PedigreeOther
 }
 
-// IsBirth reports whether the link is a biological one (or unspecified).
-func (l FamilyLink) IsBirth() bool {
-	p := strings.ToLower(l.Pedigree)
-	return p == "" || p == "birth"
+// IsBirth reports whether the link is biological or unspecified.
+func (p Pedigree) IsBirth() bool { return p == PedigreeUnknown || p == PedigreeBirth }
+
+// Adjective describes relatives through such a link: "adoptive", "foster",
+// "step", "sealed" or "non-biological"; it is empty for birth links.
+func (p Pedigree) Adjective() string {
+	switch p {
+	case PedigreeUnknown, PedigreeBirth:
+		return ""
+	case PedigreeAdopted:
+		return "adoptive"
+	case PedigreeOther:
+		return "non-biological"
+	}
+	return string(p)
+}
+
+// FamilyLink connects a child to a family it belongs to.
+type FamilyLink struct {
+	Family *Family
+	// Pedigree is the PEDI value of the link, PedigreeUnknown when the
+	// file does not say.
+	Pedigree Pedigree
+	// Husband and Wife are the kinds of link to each partner. They differ
+	// from Pedigree when only one partner adopted the child (ADOP.FAMC.ADOP)
+	// or when the family records them separately (CHIL._FREL/_MREL).
+	Husband, Wife Pedigree
+}
+
+// IsBirth reports whether the child is a biological (or unspecified) child
+// of both partners.
+func (l FamilyLink) IsBirth() bool { return l.Husband.IsBirth() && l.Wife.IsBirth() }
+
+// Of returns the kind of link to a partner of the family.
+func (l FamilyLink) Of(parent *Individual) Pedigree {
+	switch {
+	case parent == nil:
+		return PedigreeUnknown
+	case parent == l.Family.Husband:
+		return l.Husband
+	case parent == l.Family.Wife:
+		return l.Wife
+	}
+	return PedigreeUnknown
+}
+
+// Kind summarizes the link for display: the pedigree of the link, or of the
+// partner who is not a birth parent, or PedigreeUnknown for birth links.
+func (l FamilyLink) Kind() Pedigree {
+	switch {
+	case !l.Husband.IsBirth():
+		return l.Husband
+	case !l.Wife.IsBirth():
+		return l.Wife
+	}
+	return PedigreeUnknown
+}
+
+// ParentLink is a parent of an individual with the kind of link.
+type ParentLink struct {
+	Parent   *Individual
+	Family   *Family
+	Pedigree Pedigree
 }
 
 // Individual is an INDI record.
@@ -180,34 +268,79 @@ func (ind *Individual) FamiliesAsChild() []FamilyLink { return ind.childOf }
 // partner, in the order given by the file.
 func (ind *Individual) FamiliesAsSpouse() []*Family { return ind.spouseIn }
 
-// parentFamily returns the family of the individual's biological parents if
-// known, else the first family the individual is a child of.
-func (ind *Individual) parentFamily() *Family {
+// ParentLinks returns every parent once, with the closest kind of link:
+// a parent who is both a birth parent and, through another family, an
+// adoptive parent is listed as a birth parent.
+func (ind *Individual) ParentLinks() []ParentLink {
+	var out []ParentLink
 	for _, l := range ind.childOf {
-		if l.IsBirth() {
-			return l.Family
+		for _, p := range l.Family.Partners() {
+			pl := ParentLink{Parent: p, Family: l.Family, Pedigree: l.Of(p)}
+			found := false
+			for i := range out {
+				if out[i].Parent == p {
+					found = true
+					if pedigreeRank(pl.Pedigree) < pedigreeRank(out[i].Pedigree) {
+						out[i] = pl
+					}
+				}
+			}
+			if !found {
+				out = append(out, pl)
+			}
 		}
 	}
-	if len(ind.childOf) > 0 {
-		return ind.childOf[0].Family
-	}
-	return nil
+	return out
 }
 
-// Father returns the husband of the primary parent family.
+// pedigreeRank orders kinds of links from the closest to the most distant.
+func pedigreeRank(p Pedigree) int {
+	switch p {
+	case PedigreeBirth:
+		return 0
+	case PedigreeUnknown:
+		return 1
+	case PedigreeAdopted:
+		return 2
+	case PedigreeSealed:
+		return 3
+	case PedigreeOther:
+		return 4
+	case PedigreeStep:
+		return 5
+	}
+	return 6 // foster
+}
+
+// birthParent returns the first birth parent found through f(link), else the
+// first parent found at all.
+func (ind *Individual) birthParent(f func(*Family) *Individual) *Individual {
+	var fallback *Individual
+	for _, l := range ind.childOf {
+		p := f(l.Family)
+		if p == nil {
+			continue
+		}
+		if l.Of(p).IsBirth() {
+			return p
+		}
+		if fallback == nil {
+			fallback = p
+		}
+	}
+	return fallback
+}
+
+// Father returns the husband of a family in which the individual is a birth
+// child, else of the first family the individual is a child of.
 func (ind *Individual) Father() *Individual {
-	if f := ind.parentFamily(); f != nil {
-		return f.Husband
-	}
-	return nil
+	return ind.birthParent(func(f *Family) *Individual { return f.Husband })
 }
 
-// Mother returns the wife of the primary parent family.
+// Mother returns the wife of a family in which the individual is a birth
+// child, else of the first family the individual is a child of.
 func (ind *Individual) Mother() *Individual {
-	if f := ind.parentFamily(); f != nil {
-		return f.Wife
-	}
-	return nil
+	return ind.birthParent(func(f *Family) *Individual { return f.Wife })
 }
 
 // Parents returns the partners of all families the individual is a child
@@ -216,6 +349,17 @@ func (ind *Individual) Parents() []*Individual {
 	var out []*Individual
 	for _, l := range ind.childOf {
 		out = appendUnique(out, l.Family.Partners()...)
+	}
+	return out
+}
+
+// BirthParents returns the parents with a biological or unspecified link.
+func (ind *Individual) BirthParents() []*Individual {
+	var out []*Individual
+	for _, pl := range ind.ParentLinks() {
+		if pl.Pedigree.IsBirth() {
+			out = append(out, pl.Parent)
+		}
 	}
 	return out
 }
@@ -254,8 +398,8 @@ func (ind *Individual) Siblings() []*Individual {
 	return out
 }
 
-// HalfSiblings returns children that share exactly one parent with the
-// individual, i.e. children of a parent's other families.
+// HalfSiblings returns children that share exactly one birth parent with
+// the individual, i.e. birth children of a birth parent's other families.
 func (ind *Individual) HalfSiblings() []*Individual {
 	full := map[*Individual]bool{ind: true}
 	own := map[*Family]bool{}
@@ -266,19 +410,30 @@ func (ind *Individual) HalfSiblings() []*Individual {
 		}
 	}
 	var out []*Individual
-	for _, p := range ind.Parents() {
+	for _, p := range ind.BirthParents() {
 		for _, f := range p.spouseIn {
 			if own[f] {
 				continue
 			}
 			for _, c := range f.Children {
-				if !full[c] {
+				if l, _ := c.ChildLink(f); !full[c] && l.Of(p).IsBirth() {
 					out = appendUnique(out, c)
 				}
 			}
 		}
 	}
 	return out
+}
+
+// ChildLink returns the link of the individual to f, which the individual is
+// a child of; ok is false if it is not.
+func (ind *Individual) ChildLink(f *Family) (link FamilyLink, ok bool) {
+	for _, l := range ind.childOf {
+		if l.Family == f {
+			return l, true
+		}
+	}
+	return FamilyLink{Family: f}, false
 }
 
 // Notes returns the text of all notes attached directly to the record.

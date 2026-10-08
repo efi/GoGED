@@ -38,6 +38,14 @@ func (m *Model) relativeLine(label string, ind *gedcom.Individual, suffix string
 
 func dimLine(m *Model, text string) line { return textLine(span{text, m.st.dim}) }
 
+// pedigreeSuffix marks non-birth links, e.g. "  (adopted)".
+func pedigreeSuffix(p gedcom.Pedigree) string {
+	if p.IsBirth() {
+		return ""
+	}
+	return "  (" + string(p) + ")"
+}
+
 // rebuildPerson regenerates the person view for the current person.
 func (m *Model) rebuildPerson() {
 	ind := m.current()
@@ -84,17 +92,12 @@ func (m *Model) rebuildPerson() {
 		ls = append(ls, dimLine(m, "none recorded"))
 	}
 	for _, l := range ind.FamiliesAsChild() {
-		suffix := ""
-		if !l.IsBirth() {
-			suffix = "  (" + strings.ToLower(l.Pedigree) + ")"
-		}
-		partners := l.Family.Partners()
-		if len(partners) == 0 {
+		if len(l.Family.Partners()) == 0 {
 			ls = append(ls, dimLine(m, "unknown (family "+l.Family.ID+")"))
 		}
-		for _, p := range partners {
-			ls = append(ls, m.relativeLine(gendered(p.Sex, "Father", "Mother", "Parent"), p, suffix))
-		}
+	}
+	for _, pl := range ind.ParentLinks() {
+		ls = append(ls, m.relativeLine(gendered(pl.Parent.Sex, "Father", "Mother", "Parent"), pl.Parent, pedigreeSuffix(pl.Pedigree)))
 	}
 
 	// Siblings.
@@ -102,7 +105,14 @@ func (m *Model) rebuildPerson() {
 	if len(sibs)+len(halves) > 0 {
 		ls = append(ls, blank, m.sectionLine("Siblings"))
 		for _, s := range sibs {
-			ls = append(ls, m.relativeLine(gendered(s.Sex, "Brother", "Sister", "Sibling"), s, ""))
+			label, suffix := gendered(s.Sex, "Brother", "Sister", "Sibling"), ""
+			switch r := genealogy.Relate(ind, s); {
+			case r.Kind == genealogy.KindBlood && r.Half:
+				label = gendered(s.Sex, "Half-brother", "Half-sister", "Half-sibling")
+			case r.Kind == genealogy.KindAdoptive:
+				suffix = "  (" + r.Pedigree.Adjective() + ")"
+			}
+			ls = append(ls, m.relativeLine(label, s, suffix))
 		}
 		for _, s := range halves {
 			ls = append(ls, m.relativeLine(gendered(s.Sex, "Half-brother", "Half-sister", "Half-sibling"), s, ""))
@@ -146,13 +156,8 @@ func (m *Model) rebuildPerson() {
 			ls = append(ls, dimLine(m, "no children recorded"))
 		}
 		for _, c := range f.Children {
-			suffix := ""
-			for _, l := range c.FamiliesAsChild() {
-				if l.Family == f && !l.IsBirth() {
-					suffix = "  (" + strings.ToLower(l.Pedigree) + ")"
-				}
-			}
-			ls = append(ls, m.relativeLine(gendered(c.Sex, "Son", "Daughter", "Child"), c, suffix))
+			l, _ := c.ChildLink(f)
+			ls = append(ls, m.relativeLine(gendered(c.Sex, "Son", "Daughter", "Child"), c, pedigreeSuffix(l.Of(ind))))
 		}
 	}
 
@@ -215,7 +220,7 @@ func (m *Model) relationshipLine(ind *gedcom.Individual) line {
 		return textLine(label, span{"no relationship to " + ref.DisplayName() + " found", m.st.dim})
 	}
 	spans := []span{label, {ref.DisplayName() + "'s " + r.Description, m.st.reference}}
-	if r.Kind == genealogy.KindBlood && r.UpA > 0 && r.UpB > 0 && len(r.CommonAncestors) > 0 {
+	if (r.Kind == genealogy.KindBlood || r.Kind == genealogy.KindAdoptive) && r.UpA > 0 && r.UpB > 0 && len(r.CommonAncestors) > 0 {
 		var names []string
 		for _, a := range r.CommonAncestors {
 			names = append(names, a.DisplayName())

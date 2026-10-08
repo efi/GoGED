@@ -144,14 +144,17 @@ func relativeEvents(ind *gedcom.Individual) []TimelineEntry {
 	births := func(r *gedcom.Individual) *gedcom.Event { return r.FirstDatedEvent(gedcom.BirthTags...) }
 	deaths := func(r *gedcom.Individual) *gedcom.Event { return r.FirstDatedEvent(gedcom.DeathTags...) }
 
-	for _, p := range ind.Parents() {
-		add(p, gendered(p.Sex, "father", "mother", "parent"), deaths(p))
+	for _, pl := range ind.ParentLinks() {
+		add(pl.Parent, qualify(gendered(pl.Parent.Sex, "father", "mother", "parent"), pl.Pedigree), deaths(pl.Parent))
 	}
 	for _, s := range ind.Spouses() {
 		add(s, gendered(s.Sex, "husband", "wife", "spouse"), deaths(s))
 	}
 	for _, s := range ind.Siblings() {
 		rel := gendered(s.Sex, "brother", "sister", "sibling")
+		if r := Relate(ind, s); r.UpA == 1 && r.UpB == 1 {
+			rel = r.Description // e.g. "adoptive brother" or "half-sister"
+		}
 		add(s, rel, births(s))
 		add(s, rel, deaths(s))
 	}
@@ -160,16 +163,29 @@ func relativeEvents(ind *gedcom.Individual) []TimelineEntry {
 		add(s, rel, births(s))
 		add(s, rel, deaths(s))
 	}
-	for _, c := range ind.Children() {
-		rel := gendered(c.Sex, "son", "daughter", "child")
-		add(c, rel, births(c))
-		for _, f := range c.FamiliesAsSpouse() {
-			add(c, rel, f.Marriage())
-		}
-		add(c, rel, deaths(c))
-		for _, gc := range c.Children() {
-			add(gc, gendered(gc.Sex, "grandson", "granddaughter", "grandchild"), births(gc))
+	seen := map[*gedcom.Individual]bool{}
+	for _, f := range ind.FamiliesAsSpouse() {
+		for _, c := range f.Children {
+			if seen[c] {
+				continue
+			}
+			seen[c] = true
+			l, _ := c.ChildLink(f)
+			childEvents(add, c, qualify(gendered(c.Sex, "son", "daughter", "child"), l.Of(ind)))
 		}
 	}
 	return out
+}
+
+// childEvents adds the birth, marriages and death of a child and the births
+// of the child's children.
+func childEvents(add func(*gedcom.Individual, string, *gedcom.Event), c *gedcom.Individual, rel string) {
+	add(c, rel, c.FirstDatedEvent(gedcom.BirthTags...))
+	for _, f := range c.FamiliesAsSpouse() {
+		add(c, rel, f.Marriage())
+	}
+	add(c, rel, c.FirstDatedEvent(gedcom.DeathTags...))
+	for _, gc := range c.Children() {
+		add(gc, gendered(gc.Sex, "grandson", "granddaughter", "grandchild"), gc.FirstDatedEvent(gedcom.BirthTags...))
+	}
 }

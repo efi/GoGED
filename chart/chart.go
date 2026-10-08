@@ -340,7 +340,11 @@ func Pedigree(root *gedcom.Individual, opts Options) *Chart {
 //	│   └── Thomas Smith (1842–1910)
 //	└── ⚭ Sarah White (1825–1890)  m. 1847
 //	    ├── Emma Smith (1848–)
-//	    └── George Smith (1850–1851)
+//	    └── George Smith (1850–1851)  (adopted)
+//
+// Children who are not birth children of both partners are marked with the
+// kind of link. A person who appears a second time, e.g. as a child of two
+// families, is not expanded again.
 func Descendants(root *gedcom.Individual, opts Options) *Chart {
 	opts = opts.normalized()
 	g := opts.glyphs()
@@ -365,15 +369,20 @@ func Descendants(root *gedcom.Individual, opts Options) *Chart {
 		return idx
 	}
 
-	var person func(ind *gedcom.Individual, gen, up int, prefix, branch string)
-	person = func(ind *gedcom.Individual, gen, up int, prefix, branch string) {
+	seen := map[*gedcom.Individual]bool{}
+	var person func(ind *gedcom.Individual, gen, up int, prefix, branch, note string)
+	person = func(ind *gedcom.Individual, gen, up int, prefix, branch, note string) {
 		lead := prefix + branch
 		col := runewidth.StringWidth(lead)
 		label := truncate(Label(ind), opts.MaxLabel)
 		families := ind.FamiliesAsSpouse()
-		expand := gen < opts.Generations-1
+		expand := gen < opts.Generations-1 && !seen[ind]
+		if seen[ind] {
+			note += "  (see above)"
+		}
+		seen[ind] = true
 		more := false
-		if !expand {
+		if !expand && note == "" {
 			for _, f := range families {
 				if len(f.Children) > 0 {
 					more = true
@@ -383,8 +392,13 @@ func Descendants(root *gedcom.Individual, opts Options) *Chart {
 		idx := addNode(ind, KindPerson, gen, up, col, label)
 		c.Nodes[idx].More = more
 		ps := []placement{{0, lead, -1}, {col, label, idx}}
+		end := col + c.Nodes[idx].Width
 		if more {
-			ps = append(ps, placement{col + c.Nodes[idx].Width, g.moreDown, -1})
+			ps = append(ps, placement{end, g.moreDown, -1})
+			end += runewidth.StringWidth(g.moreDown)
+		}
+		if note != "" {
+			ps = append(ps, placement{end, note, -1})
 		}
 		emit(ps)
 		if !expand {
@@ -428,10 +442,14 @@ func Descendants(root *gedcom.Individual, opts Options) *Chart {
 				if ci == len(f.Children)-1 {
 					br = g.lastBranch
 				}
-				person(child, gen+1, parent, childPrefix+famPipe, br)
+				note := ""
+				if l, _ := child.ChildLink(f); !l.IsBirth() {
+					note = "  (" + string(l.Kind()) + ")"
+				}
+				person(child, gen+1, parent, childPrefix+famPipe, br, note)
 			}
 		}
 	}
-	person(root, 0, -1, "", "")
+	person(root, 0, -1, "", "", "")
 	return c
 }

@@ -1,6 +1,7 @@
 package gedcom
 
 import (
+	"fmt"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -145,6 +146,113 @@ func TestAdoption(t *testing.T) {
 	if rose.Father() == nil || rose.Father().ID != "I14" {
 		t.Errorf("father = %v", rose.Father())
 	}
+}
+
+func TestPedigreePerPartner(t *testing.T) {
+	doc, err := ParseFile(filepath.Join("..", "testdata", "Muster_GEDCOM_UTF-8.ged"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	markus := doc.Individual("I6")
+	var got []string
+	for _, l := range markus.FamiliesAsChild() {
+		got = append(got, fmt.Sprintf("%s:%s/%s/%s", l.Family.ID, l.Pedigree, l.Husband, l.Wife))
+	}
+	// F7: only the husband adopted (ADOP HUSB); the wife is the birth
+	// mother from F6. F8: the wife adopted; the husband had adopted in F7.
+	if want := "F6:birth/birth/birth F7:adopted/adopted/birth F8:adopted/adopted/adopted"; strings.Join(got, " ") != want {
+		t.Errorf("links = %s\nwant    %s", strings.Join(got, " "), want)
+	}
+	var parents []string
+	for _, pl := range markus.ParentLinks() {
+		parents = append(parents, pl.Parent.ID+":"+string(pl.Pedigree))
+	}
+	if want := "I18:birth I17:birth I19:adopted I20:adopted"; strings.Join(parents, " ") != want {
+		t.Errorf("ParentLinks = %s, want %s", strings.Join(parents, " "), want)
+	}
+	if b := idsOfInds(markus.BirthParents()); b != "I18,I17" {
+		t.Errorf("BirthParents = %s", b)
+	}
+	if markus.Father().ID != "I18" || markus.Mother().ID != "I17" {
+		t.Errorf("Father/Mother = %s/%s", markus.Father().ID, markus.Mother().ID)
+	}
+	f7 := markus.FamiliesAsChild()[1]
+	if f7.IsBirth() || f7.Kind() != PedigreeAdopted || f7.Of(doc.Individual("I17")) != PedigreeBirth || f7.Of(nil) != PedigreeUnknown || f7.Of(markus) != PedigreeUnknown {
+		t.Errorf("F7 link: %+v", f7)
+	}
+	if _, ok := markus.ChildLink(doc.Family("F9")); ok {
+		t.Error("ChildLink of a foreign family")
+	}
+}
+
+func TestPedigreeFRELMREL(t *testing.T) {
+	doc, err := ParseString(`0 HEAD
+0 @C@ INDI
+1 FAMC @F1@
+0 @D@ INDI
+1 FAMC @F1@
+0 @E@ INDI
+1 ADOP
+2 FAMC @F1@
+0 @H@ INDI
+1 SEX M
+0 @W@ INDI
+1 SEX F
+0 @F1@ FAM
+1 HUSB @H@
+1 WIFE @W@
+1 CHIL @C@
+2 _FREL Step
+2 _MREL Natural
+1 CHIL @D@
+2 _FREL Foster
+1 CHIL @E@
+0 TRLR
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	check := func(id string, husband, wife Pedigree, kind Pedigree) {
+		t.Helper()
+		l := doc.Individual(id).FamiliesAsChild()[0]
+		if l.Husband != husband || l.Wife != wife || l.Kind() != kind {
+			t.Errorf("%s: %+v, kind %q", id, l, l.Kind())
+		}
+	}
+	check("C", PedigreeStep, PedigreeBirth, PedigreeStep)
+	check("D", PedigreeFoster, PedigreeUnknown, PedigreeFoster)
+	check("E", PedigreeAdopted, PedigreeAdopted, PedigreeAdopted) // ADOP without HUSB/WIFE: both
+	if half := doc.Individual("C").HalfSiblings(); len(half) != 0 {
+		t.Errorf("HalfSiblings = %v", half)
+	}
+}
+
+func TestParsePedigree(t *testing.T) {
+	for in, want := range map[string]Pedigree{
+		"": PedigreeUnknown, "Unknown": PedigreeUnknown, "birth": PedigreeBirth, "BIRTH": PedigreeBirth,
+		"Natural": PedigreeBirth, "adopted": PedigreeAdopted, "ADOPTED": PedigreeAdopted, "foster": PedigreeFoster,
+		"sealed": PedigreeSealed, "SEALING": PedigreeSealed, "Step": PedigreeStep, "OTHER": PedigreeOther, "guardian": PedigreeOther,
+	} {
+		if got := ParsePedigree(in); got != want {
+			t.Errorf("ParsePedigree(%q) = %q, want %q", in, got, want)
+		}
+	}
+	for p, want := range map[Pedigree]string{
+		PedigreeUnknown: "", PedigreeBirth: "", PedigreeAdopted: "adoptive", PedigreeFoster: "foster",
+		PedigreeStep: "step", PedigreeSealed: "sealed", PedigreeOther: "non-biological",
+	} {
+		if got := p.Adjective(); got != want {
+			t.Errorf("%q.Adjective() = %q, want %q", p, got, want)
+		}
+	}
+}
+
+func idsOfInds(list []*Individual) string {
+	var s []string
+	for _, i := range list {
+		s = append(s, i.ID)
+	}
+	return strings.Join(s, ",")
 }
 
 func TestFamilyAccessors(t *testing.T) {

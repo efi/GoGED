@@ -299,7 +299,7 @@ func (d *Document) linkFamilies() {
 			}
 			if c.Tag == "FAMC" {
 				if !hasChildLink(ind, f) {
-					ind.childOf = append(ind.childOf, FamilyLink{Family: f, Pedigree: strings.TrimSpace(c.Val("PEDI"))})
+					ind.childOf = append(ind.childOf, FamilyLink{Family: f, Pedigree: ParsePedigree(c.Val("PEDI"))})
 				}
 				if !containsInd(f.Children, ind) {
 					d.warn(c.Line, "%s lists family %s as parents, but the family does not list %s as a child", ind.ID, f.ID, ind.ID)
@@ -338,9 +338,91 @@ func (d *Document) linkFamilies() {
 		}
 	}
 
+	d.resolvePedigrees()
+
 	// Detect people who are their own ancestors; such loops would otherwise
 	// confuse tree rendering and relationship calculations.
 	d.checkAncestryLoops()
+}
+
+// resolvePedigrees works out the kind of link between children and each
+// partner of their families. The PEDI value applies to both partners unless
+// the family records them separately (CHIL._FREL and _MREL, written by
+// several programs) or an adoption event names the adopting partner
+// (ADOP.FAMC.ADOP HUSB or WIFE). The partner who did not adopt is then
+// linked as in the child's other families, e.g. as a birth parent.
+func (d *Document) resolvePedigrees() {
+	const notAdopter Pedigree = "\x00"
+	for _, ind := range d.Individuals {
+		adopters := map[*Family]string{}
+		for _, e := range ind.Events {
+			if e.Tag != "ADOP" {
+				continue
+			}
+			if famc := e.Node.First("FAMC"); famc != nil && famc.IsPointer() {
+				if f := d.fams[StripXref(famc.Value)]; f != nil {
+					adopters[f] = strings.ToUpper(strings.TrimSpace(famc.Val("ADOP")))
+				}
+			}
+		}
+		for i := range ind.childOf {
+			l := &ind.childOf[i]
+			l.Husband, l.Wife = l.Pedigree, l.Pedigree
+			for _, c := range l.Family.Node.Children {
+				if c.Tag == "CHIL" && StripXref(c.Value) == ind.ID {
+					if v := c.Val("_FREL"); v != "" {
+						l.Husband = ParsePedigree(v)
+					}
+					if v := c.Val("_MREL"); v != "" {
+						l.Wife = ParsePedigree(v)
+					}
+					break
+				}
+			}
+			who, ok := adopters[l.Family]
+			if !ok {
+				continue
+			}
+			husband, wife := who != "WIFE", who != "HUSB"
+			if husband {
+				l.Husband = PedigreeAdopted
+			} else if l.Husband == PedigreeAdopted {
+				l.Husband = notAdopter
+			}
+			if wife {
+				l.Wife = PedigreeAdopted
+			} else if l.Wife == PedigreeAdopted {
+				l.Wife = notAdopter
+			}
+		}
+		// A partner who did not adopt keeps the closest link recorded in
+		// another family, else an unspecified one.
+		resolve := func(p *Individual) Pedigree {
+			best := PedigreeOther
+			found := false
+			for _, l := range ind.childOf {
+				if l.Family.Husband != p && l.Family.Wife != p {
+					continue
+				}
+				if k := l.Of(p); k != notAdopter && (!found || pedigreeRank(k) < pedigreeRank(best)) {
+					best, found = k, true
+				}
+			}
+			if !found {
+				return PedigreeUnknown
+			}
+			return best
+		}
+		for i := range ind.childOf {
+			l := &ind.childOf[i]
+			if l.Husband == notAdopter {
+				l.Husband = resolve(l.Family.Husband)
+			}
+			if l.Wife == notAdopter {
+				l.Wife = resolve(l.Family.Wife)
+			}
+		}
+	}
 }
 
 func hasChildLink(ind *Individual, f *Family) bool {

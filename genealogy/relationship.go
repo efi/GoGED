@@ -19,6 +19,7 @@ const (
 	KindSelf                 // the same person
 	KindBlood                // related by descent
 	KindMarriage             // related through a marriage (spouse, in-law, step)
+	KindAdoptive             // related through adoption, fostering or another non-birth link
 )
 
 // Relationship describes how person B is related to person A.
@@ -36,18 +37,23 @@ type Relationship struct {
 	CommonAncestors []*gedcom.Individual
 	// Via is the spouse through whom a marriage relationship runs.
 	Via *gedcom.Individual
+	// Pedigree is the most distant kind of parent link (adopted, foster,
+	// ...) on the way to the common ancestors of a KindAdoptive
+	// relationship.
+	Pedigree gedcom.Pedigree
 }
 
 // String returns the description.
 func (r Relationship) String() string { return r.Description }
 
-// Relate determines how b is related to a. Blood relationships take
-// precedence over relationships by marriage.
+// Relate determines how b is related to a. Blood relationships, which
+// follow birth (or unspecified) parent links only, take precedence over
+// marriage and over relationships through adoption or fostering.
 func Relate(a, b *gedcom.Individual) Relationship {
 	if a == nil || b == nil {
 		return Relationship{Description: "no relationship found"}
 	}
-	if r, ok := blood(a, b); ok {
+	if r, ok := blood(a, b, true); ok {
 		return r
 	}
 	for _, s := range a.Spouses() {
@@ -55,18 +61,21 @@ func Relate(a, b *gedcom.Individual) Relationship {
 			return Relationship{Kind: KindMarriage, Description: gendered(b.Sex, "husband", "wife", "spouse"), Via: s}
 		}
 	}
-	// b is a blood relative of a's spouse.
+	if r, ok := blood(a, b, false); ok {
+		return r
+	}
+	// b is a relative of a's spouse.
 	for _, s := range a.Spouses() {
-		if r, ok := blood(s, b); ok && r.Kind == KindBlood {
+		if r, ok := kin(s, b); ok {
 			r.Kind = KindMarriage
 			r.Description = inLawViaSpouse(r, s, b)
 			r.Via = s
 			return r
 		}
 	}
-	// b is the spouse of a's blood relative.
+	// b is the spouse of a's relative.
 	for _, s := range b.Spouses() {
-		if r, ok := blood(a, s); ok && r.Kind == KindBlood {
+		if r, ok := kin(a, s); ok {
 			r.Kind = KindMarriage
 			r.Description = inLawViaRelative(r, b)
 			r.Via = s
@@ -76,47 +85,120 @@ func Relate(a, b *gedcom.Individual) Relationship {
 	return Relationship{Description: "no relationship found"}
 }
 
+// kin returns the blood or adoptive relationship of b to a, excluding a
+// being b.
+func kin(a, b *gedcom.Individual) (Relationship, bool) {
+	if a == b {
+		return Relationship{}, false
+	}
+	if r, ok := blood(a, b, true); ok {
+		return r, true
+	}
+	return blood(a, b, false)
+}
+
+// reach is the distance to an ancestor (or ancestral family) together with
+// the most distant kind of parent link on the way; PedigreeUnknown means
+// birth links only.
+type reach struct {
+	dist int
+	kind gedcom.Pedigree
+}
+
+// linkRank orders kinds of parent links from the closest to the most
+// distant.
+func linkRank(p gedcom.Pedigree) int {
+	switch p {
+	case gedcom.PedigreeUnknown, gedcom.PedigreeBirth:
+		return 0
+	case gedcom.PedigreeAdopted:
+		return 1
+	case gedcom.PedigreeSealed:
+		return 2
+	case gedcom.PedigreeOther:
+		return 3
+	case gedcom.PedigreeStep:
+		return 4
+	}
+	return 5 // foster
+}
+
+// farther returns the more distant of two kinds of links.
+func farther(a, b gedcom.Pedigree) gedcom.Pedigree {
+	if linkRank(b) > linkRank(a) {
+		a = b
+	}
+	if linkRank(a) == 0 {
+		return gedcom.PedigreeUnknown
+	}
+	return a
+}
+
 // ancestorDistances maps every ancestor of ind (and ind itself, at 0) to the
-// shortest number of generations separating them.
-func ancestorDistances(ind *gedcom.Individual) map[*gedcom.Individual]int {
-	dist := map[*gedcom.Individual]int{ind: 0}
-	queue := []*gedcom.Individual{ind}
-	for len(queue) > 0 {
-		cur := queue[0]
-		queue = queue[1:]
-		for _, p := range cur.Parents() {
-			if _, seen := dist[p]; !seen {
-				dist[p] = dist[cur] + 1
-				queue = append(queue, p)
+// shortest number of generations separating them. With birthOnly, adoptive
+// and other non-birth parents are not followed; otherwise the closest kind
+// of link among the shortest paths is recorded.
+func ancestorDistances(ind *gedcom.Individual, birthOnly bool) map[*gedcom.Individual]reach {
+	dist := map[*gedcom.Individual]reach{ind: {}}
+	level := []*gedcom.Individual{ind}
+	for d := 1; len(level) > 0; d++ {
+		var next []*gedcom.Individual
+		for _, cur := range level {
+			for _, pl := range cur.ParentLinks() {
+				if birthOnly && !pl.Pedigree.IsBirth() {
+					continue
+				}
+				k := farther(dist[cur].kind, pl.Pedigree)
+				r, seen := dist[pl.Parent]
+				switch {
+				case !seen:
+					dist[pl.Parent] = reach{d, k}
+					next = append(next, pl.Parent)
+				case r.dist == d && linkRank(k) < linkRank(r.kind):
+					dist[pl.Parent] = reach{d, k}
+				}
 			}
 		}
+		level = next
 	}
 	return dist
 }
 
 // familyDistances maps every ancestral family of ind to its distance: the
 // families ind is a child of are at distance 1, their partners' parental
-// families at 2, and so on.
-func familyDistances(ind *gedcom.Individual) map[*gedcom.Family]int {
-	dist := map[*gedcom.Family]int{}
-	var queue []*gedcom.Family
-	for _, l := range ind.FamiliesAsChild() {
-		if _, seen := dist[l.Family]; !seen {
-			dist[l.Family] = 1
-			queue = append(queue, l.Family)
-		}
-	}
-	for len(queue) > 0 {
-		cur := queue[0]
-		queue = queue[1:]
-		for _, p := range cur.Partners() {
-			for _, l := range p.FamiliesAsChild() {
-				if _, seen := dist[l.Family]; !seen {
-					dist[l.Family] = dist[cur] + 1
-					queue = append(queue, l.Family)
-				}
+// families at 2, and so on. With birthOnly, only families in which the
+// child is a birth child of both partners are followed.
+func familyDistances(ind *gedcom.Individual, birthOnly bool) map[*gedcom.Family]reach {
+	dist := map[*gedcom.Family]reach{}
+	var level []*gedcom.Family
+	visit := func(child *gedcom.Individual, d int, kind gedcom.Pedigree, next *[]*gedcom.Family) {
+		for _, l := range child.FamiliesAsChild() {
+			k := kind
+			for _, p := range l.Family.Partners() {
+				k = farther(k, l.Of(p))
+			}
+			if birthOnly && k != gedcom.PedigreeUnknown {
+				continue
+			}
+			r, seen := dist[l.Family]
+			switch {
+			case !seen:
+				dist[l.Family] = reach{d, k}
+				*next = append(*next, l.Family)
+			case r.dist == d && linkRank(k) < linkRank(r.kind):
+				dist[l.Family] = reach{d, k}
 			}
 		}
+	}
+	visit(ind, 1, gedcom.PedigreeUnknown, &level)
+	for d := 2; len(level) > 0; d++ {
+		var next []*gedcom.Family
+		for _, f := range level {
+			for _, p := range f.Partners() {
+				visit(p, d, dist[f].kind, &next)
+			}
+		}
+		level = next
 	}
 	return dist
 }
@@ -146,46 +228,59 @@ func abs(x int) int {
 	return x
 }
 
-// blood computes the blood relationship of b to a, if any.
-func blood(a, b *gedcom.Individual) (Relationship, bool) {
+// blood computes the relationship of b to a by descent. With birthOnly it
+// follows birth links only and returns a KindBlood relationship; otherwise
+// it also follows adoptive and other links and returns a KindAdoptive one
+// if such a link is involved.
+func blood(a, b *gedcom.Individual, birthOnly bool) (Relationship, bool) {
 	if a == b {
 		return Relationship{Kind: KindSelf, Description: "self"}, true
 	}
-	ancA := ancestorDistances(a)
-	if d, ok := ancA[b]; ok {
-		return Relationship{Kind: KindBlood, UpA: d, Description: describe(d, 0, b.Sex, false), CommonAncestors: []*gedcom.Individual{b}}, true
+	result := func(r Relationship, kind gedcom.Pedigree) (Relationship, bool) {
+		r.Kind = KindBlood
+		if kind != gedcom.PedigreeUnknown {
+			r.Kind, r.Pedigree = KindAdoptive, kind
+			r.Description = qualify(r.Description, kind)
+		}
+		return r, true
 	}
-	ancB := ancestorDistances(b)
-	if d, ok := ancB[a]; ok {
-		return Relationship{Kind: KindBlood, UpB: d, Description: describe(0, d, b.Sex, false), CommonAncestors: []*gedcom.Individual{a}}, true
+	ancA := ancestorDistances(a, birthOnly)
+	if r, ok := ancA[b]; ok {
+		return result(Relationship{UpA: r.dist, Description: describe(r.dist, 0, b.Sex, false), CommonAncestors: []*gedcom.Individual{b}}, r.kind)
+	}
+	ancB := ancestorDistances(b, birthOnly)
+	if r, ok := ancB[a]; ok {
+		return result(Relationship{UpB: r.dist, Description: describe(0, r.dist, b.Sex, false), CommonAncestors: []*gedcom.Individual{a}}, r.kind)
 	}
 
 	// Closest common family (both partners shared: a full relationship).
 	var bestFam *gedcom.Family
 	var famCand candidate
-	famB := familyDistances(b)
-	for f, da := range familyDistances(a) {
-		db, ok := famB[f]
+	var famKind gedcom.Pedigree
+	famB := familyDistances(b, birthOnly)
+	for f, ra := range familyDistances(a, birthOnly) {
+		rb, ok := famB[f]
 		if !ok {
 			continue
 		}
-		c := candidate{da, db, f.ID}
+		c := candidate{ra.dist, rb.dist, f.ID}
 		if bestFam == nil || c.less(famCand) {
-			bestFam, famCand = f, c
+			bestFam, famCand, famKind = f, c, farther(ra.kind, rb.kind)
 		}
 	}
 
 	// Closest common individual (possibly only one shared parent: half).
 	var bestInd *gedcom.Individual
 	var indCand candidate
-	for p, da := range ancA {
-		db, ok := ancB[p]
+	var indKind gedcom.Pedigree
+	for p, ra := range ancA {
+		rb, ok := ancB[p]
 		if !ok {
 			continue
 		}
-		c := candidate{da, db, p.ID}
+		c := candidate{ra.dist, rb.dist, p.ID}
 		if bestInd == nil || c.less(indCand) {
-			bestInd, indCand = p, c
+			bestInd, indCand, indKind = p, c, farther(ra.kind, rb.kind)
 		}
 	}
 
@@ -193,24 +288,40 @@ func blood(a, b *gedcom.Individual) (Relationship, bool) {
 	case bestFam != nil && (bestInd == nil || famCand.upA+famCand.upB <= indCand.upA+indCand.upB):
 		common := bestFam.Partners()
 		sort.Slice(common, func(i, j int) bool { return common[i].ID < common[j].ID })
-		return Relationship{
-			Kind:            KindBlood,
+		return result(Relationship{
 			UpA:             famCand.upA,
 			UpB:             famCand.upB,
 			Description:     describe(famCand.upA, famCand.upB, b.Sex, false),
 			CommonAncestors: common,
-		}, true
+		}, famKind)
 	case bestInd != nil:
-		return Relationship{
-			Kind:            KindBlood,
+		return result(Relationship{
 			UpA:             indCand.upA,
 			UpB:             indCand.upB,
 			Half:            true,
 			Description:     describe(indCand.upA, indCand.upB, b.Sex, true),
 			CommonAncestors: []*gedcom.Individual{bestInd},
-		}, true
+		}, indKind)
 	}
 	return Relationship{}, false
+}
+
+// qualify prefixes a description with the kind of non-birth link, e.g.
+// "adoptive father", "foster sister" or "stepbrother".
+func qualify(desc string, kind gedcom.Pedigree) string {
+	switch kind {
+	case gedcom.PedigreeUnknown, gedcom.PedigreeBirth:
+		return desc
+	case gedcom.PedigreeStep:
+		switch desc {
+		case "father", "mother", "parent", "son", "daughter", "child", "brother", "sister", "sibling":
+			return "step" + desc
+		}
+		return "step-" + desc
+	case gedcom.PedigreeSealed:
+		return desc + " (sealed)"
+	}
+	return kind.Adjective() + " " + desc
 }
 
 func gendered(sex gedcom.Sex, male, female, neutral string) string {
