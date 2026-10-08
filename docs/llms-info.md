@@ -239,7 +239,9 @@ packages.
 
 ### worldmap
 
-- `world.bin` (about 1.4 MB) is Natural Earth 1:10m data. The format is
+- `world.bin` (about 1.8 MB) is Natural Earth 1:10m data, with the regional
+  river supplements for Europe, North America and Australia (they added
+  about 380 KB to the executables). The format is
   "GOGEDMAP" v1: gzip, coordinates scaled by 1e4, zigzag varint deltas, and
   the Natural Earth `min_zoom` for level of detail. It is embedded with
   `go:embed`, so goged stays a single executable.

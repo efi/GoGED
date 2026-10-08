@@ -237,16 +237,18 @@ decimal comma are accepted as well. A place gets the coordinates of the first
 event that records them.
 
 The map shows the 1:10m coastlines, land borders, rivers and lakes of
-[Natural Earth](https://www.naturalearthdata.com/), simplified to about
-0.005° and stored in a compact format (`worldmap/world.bin`, 1.5 MB) that is
-embedded into the executable. Minor rivers and lakes appear as you zoom in.
-To rebuild the data from the Natural Earth GeoJSON files:
+[Natural Earth](https://www.naturalearthdata.com/), including the regional
+supplements with smaller rivers in Europe, North America and Australia. The
+data is simplified to about 0.005° and stored in a compact format
+(`worldmap/world.bin`, 1.8 MB) that is embedded into the executable. Minor
+rivers and lakes appear as you zoom in. To rebuild the data from the Natural
+Earth GeoJSON files (each layer takes a comma-separated list of files):
 
 ```sh
 go run ./worldmap/mkworld -o worldmap/world.bin \
     -coast ne_10m_coastline.geojson \
     -borders ne_10m_admin_0_boundary_lines_land.geojson \
-    -rivers ne_10m_rivers_lake_centerlines.geojson \
+    -rivers ne_10m_rivers_lake_centerlines.geojson,ne_10m_rivers_europe.geojson,ne_10m_rivers_north_america.geojson,ne_10m_rivers_australia.geojson \
     -lakes ne_10m_lakes.geojson
 ```
 

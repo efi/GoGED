@@ -14,7 +14,8 @@ const Attribution = "Made with Natural Earth"
 
 // License describes the terms of the embedded map data.
 const License = `Map data: Natural Earth (https://www.naturalearthdata.com/)
-1:10m coastline, land boundaries, rivers and lake centerlines, and lakes,
+1:10m coastline, land boundaries, rivers and lake centerlines (with the
+regional supplements for Europe, North America and Australia), and lakes,
 simplified for display in the terminal.
 
 All versions of Natural Earth raster and vector map data are in the

@@ -100,11 +100,23 @@ func TestRun(t *testing.T) {
 		t.Errorf("log = %q", log.String())
 	}
 
+	// Several files per layer, e.g. the regional river supplements.
+	rivers := write("rivers.json", `{"features":[{"properties":{"min_zoom":2},"geometry":{"type":"LineString","coordinates":[[0,0],[3,3]]}}]}`)
+	europe := write("europe.json", `{"features":[{"properties":{"min_zoom":6.7},"geometry":{"type":"LineString","coordinates":[[10,50],[11,51]]}}]}`)
+	if err := run([]string{"-o", out, "-rivers", rivers + "," + europe}, &log); err != nil {
+		t.Fatal(err)
+	}
+	data, _ = os.ReadFile(out)
+	if lines, err = worldmap.Decode(data); err != nil || len(lines) != 2 || lines[0].MinZoom != 2 || lines[1].MinZoom != 7 || lines[1].Lon[0] != 10 {
+		t.Errorf("rivers from two files = %+v, %v", lines, err)
+	}
+
 	bad := write("bad.json", `{"features":[{"geometry":{"type":"Point","coordinates":[0,0]}}]}`)
 	for _, args := range [][]string{
 		{"-coast", filepath.Join(dir, "missing.json")},
 		{"-coast", write("garbage.json", "not json")},
 		{"-rivers", bad},
+		{"-rivers", rivers + "," + filepath.Join(dir, "missing.json")},
 		{"-bogus"},
 		{"-o", filepath.Join(dir, "no", "such", "dir.bin"), "-coast", coast},
 	} {

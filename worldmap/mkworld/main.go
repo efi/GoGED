@@ -4,8 +4,11 @@
 //	go run ./worldmap/mkworld -o worldmap/world.bin \
 //	    -coast ne_10m_coastline.geojson \
 //	    -borders ne_10m_admin_0_boundary_lines_land.geojson \
-//	    -rivers ne_10m_rivers_lake_centerlines.geojson \
+//	    -rivers ne_10m_rivers_lake_centerlines.geojson,ne_10m_rivers_europe.geojson,ne_10m_rivers_north_america.geojson,ne_10m_rivers_australia.geojson \
 //	    -lakes ne_10m_lakes.geojson
+//
+// Every layer accepts a comma-separated list of files; the regional river
+// supplements add smaller rivers to the global layer.
 //
 // Natural Earth data is public domain: https://www.naturalearthdata.com/
 package main
@@ -18,6 +21,7 @@ import (
 	"io"
 	"math"
 	"os"
+	"strings"
 
 	"github.com/efi/goged/worldmap"
 )
@@ -111,7 +115,7 @@ func simplify(pts [][2]float64, eps float64) [][2]float64 {
 
 type layer struct {
 	kind     worldmap.Kind
-	path     string
+	paths    string // comma-separated GeoJSON files
 	eps      float64
 	maxRank  float64 // skip features with a larger scalerank (0 = keep all)
 	baseZoom uint8   // min zoom for features without a min_zoom property
@@ -127,10 +131,10 @@ func main() {
 func run(args []string, log io.Writer) error {
 	fs := flag.NewFlagSet("mkworld", flag.ContinueOnError)
 	out := fs.String("o", "world.bin", "output file")
-	coast := fs.String("coast", "", "coastline GeoJSON")
-	borders := fs.String("borders", "", "land boundary GeoJSON")
-	rivers := fs.String("rivers", "", "rivers GeoJSON")
-	lakes := fs.String("lakes", "", "lakes GeoJSON")
+	coast := fs.String("coast", "", "coastline GeoJSON (comma-separated `files`)")
+	borders := fs.String("borders", "", "land boundary GeoJSON (comma-separated `files`)")
+	rivers := fs.String("rivers", "", "rivers GeoJSON (comma-separated `files`)")
+	lakes := fs.String("lakes", "", "lakes GeoJSON (comma-separated `files`)")
 	eps := fs.Float64("epsilon", 0.005, "simplification tolerance in degrees")
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -144,46 +148,48 @@ func run(args []string, log io.Writer) error {
 	}
 	var all []worldmap.Polyline
 	for _, ly := range layers {
-		if ly.path == "" {
+		if ly.paths == "" {
 			continue
 		}
-		data, err := os.ReadFile(ly.path)
-		if err != nil {
-			return err
-		}
-		var fc struct {
-			Features []feature `json:"features"`
-		}
-		if err := json.Unmarshal(data, &fc); err != nil {
-			return fmt.Errorf("%s: %w", ly.path, err)
-		}
 		before, after, count := 0, 0, 0
-		for _, f := range fc.Features {
-			if r, ok := number(f.Properties, "scalerank"); ok && ly.maxRank > 0 && r > ly.maxRank {
-				continue
-			}
-			zoom := ly.baseZoom
-			if z, ok := number(f.Properties, "min_zoom"); ok && z >= 0 {
-				zoom = uint8(math.Round(z))
-			}
-			ls, err := lines(f)
+		for _, path := range strings.Split(ly.paths, ",") {
+			data, err := os.ReadFile(strings.TrimSpace(path))
 			if err != nil {
-				return fmt.Errorf("%s: %w", ly.path, err)
+				return err
 			}
-			for _, l := range ls {
-				before += len(l)
-				s := simplify(l, ly.eps)
-				if len(s) < 2 {
+			var fc struct {
+				Features []feature `json:"features"`
+			}
+			if err := json.Unmarshal(data, &fc); err != nil {
+				return fmt.Errorf("%s: %w", path, err)
+			}
+			for _, f := range fc.Features {
+				if r, ok := number(f.Properties, "scalerank"); ok && ly.maxRank > 0 && r > ly.maxRank {
 					continue
 				}
-				p := worldmap.Polyline{Kind: ly.kind, MinZoom: zoom}
-				for _, pt := range s {
-					p.Lon = append(p.Lon, pt[0])
-					p.Lat = append(p.Lat, pt[1])
+				zoom := ly.baseZoom
+				if z, ok := number(f.Properties, "min_zoom"); ok && z >= 0 {
+					zoom = uint8(math.Round(z))
 				}
-				after += len(s)
-				count++
-				all = append(all, p)
+				ls, err := lines(f)
+				if err != nil {
+					return fmt.Errorf("%s: %w", path, err)
+				}
+				for _, l := range ls {
+					before += len(l)
+					s := simplify(l, ly.eps)
+					if len(s) < 2 {
+						continue
+					}
+					p := worldmap.Polyline{Kind: ly.kind, MinZoom: zoom}
+					for _, pt := range s {
+						p.Lon = append(p.Lon, pt[0])
+						p.Lat = append(p.Lat, pt[1])
+					}
+					after += len(s)
+					count++
+					all = append(all, p)
+				}
 			}
 		}
 		fmt.Fprintf(log, "%-10s %6d lines %8d -> %7d points\n", ly.kind, count, before, after)
