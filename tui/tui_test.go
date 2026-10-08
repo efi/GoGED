@@ -333,11 +333,11 @@ func TestPersonViewAssociations(t *testing.T) {
 		"Godparent of  Karl Müller Junior (1933–1980)", "Record last changed 29 Sep 2012 20:46:42")
 	a.openPerson("I1")
 	a.contains("male · I1 · 1943– · ref. 1\n", "call name Max\n",
-		"Witness       Otto Mustermann (–aft.1943)  (at marriage 12 Sep 1968)",
+		"Witness       Otto Mustermann (–aft.1943)  (at civil marriage 12 Sep 1968)",
 		"witnesses: Otto Mustermann, Franz-Xaver Gabler", "address: Kölner Dom",
 		"GenWiki: GEDCOM Kennzeichen FAM — Vereinbarung F4", "“F4 Standesamtliche und kirchliche Trauung")
 	a.openPerson("I4")
-	a.contains("Witness of    Max Manfred Mustermann & Erika Gabler  (at marriage 12 Sep 1968)")
+	a.contains("Witness of    Max Manfred Mustermann & Erika Gabler  (at civil marriage 12 Sep 1968)")
 	a.openPerson("I32")
 	a.contains("Associate of  Hans Mustermann (1942–)  (langjähriger Weggefährte)",
 		"              Dave Sample spielte von 1971 bis 1999 in der Elton John Band")
@@ -353,6 +353,20 @@ func TestPersonViewAssociations(t *testing.T) {
 	if a.currentID() != "I35" {
 		t.Errorf("enter on the godparent opened %s", a.currentID())
 	}
+}
+
+func TestTimelineWording(t *testing.T) {
+	a := newMusterApp(t)
+	a.resize(150, 60)
+	a.openPerson("I11")
+	a.contains("29 Sep 2002         Divorce from Brigitte Gutedel filed",
+		"Jul 1997            Pilgerreise nach Rom with Brigitte Gutedel")
+	a.openPerson("I1")
+	a.contains("Apr 1958–Mar 1961   Education  Werkzeugschlosser Lehre",
+		"bet. 1961–1964      Education  Studium Maschinenbau Ingenieur · between Apr 1961 and Mar 1964",
+		"12 Sep 1968         Civil marriage with Erika Gabler")
+	a.openPerson("I6")
+	a.contains("7 May 1967          Adoption  by Gerold Freiwein · Köln")
 }
 
 func TestPersonViewTitles(t *testing.T) {

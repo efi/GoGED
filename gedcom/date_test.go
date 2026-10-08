@@ -313,3 +313,34 @@ func TestFloorDivMod(t *testing.T) {
 		}
 	}
 }
+
+func TestDateFit(t *testing.T) {
+	tests := []struct {
+		raw   string
+		width int
+		s     string
+		rest  string
+	}{
+		{"12 SEP 1945", 19, "12 Sep 1945", ""},
+		{"FROM APR 1958 TO MAR 1961", 19, "Apr 1958–Mar 1961", ""},
+		{"FROM 1 APR 1958 TO 31 MAR 1961", 19, "Apr 1958–Mar 1961", "from 1 Apr 1958 to 31 Mar 1961"},
+		{"FROM 1 APR 1958 TO 31 MAR 1961", 22, "1 Apr 1958–31 Mar 1961", ""},
+		{"BET APR 1961 AND MAR 1964", 19, "bet. 1961–1964", "between Apr 1961 and Mar 1964"},
+		{"INT 24 OCT 1794 (3. Brumaire III)", 19, "24 Oct 1794", "3. Brumaire III"},
+		{"ABT 12 SEPTEMBER 1945", 15, "abt. Sep 1945", "about 12 Sep 1945"},
+		{"CAL 1850", 8, "calcula…", "calculated 1850"},
+		{"EST 1850", 9, "est. 1850", ""},
+		{"BEF 1 JAN 1900", 12, "bef. 1900", "before 1 Jan 1900"},
+		{"AFT 1 JAN 1900", 15, "aft. 1 Jan 1900", ""},
+		{"FROM 3 OCT 1990", 12, "from 1990", "from 3 Oct 1990"},
+		{"TO 3 OCT 1990", 12, "to Oct 1990", "to 3 Oct 1990"},
+		{"(sometime in spring)", 10, "sometime…", "sometime in spring"},
+		{"12 SEP 1945", 0, "", "12 Sep 1945"},
+	}
+	for _, tt := range tests {
+		s, rest := ParseDate(tt.raw).Fit(tt.width)
+		if s != tt.s || rest != tt.rest {
+			t.Errorf("Fit(%q, %d) = %q, %q; want %q, %q", tt.raw, tt.width, s, rest, tt.s, tt.rest)
+		}
+	}
+}

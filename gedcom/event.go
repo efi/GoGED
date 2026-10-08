@@ -230,32 +230,96 @@ func (e *Event) Class() EventClass {
 func (e *Event) IsVital() bool { return e.Class() == ClassVital }
 
 // Label returns a human readable name for the event. Generic EVEN and FACT
-// structures use their TYPE.
+// structures use their TYPE, an EVEN without TYPE its value; civil and
+// religious marriages (MARR.TYPE CIVIL or RELI, as agreed by GEDCOM-L) are
+// named as such.
 func (e *Event) Label() string {
-	if (e.Tag == "EVEN" || e.Tag == "FACT" || e.Tag == "IDNO") && e.Type != "" {
-		return e.Type
+	if l, ok := e.typeLabel(); ok {
+		return l
 	}
 	return EventLabel(e.Tag)
 }
 
-// Detail returns the descriptive value of the event: the attribute value
-// (e.g. the occupation) or cause, excluding the "Y" flag used to assert
-// that an event happened without further details.
-func (e *Event) Detail() string {
+// typeLabel returns the label given by the TYPE or value of the event, if
+// any.
+func (e *Event) typeLabel() (string, bool) {
+	switch {
+	case (e.Tag == "EVEN" || e.Tag == "FACT" || e.Tag == "IDNO") && e.Type != "":
+		return e.Type, true
+	case e.Tag == "EVEN" && e.value() != "":
+		return e.value(), true
+	case e.Tag == "MARR":
+		switch strings.ToUpper(e.Type) {
+		case "CIVIL":
+			return "Civil marriage", true
+		case "RELI", "RELIGIOUS":
+			return "Religious marriage", true
+		}
+	}
+	return "", false
+}
+
+// value returns the line value without line breaks and without the "Y" flag
+// used to assert that an event happened without further details.
+func (e *Event) value() string {
 	v := strings.TrimSpace(strings.ReplaceAll(e.Value, "\n", " "))
 	if strings.EqualFold(v, "Y") {
-		v = ""
-	}
-	if v == "" && e.Type != "" && e.Label() != e.Type {
-		v = e.Type
-	}
-	if e.Cause != "" {
-		if v != "" {
-			v += "; "
-		}
-		v += "cause: " + e.Cause
+		return ""
 	}
 	return v
+}
+
+// Detail returns the descriptive value of the event: the attribute value
+// (e.g. the occupation), the TYPE unless the label uses it, who adopted the
+// person (ADOP.FAMC.ADOP), and the cause.
+func (e *Event) Detail() string {
+	_, typed := e.typeLabel()
+	var parts []string
+	if v := e.value(); v != "" && !(typed && e.Tag == "EVEN" && e.Type == "") {
+		parts = append(parts, v)
+	}
+	if len(parts) == 0 && e.Type != "" && !typed {
+		parts = append(parts, e.Type)
+	}
+	if by := e.adopters(); by != "" {
+		parts = append(parts, "by "+by)
+	}
+	if e.Cause != "" {
+		parts = append(parts, "cause: "+e.Cause)
+	}
+	return strings.Join(parts, "; ")
+}
+
+// adopters names the adoptive parents of an adoption event, from the family
+// in ADOP.FAMC and the partner(s) in ADOP.FAMC.ADOP.
+func (e *Event) adopters() string {
+	if e.Tag != "ADOP" || e.Individual == nil {
+		return ""
+	}
+	famc := e.Node.First("FAMC")
+	if famc == nil || !famc.IsPointer() {
+		return ""
+	}
+	f := e.Individual.doc.Family(famc.Value)
+	if f == nil {
+		return ""
+	}
+	var who []*Individual
+	switch strings.ToUpper(famc.Val("ADOP")) {
+	case "HUSB":
+		who = []*Individual{f.Husband}
+	case "WIFE":
+		who = []*Individual{f.Wife}
+	default:
+		who = f.Partners()
+	}
+	var names []string
+	for _, p := range who {
+		if p != nil {
+			names = append(names, p.DisplayName())
+		}
+	}
+	return strings.Join(names, " & ")
 }
 
 // Fact is a labeled detail of an event.

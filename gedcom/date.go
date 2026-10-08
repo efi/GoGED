@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 )
 
 // Modifier qualifies a GEDCOM date value.
@@ -359,6 +360,73 @@ func (d Date) ShortYear() string {
 		return "aft." + s
 	}
 	return s
+}
+
+// Fit formats the date in at most width characters, for columns: the full
+// form if it fits, else a compact one ("Apr 1958–Mar 1961", "abt. 1850"),
+// with days and months left out if necessary. rest is what the short form
+// leaves out, for display elsewhere: the full date, or just the phrase of
+// an interpreted date ("3. Brumaire III"); it is empty if nothing is
+// missing.
+func (d Date) Fit(width int) (s, rest string) {
+	full := d.String()
+	if utf8.RuneCountInString(full) <= width {
+		return full, ""
+	}
+	if d.IsValid() {
+		for precision := 0; precision < 3; precision++ {
+			c := d.compact(precision)
+			if utf8.RuneCountInString(c) > width {
+				continue
+			}
+			switch {
+			case precision > 0:
+				return c, full
+			case d.Modifier == DateInterpreted && d.Phrase != "":
+				return c, d.Phrase
+			}
+			return c, ""
+		}
+	}
+	if width < 1 {
+		return "", full
+	}
+	return strings.TrimRight(string([]rune(full)[:width-1]), " ") + "…", full
+}
+
+// compact formats the date tersely with full dates (precision 0), months
+// and years (1) or years only (2).
+func (d Date) compact(precision int) string {
+	f := func(s SimpleDate) string {
+		if precision >= 1 {
+			s.Day = 0
+		}
+		if precision >= 2 {
+			s.Month = 0
+		}
+		return s.String()
+	}
+	switch d.Modifier {
+	case DateAbout:
+		return "abt. " + f(d.Start)
+	case DateCalculated:
+		return "cal. " + f(d.Start)
+	case DateEstimated:
+		return "est. " + f(d.Start)
+	case DateBefore:
+		return "bef. " + f(d.Start)
+	case DateAfter:
+		return "aft. " + f(d.Start)
+	case DateBetween:
+		return "bet. " + f(d.Start) + "–" + f(d.End)
+	case DateFrom:
+		return "from " + f(d.Start)
+	case DateTo:
+		return "to " + f(d.End)
+	case DateFromTo:
+		return f(d.Start) + "–" + f(d.End)
+	}
+	return f(d.Start)
 }
 
 // String formats the date for display.

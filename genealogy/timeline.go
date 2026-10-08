@@ -27,13 +27,31 @@ type TimelineEntry struct {
 // subject's families.
 func (e TimelineEntry) Own() bool { return e.Relative == nil }
 
-// Title describes the entry: "Birth", or "Birth of son Arthur Smith" for
-// relatives' events.
+// Title describes the entry: "Birth", "Marriage with Mary Jones" or
+// "Divorce from Mary Jones" for family events, or "Birth of son Arthur
+// Smith" for relatives' events.
 func (e TimelineEntry) Title() string {
-	if e.Relative == nil {
-		return e.Event.Label()
+	label := e.Event.Label()
+	switch {
+	case e.Relative != nil:
+		return label + " of " + e.Relation + " " + e.Relative.DisplayName()
+	case e.Spouse == nil:
+		return label
 	}
-	return e.Event.Label() + " of " + e.Relation + " " + e.Relative.DisplayName()
+	partner := e.Spouse.DisplayName()
+	switch e.Event.Tag {
+	case "DIV", "_SEPR":
+		return label + " from " + partner
+	case "DIVF":
+		if label == gedcom.EventLabel("DIVF") {
+			return "Divorce from " + partner + " filed"
+		}
+	case "ENGA":
+		return label + " to " + partner
+	case "ANUL":
+		return label + " of the marriage with " + partner
+	}
+	return label + " with " + partner
 }
 
 // TimelineOptions control which events a timeline includes.

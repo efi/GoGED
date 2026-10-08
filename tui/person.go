@@ -256,7 +256,7 @@ func (m *Model) associationLines(ind *gedcom.Individual, textW int) []line {
 		}
 		first, rest, _ := strings.Cut(full, " ")
 		if strings.HasPrefix(rest, "of ") && len(first+suffix) < labelWidth {
-			if a.Event != nil && strings.Contains(strings.ToLower(rest), strings.ToLower(a.Event.Label())) {
+			if a.Event != nil && strings.Contains(strings.ToLower(a.Event.Label()), strings.ToLower(strings.TrimPrefix(rest, "of "))) {
 				return first + suffix, ""
 			}
 			return first + suffix, strings.ToLower(full)
@@ -345,20 +345,17 @@ func (m *Model) relationshipLine(ind *gedcom.Individual) line {
 // timelineLine formats one timeline entry.
 func (m *Model) timelineLine(e genealogy.TimelineEntry) line {
 	ev := e.Event
-	date := "—"
-	switch {
-	case ev.Date.IsValid():
-		date = ev.Date.String()
-	case !ev.Date.IsZero():
-		date = strings.TrimSpace(ev.Date.Raw)
+	date, dateRest := "—", ""
+	if !ev.Date.IsZero() {
+		date, dateRest = ev.Date.Fit(19)
 	}
 	title := e.Title()
-	if e.Own() && e.Spouse != nil {
-		title += " with " + e.Spouse.DisplayName()
-	}
 	var rest []string
 	if d := ev.Detail(); d != "" {
 		rest = append(rest, d)
+	}
+	if dateRest != "" {
+		rest = append(rest, dateRest) // what did not fit the column
 	}
 	if p := ev.Place.String(); p != "" {
 		rest = append(rest, p)

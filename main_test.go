@@ -279,6 +279,11 @@ func TestMusterFile(t *testing.T) {
 		{[]string{"-relate", "I3,I7"}, []string{"Desiré Jeanette Mustermann is Leon Mustermann's half-sister."}},
 		{[]string{"-relate", "I6,I19"}, []string{"Gerold Freiwein is Markus Schüchter's adoptive father."}},
 		{[]string{"-timeline", "I37"}, []string{"Christening  (Wenningen, Hochsauerlandkreis, Nordrhein-Westfalen, Deutschland; religion: evangelisch; godparents: Max Herbert Mustermann, Musiker)"}},
+		{[]string{"-timeline", "I11"}, []string{"Divorce from Brigitte Gutedel filed  (Tempelhof", "Divorce from Brigitte Gutedel  (Tempelhof", "Jul 1997               Pilgerreise nach Rom with Brigitte Gutedel  (age ~24)"}},
+		{[]string{"-timeline", "I6"}, []string{"Adoption  (by Gerold Freiwein; Köln"}},
+		{[]string{"-timeline", "I29"}, []string{"24 Oct 1794            Birth  (3. Brumaire III; Nohfelden"}},
+		{[]string{"-timeline", "I1"}, []string{"  Apr 1958–Mar 1961      Education  (Werkzeugschlosser Lehre;"}},
+		{[]string{"-events", "type:marr", "-all"}, []string{"4 Jul 1958           Civil marriage", "5 Jul 1958           Religious marriage"}},
 		{[]string{"-relate", "I22,I1"}, []string{"Max Manfred Mustermann is Karl Müller Junior's co-father-in-law.\nRelated through Friedhelm Müller.\n"}},
 	}
 	if r := runCLI(t, "", "-q", "given:freiherr", muster); r.stdout != "" {

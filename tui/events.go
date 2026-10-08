@@ -179,7 +179,7 @@ func (m Model) eventRows(list []*gedcom.Event, cursor, offset, n int) []string {
 	placeW := max(0, m.width-2-dateW-labelW-nameW-3)
 	for i := offset; i < len(list) && len(out) < n; i++ {
 		ev := list[i]
-		date := ev.Date.String()
+		date, _ := ev.Date.Fit(dateW - 1)
 		if !ev.Date.IsValid() {
 			date = "—"
 		}

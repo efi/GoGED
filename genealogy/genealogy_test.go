@@ -481,7 +481,7 @@ func equalStrings(a, b []string) bool {
 func TestTimelineOwnEvents(t *testing.T) {
 	doc := loadSample(t)
 	entries := Timeline(doc.Individual("I3"), TimelineOptions{})
-	want := []string{"Birth", "Christening", "Occupation", "Marriage", "Marriage", "Census", "Death"}
+	want := []string{"Birth", "Christening", "Occupation", "Marriage with Ann Taylor", "Marriage with Sarah White", "Census", "Death"}
 	if got := titles(entries); !equalStrings(got, want) {
 		t.Fatalf("timeline = %q\nwant       %q", got, want)
 	}
@@ -500,12 +500,12 @@ func TestTimelineOwnEvents(t *testing.T) {
 		}
 	}
 	wantAges := map[string]string{
-		"Christening10 FEB 1817":      "",
-		"Census30 MAR 1851":           "34",
-		"Death1880":                   "~63",
-		"Marriage1840":                "~23",
-		"Marriage1847":                "~30",
-		"OccupationFROM 1835 TO 1870": "",
+		"Christening10 FEB 1817":        "",
+		"Census30 MAR 1851":             "34",
+		"Death1880":                     "~63",
+		"Marriage with Ann Taylor1840":  "~23",
+		"Marriage with Sarah White1847": "~30",
+		"OccupationFROM 1835 TO 1870":   "",
 	}
 	for k, want := range wantAges {
 		if want == "" {
@@ -527,8 +527,8 @@ func TestTimelineWithRelatives(t *testing.T) {
 	doc := loadSample(t)
 	entries := Timeline(doc.Individual("I3"), TimelineOptions{Relatives: true})
 	want := []string{
-		"Birth", "Christening", "Birth of sister Mary Smith", "Occupation", "Marriage",
-		"Birth of son Thomas Smith", "Death of wife Ann Taylor", "Marriage", "Birth of daughter Emma Smith",
+		"Birth", "Christening", "Birth of sister Mary Smith", "Occupation", "Marriage with Ann Taylor",
+		"Birth of son Thomas Smith", "Death of wife Ann Taylor", "Marriage with Sarah White", "Birth of daughter Emma Smith",
 		"Birth of son George Smith", "Death of father William Smith", "Death of son George Smith", "Census",
 		"Death of mother Elizabeth Brown", "Marriage of son Thomas Smith", "Birth of grandson Arthur Smith",
 		"Marriage of daughter Emma Smith", "Birth of granddaughter Edith Miller", "Death",

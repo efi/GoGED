@@ -606,3 +606,77 @@ func containsString(list []string, s string) bool {
 	}
 	return false
 }
+
+func TestEventWording(t *testing.T) {
+	doc, err := ParseFile(filepath.Join("..", "testdata", "Muster_GEDCOM_UTF-8.ged"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var marriages []string
+	for _, e := range doc.Family("F1").Events {
+		if e.Tag == "MARR" {
+			marriages = append(marriages, e.Label()+"|"+e.Detail())
+		}
+	}
+	if got := strings.Join(marriages, " "); got != "Civil marriage| Religious marriage|" {
+		t.Errorf("marriages = %q", got)
+	}
+	// An EVEN without TYPE is named by its value.
+	pilgrimage := doc.Family("F4").FirstEvent("EVEN")
+	if pilgrimage.Label() != "Pilgerreise nach Rom" || pilgrimage.Detail() != "" {
+		t.Errorf("EVEN = %q / %q", pilgrimage.Label(), pilgrimage.Detail())
+	}
+	var adoptions []string
+	for _, e := range doc.Individual("I6").EventsWithTag("ADOP") {
+		adoptions = append(adoptions, e.Detail())
+	}
+	if got := strings.Join(adoptions, " | "); got != "by Gerold Freiwein | by Brigitte Marquardt" {
+		t.Errorf("adoptions = %q", got)
+	}
+
+	doc, err = ParseString(`0 HEAD
+0 @I1@ INDI
+1 ADOP
+2 FAMC @F1@
+1 ADOP Y
+2 FAMC @F1@
+3 ADOP HUSB
+1 ADOP
+2 FAMC @F9@
+1 EVEN Military service
+2 TYPE Event
+1 EVEN
+2 TYPE Pilgrimage
+1 FACT Blue eyes
+2 TYPE Eye colour
+1 DEAT Y
+2 CAUS Fever
+1 FAMC @F1@
+0 @I2@ INDI
+1 SEX M
+0 @I3@ INDI
+1 SEX F
+0 @F1@ FAM
+1 HUSB @I2@
+1 WIFE @I3@
+1 CHIL @I1@
+1 MARR
+2 TYPE Handfasting
+0 TRLR
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ind := doc.Individual("I1")
+	var got []string
+	for _, e := range ind.Events {
+		got = append(got, e.Label()+"|"+e.Detail())
+	}
+	want := "Adoption|by (unnamed) & (unnamed) Adoption|by (unnamed) Adoption| Event|Military service Pilgrimage| Eye colour|Blue eyes Death|cause: Fever"
+	if strings.Join(got, " ") != want {
+		t.Errorf("events = %q\nwant     %q", strings.Join(got, " "), want)
+	}
+	if m := doc.Family("F1").Marriage(); m.Label() != "Marriage" || m.Detail() != "Handfasting" {
+		t.Errorf("marriage = %q / %q", m.Label(), m.Detail())
+	}
+}

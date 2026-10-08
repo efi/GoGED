@@ -218,17 +218,17 @@ func printQuery(doc *gedcom.Document, q string, stdout, stderr io.Writer) int {
 func printTimeline(ind *gedcom.Individual, w io.Writer) {
 	fmt.Fprintf(w, "%s (%s)\n", ind.DisplayName(), ind.ID)
 	for _, e := range genealogy.Timeline(ind, genealogy.TimelineOptions{Relatives: true}) {
-		date := "—"
-		if e.Event.Date.IsValid() {
-			date = e.Event.Date.String()
+		date, dateRest := "—", ""
+		if !e.Event.Date.IsZero() {
+			date, dateRest = e.Event.Date.Fit(22)
 		}
 		title := e.Title()
-		if e.Own() && e.Spouse != nil {
-			title += " with " + e.Spouse.DisplayName()
-		}
 		var rest []string
 		if d := e.Event.Detail(); d != "" {
 			rest = append(rest, d)
+		}
+		if dateRest != "" {
+			rest = append(rest, dateRest)
 		}
 		if p := e.Event.Place.String(); p != "" {
 			rest = append(rest, p)
@@ -286,7 +286,7 @@ func printEvents(doc *gedcom.Document, filter string, all bool, stdout, stderr i
 	for _, ev := range search.NewEventIndex(doc.Events()).Filter(q, !all) {
 		date := "—"
 		if ev.Date.IsValid() {
-			date = ev.Date.String()
+			date, _ = ev.Date.Fit(20)
 		}
 		var names []string
 		for _, p := range ev.Principals() {
