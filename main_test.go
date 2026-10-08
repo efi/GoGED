@@ -250,3 +250,31 @@ func TestHelpAndVersion(t *testing.T) {
 		t.Errorf("-version: %d %q", r.code, r.stdout)
 	}
 }
+
+// TestMusterFile runs the batch flags against the GEDCOM-L sample file,
+// which uses many GEDCOM 5.5.1 features and German-language conventions.
+func TestMusterFile(t *testing.T) {
+	muster := filepath.Join("testdata", "Muster_GEDCOM_UTF-8.ged")
+	cases := []struct {
+		args []string
+		want []string
+	}{
+		{[]string{"-stats"}, []string{"(UTF-8, GEDCOM 5.5.1)", "Individuals:   37 (21 male, 16 female", "Families:      18", "Sources:       11", "Years:         1794–2005", "Warnings:      0"}},
+		{[]string{"-q", "surname:muller"}, []string{"I22    Müller, Karl Junior              1933–1980", "I37    Müller, Roswitha"}},
+		{[]string{"-q", "given:desire"}, []string{"I7     Mustermann, Desiré Jeanette"}},
+		{[]string{"-q", "born:1794"}, []string{"I29    Frantz, Eva"}},
+		{[]string{"-relate", "I3,I7"}, []string{"Desiré Jeanette Mustermann is Leon Mustermann's half-sister."}},
+	}
+	for _, c := range cases {
+		r := runCLI(t, "", append(c.args, muster)...)
+		if r.code != 0 || r.stderr != "" {
+			t.Errorf("%v: exit %d, stderr %q", c.args, r.code, r.stderr)
+			continue
+		}
+		for _, w := range c.want {
+			if !strings.Contains(r.stdout, w) {
+				t.Errorf("%v: missing %q in\n%s", c.args, w, r.stdout)
+			}
+		}
+	}
+}
