@@ -75,6 +75,10 @@ type Chart struct {
 	Lines [][]Segment
 	Nodes []Node
 	Width int // display width of the widest line
+
+	// byGeneration keeps Next within a generation. It is set for pedigree
+	// charts, which show every generation as a column.
+	byGeneration bool
 }
 
 // String returns the chart as plain text.
@@ -117,15 +121,20 @@ func (c *Chart) Find(ind *gedcom.Individual) int {
 }
 
 // Next returns the node on the closest line after (dir > 0) or before
-// (dir < 0) the line of node i, or i itself if there is none.
+// (dir < 0) the line of node i, or i itself if there is none. In a
+// pedigree chart only nodes of the same generation count, so that moving
+// up and down stays in a column instead of zigzagging between them.
 func (c *Chart) Next(i, dir int) int {
 	if i < 0 || i >= len(c.Nodes) {
 		return i
 	}
-	line := c.Nodes[i].Line
+	line, gen := c.Nodes[i].Line, c.Nodes[i].Gen
 	best := i
 	bestLine := 0
 	for j, n := range c.Nodes {
+		if c.byGeneration && n.Gen != gen {
+			continue
+		}
 		if dir > 0 && n.Line > line && (best == i || n.Line < bestLine) {
 			best, bestLine = j, n.Line
 		}
@@ -245,7 +254,7 @@ func assemble(ps []placement) ([]Segment, int) {
 func Pedigree(root *gedcom.Individual, opts Options) *Chart {
 	opts = opts.normalized()
 	g := opts.glyphs()
-	c := &Chart{}
+	c := &Chart{byGeneration: true}
 	if root == nil {
 		return c
 	}

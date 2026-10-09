@@ -491,8 +491,10 @@ func TestTreeView(t *testing.T) {
 	a.press("right")
 	a.contains("selected: Arthur Smith (1866–1940)")
 	a.press("right", "down")
-	a.contains("selected: Ann Taylor (1820–1845)")
-	a.press("left", "left")
+	a.contains("selected: Jane Doe (1844–)") // Thomas's wife, not his mother
+	a.press("up")
+	a.contains("selected: Thomas Smith (1842–1910)")
+	a.press("left")
 	a.contains("selected: Arthur Smith")
 	a.press("home")
 	a.contains("selected: Harold Smith")

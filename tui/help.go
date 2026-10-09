@@ -37,7 +37,7 @@ var helpSections = [][]string{
 	{"c", "show or hide relatives' events in the timeline"},
 	{""},
 	{"Tree"},
-	{"↑ ↓", "previous / next person on screen"},
+	{"↑ ↓", "previous / next person; in a pedigree, of the same generation"},
 	{"← →", "towards / away from the root person"},
 	{"enter", "open the selected person"},
 	{"space, r", "make the selected person the root"},

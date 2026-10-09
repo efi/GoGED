@@ -178,7 +178,7 @@ Try it with the sample file in [`testdata/family.ged`](testdata/family.ged).
 |         | `←` `→` (`h` `l`) | back / forward |
 |         | `t` / `d` | pedigree / descendant tree of this person |
 |         | `c` | show or hide relatives' events in the timeline |
-| Tree    | arrows (`h` `j` `k` `l`) | move: `←` towards the root, `→` away from it |
+| Tree    | arrows (`h` `j` `k` `l`) | move: `←` towards the root, `→` away from it, `↑` `↓` to the previous or next person (in a pedigree: of the same generation) |
 |         | `enter` / `space` | open person / make them the root |
 |         | `p` `d` `v`, `+` `-` | pedigree, descendants, toggle; more or fewer generations |
 | Events  | `f`, `a`, `x`, `enter` | edit filter, all/important events, clear filter, open person |

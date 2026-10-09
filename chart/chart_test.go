@@ -196,6 +196,65 @@ John Smith (1817–1880)
 	}
 }
 
+func TestPedigreeNavigation(t *testing.T) {
+	doc, err := gedcom.ParseString(`0 HEAD
+0 @C@ INDI
+1 NAME Child /A/
+0 @F@ INDI
+1 NAME Father /A/
+0 @M@ INDI
+1 NAME Mother /B/
+0 @FF@ INDI
+1 NAME Grandfather /A/
+0 @FM@ INDI
+1 NAME Grandmother /C/
+0 @MF@ INDI
+1 NAME Grandfather /B/
+0 @MM@ INDI
+1 NAME Grandmother /D/
+0 @F1@ FAM
+1 HUSB @F@
+1 WIFE @M@
+1 CHIL @C@
+0 @F2@ FAM
+1 HUSB @FF@
+1 WIFE @FM@
+1 CHIL @F@
+0 @F3@ FAM
+1 HUSB @MF@
+1 WIFE @MM@
+1 CHIL @M@
+0 TRLR
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := Pedigree(doc.Individual("C"), Options{Generations: 3})
+	// The lines are FF, F, FM, C, MF, M, MM: every other line belongs to
+	// another generation, but up and down stay within one.
+	for _, tt := range []struct {
+		from string
+		dir  int
+		want string
+	}{
+		{"F", 1, "M"}, // not the grandmother on the next line
+		{"M", -1, "F"},
+		{"M", 1, "M"}, // the end of the column
+		{"F", -1, "F"},
+		{"FF", 1, "FM"},
+		{"FM", 1, "MF"}, // past the root's line
+		{"MF", -1, "FM"},
+		{"MM", 1, "MM"},
+		{"C", 1, "C"}, // the root is alone in its generation
+		{"C", -1, "C"},
+	} {
+		got := c.Nodes[c.Next(c.Find(doc.Individual(tt.from)), tt.dir)].Ind.ID
+		if got != tt.want {
+			t.Errorf("Next(%s, %d) = %s, want %s", tt.from, tt.dir, got, tt.want)
+		}
+	}
+}
+
 func TestDescendantsLinks(t *testing.T) {
 	doc := loadSample(t)
 	c := Descendants(doc.Individual("I3"), Options{Generations: 3})
