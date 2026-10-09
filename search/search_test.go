@@ -432,6 +432,37 @@ func TestSearchRanking(t *testing.T) {
 	}
 }
 
+func TestSearchNamesWithPunctuation(t *testing.T) {
+	doc, err := gedcom.ParseString("0 HEAD\n0 @I1@ INDI\n1 NAME Sean /O'Brien/\n0 @I2@ INDI\n1 NAME John /St. Clair/\n0 @I3@ INDI\n1 NAME Claire /Brown/\n0 TRLR\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ix := NewIndex(doc)
+	for q, want := range map[string]string{
+		"o'brien":         "I1",
+		"O’Brien":         "I1",
+		"obrien":          "I1",
+		"o'bri":           "I1",
+		"name:o'brien":    "I1",
+		"surname:o'brien": "I1",
+		"surname:o'bri":   "I1",
+		"st. clair":       "I2",
+		"st.clair":        "I2",
+		"clair":           "I2,I3",
+		"st.sean":         "", // every word must match the same name
+		".":               "",
+	} {
+		rs, err := ix.SearchString(q)
+		if err != nil {
+			t.Errorf("%q: %v", q, err)
+			continue
+		}
+		if got := sortedIDs(rs); got != want {
+			t.Errorf("%q = %s, want %s", q, got, want)
+		}
+	}
+}
+
 func TestSearchMatchedName(t *testing.T) {
 	ix := NewIndex(loadSample(t))
 	rs, _ := ix.SearchString("smith")

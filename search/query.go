@@ -65,6 +65,7 @@ type Term struct {
 	Negate bool
 
 	folded  string
+	words   []string // words of folded, split like names, for name terms
 	years   yearRange
 	isYears bool     // Value is a year specification
 	tagPath []string // for tag: terms
@@ -247,6 +248,7 @@ func parseTerm(tok string) (*Term, error) {
 		return nil, &ParseError{fmt.Sprintf("missing value for %s:", t.Field)}
 	}
 	t.folded = Fold(t.Value)
+	t.words = words(t.folded)
 
 	switch t.Field {
 	case FieldText:

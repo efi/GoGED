@@ -252,6 +252,21 @@ func matchWords(needle string, list []string) int {
 	return best
 }
 
+// matchNameWords scores a name term typed without spaces or hyphens
+// against the words of a name. The term is split into words like the name
+// itself, so "o'brien" is the word "obrien"; if punctuation splits it into
+// several words, as in "st.clair", every one of them must match.
+func matchNameWords(needle, list []string) int {
+	if len(needle) == 0 {
+		return 0
+	}
+	score := scoreWord
+	for _, w := range needle {
+		score = min(score, matchWords(w, list))
+	}
+	return score
+}
+
 // bestName applies score to every name and returns the best score and the
 // index of the (first) name achieving it.
 func (e *entry) bestName(score func(n *foldedName) int) (int, int) {
@@ -264,18 +279,18 @@ func (e *entry) bestName(score func(n *foldedName) int) (int, int) {
 	return best, idx
 }
 
-func (e *entry) matchName(needle string) (int, int) {
+func (e *entry) matchName(t *Term) (int, int) {
 	return e.bestName(func(n *foldedName) int {
-		if strings.ContainsAny(needle, " -") {
+		if strings.ContainsAny(t.folded, " -") {
 			switch {
-			case n.full == needle:
+			case n.full == t.folded:
 				return scoreWord
-			case strings.Contains(n.full, needle):
+			case strings.Contains(n.full, t.folded):
 				return scorePrefix
 			}
 			return 0
 		}
-		return matchWords(needle, n.words)
+		return matchNameWords(t.words, n.words)
 	})
 }
 
@@ -283,18 +298,18 @@ func (e *entry) matchGiven(needle string) (int, int) {
 	return e.bestName(func(n *foldedName) int { return matchWords(needle, n.given) })
 }
 
-func (e *entry) matchSurname(needle string) (int, int) {
+func (e *entry) matchSurname(t *Term) (int, int) {
 	return e.bestName(func(n *foldedName) int {
 		switch {
-		case n.surname == needle:
+		case n.surname == t.folded:
 			return scoreWord
-		case strings.ContainsAny(needle, " -"):
-			if strings.Contains(n.surname, needle) {
+		case strings.ContainsAny(t.folded, " -"):
+			if strings.Contains(n.surname, t.folded) {
 				return scorePrefix
 			}
 			return 0
 		}
-		return matchWords(needle, words(n.surname))
+		return matchNameWords(t.words, words(n.surname))
 	})
 }
 
@@ -327,13 +342,13 @@ func (ix *Index) matchTerm(e *entry, t *Term) (int, int) {
 		if t.isYears {
 			return boolScore(matchVital(t, e.hasBirth, e.birth) || matchVital(t, e.hasDeath, e.death)), -1
 		}
-		return e.matchName(t.folded)
+		return e.matchName(t)
 	case FieldName:
-		return e.matchName(t.folded)
+		return e.matchName(t)
 	case FieldGiven:
 		return e.matchGiven(t.folded)
 	case FieldSurname:
-		return e.matchSurname(t.folded)
+		return e.matchSurname(t)
 	case FieldSounds:
 		// Soundex alone confuses e.g. Mustermann and Musterow (M236); the
 		// Cologne phonetics, made for German names, tell them apart.

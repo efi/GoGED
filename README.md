@@ -194,7 +194,8 @@ Try it with the sample file in [`testdata/family.ged`](testdata/family.ged).
 
 All terms must match. Text without a field matches names: every word of a
 name is compared by prefix, so `jo smi` finds John Smith; diacritics and case
-are ignored (`muller` finds Müller).
+are ignored (`muller` finds Müller), and so are apostrophes (`obrien` and
+`o'brien` both find O'Brien).
 
 | Query | Matches |
 |-------|---------|
