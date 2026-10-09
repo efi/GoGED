@@ -261,9 +261,11 @@ packages.
   Multi-rune key messages are split.
 - **`docView`:** a scrollable list of lines, where lines with a target
   person or a query are links.
-- **Tree view:** generations range from 2–12 for pedigrees and 2–20 for
-  descendant charts, and switching to a pedigree clamps to 12. Horizontal
-  scrolling cuts lines with `ansi.Cut`; see section 7 for why not `CutWc`.
+- **Tree view:** generations range from 2 to 20 in both charts; the user
+  raised the pedigree limit from 12 in `01f4fad`. The limits are separate
+  constants, and switching charts clamps to the new chart's limit should
+  they differ again. Horizontal scrolling cuts lines with `ansi.Cut`; see
+  section 7 for why not `CutWc`.
 - **Options:** `Title`, `StartPerson`, `Generations`, `ASCII`, and `Today`
   (for tests of "On this day").
 
@@ -374,7 +376,6 @@ packages.
     change daily.
   - The README has no demo GIF yet; the user records one manually.
   - The module path versus the repository rename (`efi/GoGED`).
-  - The pedigree limit of 12 generations; descendant charts allow 20.
 - **Demo plan** (about a minute at 100×30, with the sample file):
   1. Search `mustermann`, then `elton` (alternate name), then
      `born:1940..1945`.
