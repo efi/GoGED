@@ -227,12 +227,29 @@ packages.
 ### chart
 
 - **`Pedigree`:** a horizontal chart with fathers above and mothers below;
-  column widths per generation.
+  column widths per generation. `Next` (up and down) stays within a
+  generation.
+  - **Repeated ancestors:** after marriages between relatives, the same
+    person appears more than once. Their ancestors are drawn at one
+    occurrence only; the others get a `KindDuplicate` placeholder node
+    that reads "truncated", "as", "duplicate" on three lines where the
+    parents would be.
+  - **Which occurrence:** `expandedOccurrences` walks the generations
+    outwards, so by default it is the one closest to the root, the topmost
+    of those. `Options.Expanded` chooses another by `Node.Path` ("FM" =
+    father's mother); a choice that is not in the chart, or has no room
+    for parents, is dropped. This keeps the chart linear in the number of
+    people; before, a 20-generation pedigree of 41 inbred people had a
+    million nodes.
+  - **In the TUI,** enter or space on a placeholder stores the choice in
+    `treeState.expanded`. The choices are reset when the root changes, and
+    changing the generations keeps the selection by path.
 - **`Descendants`:** an indented tree with spouse lines. It marks
   non-birth children "(adopted)", and does not expand a person a second time
   ("(see above)").
-- **Nodes** carry `Line`, `Col`, `Width`, `Up`, `Down` and `More`, so the
-  TUI can select and navigate them.
+- **Nodes** carry `Line`, `Col`, `Width`, `Up`, `Down`, `More`, `Kind` and,
+  in pedigrees, `Path` (`FindPath` looks it up), so the TUI can select and
+  navigate them.
 - **Label widths:** `fitLabel` shortens the name, not the life dates. The TUI
   passes an unreachable limit for descendant charts (full labels) and 36 for
   pedigrees. main does the same for `-desc`.

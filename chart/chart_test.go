@@ -1,6 +1,7 @@
 package chart
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -255,6 +256,124 @@ func TestPedigreeNavigation(t *testing.T) {
 	}
 }
 
+func TestPedigreeDuplicates(t *testing.T) {
+	doc, err := gedcom.ParseFile(filepath.Join("..", "testdata", "cousins.ged"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rosa, georg := doc.Individual("R"), doc.Individual("G1")
+
+	// Georg's ancestors are shown at his first occurrence, the topmost of
+	// those closest to the root. Hanna Roth appears twice as well, but has
+	// no parents to leave out.
+	c := Pedigree(rosa, Options{Generations: 5})
+	want := `                                                        ┌─ Jakob Kern
+                                         ┌─ Georg Kern ─┤
+                                         │              └─ Lina Weiss
+                          ┌─ Anton Kern ─┤
+                          │              └─ Hanna Roth
+           ┌─ Felix Kern ─┤
+           │              └─ Berta Vogt
+Rosa Kern ─┤
+           │              ┌─ Max Lang
+           └─ Marta Lang ─┤
+                          │                             ┌─ truncated
+                          │              ┌─ Georg Kern ─┤  as
+                          │              │              └─ duplicate
+                          └─ Clara Kern ─┤
+                                         └─ Hanna Roth
+`
+	if got := c.String(); got != want {
+		t.Errorf("pedigree:\n%s\nwant:\n%s", got, want)
+	}
+	second := c.FindPath("MMF")
+	if second < 0 || c.Nodes[second].Ind != georg || len(c.Nodes[second].Down) != 1 {
+		t.Fatalf("second occurrence = %d", second)
+	}
+	dup := c.Nodes[c.Nodes[second].Down[0]]
+	if dup.Kind != KindDuplicate || dup.Ind != georg || dup.Up != second || dup.Gen != 4 || dup.Path != "MMF" ||
+		dup.Line != c.Nodes[second].Line || dup.Col != 59 || dup.Width != len("truncated") {
+		t.Errorf("placeholder = %+v", dup)
+	}
+	if i := c.FindPath("FFFF"); i < 0 || c.Nodes[i].Ind.ID != "GG1" {
+		t.Errorf("FindPath(FFFF) = %d", i)
+	}
+	if c.FindPath("MMFF") != -1 || c.FindPath("X") != -1 {
+		t.Error("FindPath of a missing path")
+	}
+	// The placeholder is in its generation's column for up and down.
+	if n := c.Next(c.FindPath("FFFF"), 1); c.Nodes[n].Ind.ID != "GG2" {
+		t.Errorf("down from Jakob = %v", c.Nodes[n].Ind.ID)
+	}
+	if n := c.Next(c.FindPath("FFFM"), 1); c.Nodes[n].Kind != KindDuplicate {
+		t.Errorf("down from Lina = %+v", c.Nodes[n])
+	}
+
+	// Showing the ancestors at the second occurrence truncates the first.
+	c = Pedigree(rosa, Options{Generations: 5, Expanded: map[*gedcom.Individual]string{georg: "MMF"}})
+	if i := c.FindPath("MMFF"); i < 0 || c.Nodes[i].Ind.ID != "GG1" {
+		t.Errorf("FindPath(MMFF) = %d", i)
+	}
+	if first := c.Nodes[c.FindPath("FFF")]; c.Nodes[first.Down[0]].Kind != KindDuplicate {
+		t.Errorf("first occurrence = %+v", first)
+	}
+	if !strings.Contains(c.String(), "                                         ┌─ Georg Kern ─┤  as\n") {
+		t.Errorf("first occurrence not truncated:\n%s", c)
+	}
+
+	// A choice that is not in the chart is ignored.
+	for _, path := range []string{"", "FM", "MMFF"} {
+		c = Pedigree(rosa, Options{Generations: 5, Expanded: map[*gedcom.Individual]string{georg: path}})
+		if c.String() != want {
+			t.Errorf("Expanded at %q:\n%s", path, c)
+		}
+	}
+
+	// Without room for parents there is nothing to truncate.
+	for _, expanded := range []map[*gedcom.Individual]string{nil, {georg: "MMF"}} {
+		c = Pedigree(rosa, Options{Generations: 4, Expanded: expanded})
+		for _, n := range c.Nodes {
+			if n.Kind == KindDuplicate {
+				t.Errorf("placeholder at the generation limit:\n%s", c)
+				break
+			}
+		}
+		if !strings.Contains(c.String(), "Georg Kern ▸") {
+			t.Errorf("more marker missing:\n%s", c)
+		}
+	}
+}
+
+func TestPedigreeCollapseStaysSmall(t *testing.T) {
+	// In every generation a brother and a sister are the parents of the
+	// couple below them: 41 people, but 2^20 ways back to them.
+	var b strings.Builder
+	b.WriteString("0 HEAD\n0 @R@ INDI\n1 NAME Root /X/\n")
+	for g := range 20 {
+		fmt.Fprintf(&b, "0 @H%d@ INDI\n1 NAME Husband%d /X/\n0 @W%d@ INDI\n1 NAME Wife%d /X/\n", g, g, g, g)
+		fmt.Fprintf(&b, "0 @F%d@ FAM\n1 HUSB @H%d@\n1 WIFE @W%d@\n", g, g, g)
+		if g == 0 {
+			b.WriteString("1 CHIL @R@\n")
+		} else {
+			fmt.Fprintf(&b, "1 CHIL @H%d@\n1 CHIL @W%d@\n", g-1, g-1)
+		}
+	}
+	b.WriteString("0 TRLR\n")
+	doc, err := gedcom.ParseString(b.String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := Pedigree(doc.Individual("R"), Options{Generations: 20})
+	// Each person's parents are shown once; every generation adds two
+	// people, two duplicates and two placeholders.
+	if len(c.Nodes) > 6*20 {
+		t.Errorf("%d nodes", len(c.Nodes))
+	}
+	if i := c.FindPath(strings.Repeat("F", 19)); i < 0 || c.Nodes[i].Ind.ID != "H18" {
+		t.Errorf("the oldest generation is missing:\n%s", c)
+	}
+}
+
 func TestDescendantsLinks(t *testing.T) {
 	doc := loadSample(t)
 	c := Descendants(doc.Individual("I3"), Options{Generations: 3})
@@ -384,8 +503,10 @@ func TestOptionsDefaults(t *testing.T) {
 
 func TestLoopsTerminate(t *testing.T) {
 	doc, _ := gedcom.ParseString("0 HEAD\n0 @I1@ INDI\n1 FAMC @F1@\n1 FAMS @F1@\n0 @F1@ FAM\n1 HUSB @I1@\n1 CHIL @I1@\n0 TRLR\n")
-	if c := Pedigree(doc.Individual("I1"), Options{Generations: 6}); len(c.Nodes) != 6 {
-		t.Errorf("pedigree of a self-loop has %d nodes", len(c.Nodes))
+	// The person's second appearance (as their own father) gets a
+	// placeholder instead of their ancestors.
+	if c := Pedigree(doc.Individual("I1"), Options{Generations: 6}); len(c.Nodes) != 3 || c.Nodes[2].Kind != KindDuplicate || c.Nodes[2].Up != 1 {
+		t.Errorf("pedigree of a self-loop:\n%s", c)
 	}
 	// The person's second appearance (as their own child) is not expanded.
 	if c := Descendants(doc.Individual("I1"), Options{Generations: 6}); len(c.Nodes) != 2 || !strings.HasSuffix(c.LineText(2), "(see above)") {

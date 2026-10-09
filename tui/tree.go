@@ -7,6 +7,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/efi/goged/chart"
+	"github.com/efi/goged/gedcom"
 	"github.com/mattn/go-runewidth"
 )
 
@@ -19,8 +20,8 @@ const (
 
 const (
 	minGenerations = 2
-	// Pedigree charts grow exponentially with each generation, descendant
-	// charts only with the actual number of descendants.
+	// Both charts show each person's relatives only once, so they grow
+	// with the number of people, not exponentially with the generations.
 	maxPedigreeGenerations   = 20
 	maxDescendantGenerations = 20
 	fullLabels               = 1 << 16 // a label width limit that is never reached
@@ -42,6 +43,10 @@ type treeState struct {
 	sel   int
 	top   int // first visible chart line
 	left  int // first visible display column
+	// expanded holds where the pedigree of expandedFor shows the
+	// ancestors of people who appear more than once (chart.Options).
+	expanded    map[*gedcom.Individual]string
+	expandedFor *gedcom.Individual
 }
 
 // rebuildTree renders the chart for the current person and selects them.
@@ -54,6 +59,11 @@ func (m *Model) rebuildTree() {
 	}
 	opts := chart.Options{Generations: t.gens, MaxLabel: 36, ASCII: m.opts.ASCII}
 	if t.mode == modePedigree {
+		// The choices are paths from the root, so a new root starts afresh.
+		if t.expandedFor != ind {
+			t.expanded, t.expandedFor = nil, ind
+		}
+		opts.Expanded = t.expanded
 		t.chart = chart.Pedigree(ind, opts)
 	} else {
 		// Every person has a line of their own and the view scrolls
@@ -141,12 +151,16 @@ func (m *Model) updateTree(msg tea.KeyMsg) (bool, tea.Cmd) {
 		m.selectTreeNode(sel)
 	case "home", "g":
 		m.selectTreeNode(0)
-	case "enter", "i":
-		m.open(node.Ind)
-	case " ", "r":
-		if node.Ind == m.current() {
+	case "enter", "i", " ", "r":
+		key := msg.String()
+		switch {
+		case node.Kind == chart.KindDuplicate:
+			m.expandDuplicate()
+		case key == "enter" || key == "i":
+			m.open(node.Ind)
+		case node.Ind == m.current():
 			m.setStatus(node.Ind.DisplayName() + " is already the root")
-		} else {
+		default:
 			m.visit(node.Ind)
 		}
 	case "p":
@@ -165,6 +179,34 @@ func (m *Model) updateTree(msg tea.KeyMsg) (bool, tea.Cmd) {
 		return false, nil
 	}
 	return true, nil
+}
+
+// expandDuplicate shows the ancestors of the person whose duplicate
+// placeholder is selected at this place in the pedigree; the person's other
+// occurrences get the placeholder instead. The selection moves to the
+// first ancestor shown in its place.
+func (m *Model) expandDuplicate() {
+	t := &m.tree
+	person := t.chart.Nodes[t.chart.Nodes[t.sel].Up]
+	if t.expanded == nil {
+		t.expanded = map[*gedcom.Individual]string{}
+	}
+	t.expanded[person.Ind] = person.Path
+	m.rebuildTree()
+	i := t.chart.FindPath(person.Path)
+	if i < 0 {
+		return
+	}
+	n := t.chart.Nodes[i]
+	if len(n.Down) == 0 || t.chart.Nodes[n.Down[0]].Kind == chart.KindDuplicate {
+		// The place is among the person's own ancestors (a loop in the
+		// data), so the choice was dropped.
+		m.selectTreeNode(i)
+		m.setError("the ancestors of " + n.Ind.DisplayName() + " cannot be shown here")
+		return
+	}
+	m.selectTreeNode(n.Down[0])
+	m.setStatus("the ancestors of " + n.Ind.DisplayName() + " are shown here now and truncated elsewhere")
 }
 
 func (m *Model) setTreeMode(mode treeMode) {
@@ -187,10 +229,18 @@ func (m *Model) setGenerations(n int) {
 	}
 	m.tree.gens = n
 	m.setStatus(fmt.Sprintf("showing %d generations", n))
-	sel := m.tree.chart.Nodes[m.tree.sel].Ind
+	sel := m.tree.chart.Nodes[m.tree.sel]
 	m.rebuildTree()
-	// Keep the selection on the same person if they are still shown.
-	if i := m.tree.chart.Find(sel); i >= 0 {
+	// Keep the selection on the same person if they are still shown, in a
+	// pedigree at the same place (or the person of a placeholder).
+	i := -1
+	if m.tree.mode == modePedigree {
+		i = m.tree.chart.FindPath(sel.Path)
+	}
+	if i < 0 {
+		i = m.tree.chart.Find(sel.Ind)
+	}
+	if i >= 0 {
 		m.selectTreeNode(i)
 	}
 }
@@ -210,6 +260,10 @@ func (m Model) viewTree(h int) string {
 	// selection stays readable.
 	gens := fmt.Sprintf(" · %d generations", t.gens)
 	selected := m.st.dim.Render(" · selected: ") + m.st.name.Render(chart.Label(sel.Ind))
+	if sel.Kind == chart.KindDuplicate {
+		selected = m.st.dim.Render(" · selected: ancestors of ") + m.st.name.Render(chart.Label(sel.Ind)) +
+			m.st.dim.Render(", shown elsewhere; enter or space shows them here")
+	}
 	header := m.st.section.Render(kind+" of "+m.current().DisplayName()) + m.st.dim.Render(gens) + selected
 	if ansi.StringWidth(header) > m.width {
 		header = m.st.section.Render(kind) + m.st.dim.Render(gens) + selected
@@ -246,6 +300,8 @@ func (m Model) renderTreeLine(i int) string {
 			b.WriteString(m.st.dim.Render(text))
 		case seg.Node == t.sel:
 			b.WriteString(m.st.selected.Render(text))
+		case t.chart.Nodes[seg.Node].Kind == chart.KindDuplicate:
+			b.WriteString(m.st.dim.Render(text))
 		case t.chart.Nodes[seg.Node].Ind == m.reference:
 			b.WriteString(m.st.reference.Render(text))
 		case seg.Node == 0:

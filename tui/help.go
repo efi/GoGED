@@ -41,6 +41,7 @@ var helpSections = [][]string{
 	{"← →", "towards / away from the root person"},
 	{"enter", "open the selected person"},
 	{"space, r", "make the selected person the root"},
+	{"", "on a \"truncated as duplicate\" placeholder: show the ancestors there instead"},
 	{"p / d / v", "pedigree / descendants / toggle"},
 	{"+ / -", "more / fewer generations"},
 	{"m", "mark the selected person as reference"},

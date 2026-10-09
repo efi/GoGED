@@ -10,6 +10,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/efi/goged/chart"
 	"github.com/efi/goged/gedcom"
 	"github.com/efi/goged/worldmap"
 	"github.com/muesli/termenv"
@@ -547,6 +548,79 @@ func TestTreeGenerations(t *testing.T) {
 	}
 	a.press("m")
 	a.contains("marked Arthur Smith as reference")
+}
+
+func TestTreeDuplicates(t *testing.T) {
+	doc, err := gedcom.ParseFile(filepath.Join("..", "testdata", "cousins.ged"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := &app{t: t, m: New(doc, Options{Title: "cousins.ged", StartPerson: "R", Generations: 5})}
+	a.resize(130, 30)
+	sel := func() chart.Node { return a.m.tree.chart.Nodes[a.m.tree.sel] }
+	toSecond := []string{"home", "right", "down", "right", "down", "right", "right"} // via Marta and Clara
+	toFirst := []string{"home", "right", "right", "right", "right"}                  // via Felix and Anton
+
+	a.press("t")
+	a.press(toSecond...)
+	a.contains("selected: ancestors of Georg Kern, shown elsewhere; enter or space shows them here", "─┤  as", "└─ duplicate")
+	if n := sel(); n.Kind != chart.KindDuplicate || n.Path != "MMF" {
+		t.Fatalf("selected %+v", n)
+	}
+
+	// Enter shows Georg's ancestors here and truncates the first occurrence.
+	a.press("enter")
+	if a.m.active != viewTree {
+		t.Fatal("enter on a placeholder stays in the tree")
+	}
+	a.contains("selected: Jakob Kern", "the ancestors of Georg Kern are shown here now and truncated elsewhere")
+	if n := sel(); n.Path != "MMFF" {
+		t.Errorf("selected %+v", n)
+	}
+	a.press(toFirst...)
+	if n := sel(); n.Kind != chart.KindDuplicate || n.Path != "FFF" {
+		t.Fatalf("first occurrence: selected %+v", n)
+	}
+
+	// Space moves them back instead of making Georg the root.
+	a.press("space")
+	if a.currentID() != "R" || sel().Path != "FFFF" {
+		t.Errorf("space: root %s, selected %+v", a.currentID(), sel())
+	}
+
+	// With fewer generations the placeholder's person stays selected.
+	a.press(toSecond...)
+	a.press("-")
+	if n := sel(); n.Kind != chart.KindPerson || n.Path != "MMF" {
+		t.Errorf("after -: selected %+v", n)
+	}
+	a.contains("selected: Georg Kern", "Georg Kern ▸")
+	a.notContains("duplicate")
+
+	// A new root starts with the ancestors at the first occurrence again.
+	a.press("+")
+	a.press(toSecond...)
+	a.press("enter", "home", "right", "space", "b")
+	if a.currentID() != "R" {
+		t.Fatalf("current %s", a.currentID())
+	}
+	if c := a.m.tree.chart; c.FindPath("FFFF") < 0 || c.FindPath("MMFF") >= 0 {
+		t.Errorf("choices kept for a new root:\n%s", c)
+	}
+
+	// A person who is their own father: their ancestors cannot be shown
+	// among themselves.
+	doc, err = gedcom.ParseString("0 HEAD\n0 @I1@ INDI\n1 NAME Loop /Person/\n1 FAMC @F1@\n1 FAMS @F1@\n0 @F1@ FAM\n1 HUSB @I1@\n1 CHIL @I1@\n0 TRLR\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	a = &app{t: t, m: New(doc, Options{StartPerson: "I1"})}
+	a.resize(100, 30)
+	a.press("t", "right", "right", "enter")
+	a.contains("the ancestors of Loop Person cannot be shown here")
+	if n := sel(); n.Kind != chart.KindPerson || n.Path != "F" {
+		t.Errorf("loop: selected %+v", n)
+	}
 }
 
 func TestTreeScrolling(t *testing.T) {

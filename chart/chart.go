@@ -5,6 +5,7 @@
 package chart
 
 import (
+	"maps"
 	"sort"
 	"strings"
 
@@ -24,6 +25,13 @@ type Options struct {
 	// ASCII draws lines with plain ASCII characters instead of Unicode box
 	// drawing characters.
 	ASCII bool
+	// Expanded chooses where a pedigree chart shows the ancestors of a
+	// person who appears in it more than once: at the occurrence with this
+	// Path. The other occurrences get a KindDuplicate placeholder instead.
+	// Without a choice, or if the chosen occurrence is not in the chart,
+	// the ancestors are shown at the occurrence closest to the root, the
+	// topmost of those.
+	Expanded map[*gedcom.Individual]string
 }
 
 func (o Options) normalized() Options {
@@ -37,13 +45,19 @@ func (o Options) normalized() Options {
 }
 
 // NodeKind distinguishes people in the line of the chart from spouses shown
-// in descendant charts.
+// in descendant charts and from placeholders in pedigree charts.
 type NodeKind int
 
 // Node kinds.
 const (
 	KindPerson NodeKind = iota
 	KindSpouse
+	// KindDuplicate stands in for the ancestors of a person who appears
+	// more than once in a pedigree chart and whose ancestors are shown at
+	// another occurrence. Ind is that person; the placeholder reads
+	// "truncated", "as", "duplicate" on three lines where the parents
+	// would be.
+	KindDuplicate
 )
 
 // Node is a person placed on the chart.
@@ -61,6 +75,11 @@ type Node struct {
 	Down []int
 	// More is set when the person has relatives beyond the generation limit.
 	More bool
+	// Path locates a node in a pedigree chart: the way from the root with
+	// one letter per generation, F for a father and M for a mother, so "FM"
+	// is the father's mother. A duplicate placeholder has the path of its
+	// person. Descendant charts leave it empty.
+	Path string
 }
 
 // Segment is a run of text on a line. Node is the index of the node the
@@ -114,6 +133,17 @@ func (c *Chart) NodeAt(line int) int {
 func (c *Chart) Find(ind *gedcom.Individual) int {
 	for i, n := range c.Nodes {
 		if n.Ind == ind {
+			return i
+		}
+	}
+	return -1
+}
+
+// FindPath returns the index of the person at path in a pedigree chart
+// (see Node.Path), or -1.
+func (c *Chart) FindPath(path string) int {
+	for i, n := range c.Nodes {
+		if n.Path == path && n.Kind != KindDuplicate {
 			return i
 		}
 	}
@@ -251,6 +281,16 @@ func assemble(ps []placement) ([]Segment, int) {
 //	         │          └─ Grandmother
 //	Root ────┤
 //	         └─ Mother
+//
+// The ancestors of a person who appears more than once, as after a
+// marriage between cousins, are shown only once (see Options.Expanded).
+// At the other occurrences a placeholder takes the place of the parents:
+//
+//	                    ┌─ truncated
+//	         ┌─ Father ─┤  as
+//	         │          └─ duplicate
+//	Root ────┤
+//	         └─ Mother
 func Pedigree(root *gedcom.Individual, opts Options) *Chart {
 	opts = opts.normalized()
 	g := opts.glyphs()
@@ -258,33 +298,49 @@ func Pedigree(root *gedcom.Individual, opts Options) *Chart {
 	if root == nil {
 		return c
 	}
+	expandAt := expandedOccurrences(root, opts.Generations, opts.Expanded)
 
 	// Build the tree; rows are assigned in-order (father's subtree, the
-	// person, mother's subtree) so every node gets a row of its own.
+	// person, mother's subtree) so every node gets a row of its own. A
+	// duplicate placeholder takes three rows: its first and last word
+	// stand where the parents would be, the middle one is on the
+	// person's row.
 	type pnode struct {
-		label string
-		row   int
+		label       string
+		row         int
+		top, bottom int // rows of the first and last word of a placeholder
 	}
 	var meta []pnode
 	row := 0
-	var build func(ind *gedcom.Individual, gen, up int) int
-	build = func(ind *gedcom.Individual, gen, up int) int {
+	var build func(ind *gedcom.Individual, gen, up int, path string) int
+	build = func(ind *gedcom.Individual, gen, up int, path string) int {
 		idx := len(c.Nodes)
-		c.Nodes = append(c.Nodes, Node{Ind: ind, Kind: KindPerson, Gen: gen, Up: up})
+		c.Nodes = append(c.Nodes, Node{Ind: ind, Kind: KindPerson, Gen: gen, Up: up, Path: path})
 		meta = append(meta, pnode{})
 		father, mother := ind.Father(), ind.Mother()
 		expand := gen < opts.Generations-1
-		if !expand && (father != nil || mother != nil) {
+		hasParents := father != nil || mother != nil
+		if !expand && hasParents {
 			c.Nodes[idx].More = true
 		}
+		if expand && hasParents && expandAt[ind] != path {
+			dup := len(c.Nodes)
+			c.Nodes = append(c.Nodes, Node{Ind: ind, Kind: KindDuplicate, Gen: gen + 1, Up: idx, Path: path})
+			meta = append(meta, pnode{label: duplicateWords[0], top: row, bottom: row + 2})
+			c.Nodes[idx].Down = append(c.Nodes[idx].Down, dup)
+			meta[idx].row, meta[dup].row = row+1, row+1
+			row += 3
+			meta[idx].label = fitLabel(ind, opts.MaxLabel)
+			return idx
+		}
 		if expand && father != nil {
-			f := build(father, gen+1, idx)
+			f := build(father, gen+1, idx, path+"F")
 			c.Nodes[idx].Down = append(c.Nodes[idx].Down, f)
 		}
 		meta[idx].row = row
 		row++
 		if expand && mother != nil {
-			m := build(mother, gen+1, idx)
+			m := build(mother, gen+1, idx, path+"M")
 			c.Nodes[idx].Down = append(c.Nodes[idx].Down, m)
 		}
 		label := fitLabel(ind, opts.MaxLabel)
@@ -294,7 +350,7 @@ func Pedigree(root *gedcom.Individual, opts Options) *Chart {
 		meta[idx].label = label
 		return idx
 	}
-	build(root, 0, -1)
+	build(root, 0, -1, "")
 
 	// Column layout: each generation is as wide as its widest label.
 	maxGen := 0
@@ -320,6 +376,16 @@ func Pedigree(root *gedcom.Individual, opts Options) *Chart {
 		n.Line = meta[i].row
 		n.Col = x0[n.Gen]
 		n.Width = runewidth.StringWidth(meta[i].label)
+		if n.Kind == KindDuplicate {
+			// The words are connected like parents, except the middle one.
+			for k, r := range []int{meta[i].top, n.Line, meta[i].bottom} {
+				if k != 1 {
+					lines[r] = append(lines[r], placement{xc[n.Gen-1] + 1, g.horiz + " ", -1})
+				}
+				lines[r] = append(lines[r], placement{n.Col, duplicateWords[k], i})
+			}
+			continue
+		}
 		lines[n.Line] = append(lines[n.Line], placement{n.Col, meta[i].label, i})
 		if n.Up >= 0 {
 			lines[n.Line] = append(lines[n.Line], placement{xc[n.Gen-1] + 1, g.horiz + " ", -1})
@@ -332,6 +398,10 @@ func Pedigree(root *gedcom.Individual, opts Options) *Chart {
 		lines[n.Line] = append(lines[n.Line], placement{n.Col + n.Width, fill, -1})
 		top, bottom := n.Line, n.Line
 		for _, d := range n.Down {
+			if c.Nodes[d].Kind == KindDuplicate {
+				top, bottom = meta[d].top, meta[d].bottom
+				continue
+			}
 			top = min(top, meta[d].row)
 			bottom = max(bottom, meta[d].row)
 		}
@@ -359,6 +429,67 @@ func Pedigree(root *gedcom.Individual, opts Options) *Chart {
 		c.Width = max(c.Width, w)
 	}
 	return c
+}
+
+// duplicateWords make up a duplicate placeholder, one word per line.
+var duplicateWords = [3]string{"truncated", "as", "duplicate"}
+
+// expandedOccurrences decides for every person with parents in the
+// pedigree chart of root where their parents are shown, and returns the
+// path of that occurrence per person. Generations are walked from the root
+// outwards, each from top to bottom, so without a choice in chosen the
+// occurrence closest to the root, the topmost of those, is expanded. A
+// choice only counts if its occurrence is in the chart with room for the
+// parents; otherwise it is dropped and the chart worked out again.
+func expandedOccurrences(root *gedcom.Individual, gens int, chosen map[*gedcom.Individual]string) map[*gedcom.Individual]string {
+	type occurrence struct {
+		ind  *gedcom.Individual
+		path string
+	}
+	chosen = maps.Clone(chosen)
+	for {
+		at := map[*gedcom.Individual]string{}
+		seen := map[*gedcom.Individual]map[string]bool{} // occurrences with room for parents
+		level := []occurrence{{root, ""}}
+		for gen := 0; gen < gens-1 && len(level) > 0; gen++ {
+			var next []occurrence
+			for _, o := range level {
+				father, mother := o.ind.Father(), o.ind.Mother()
+				if father == nil && mother == nil {
+					continue
+				}
+				if seen[o.ind] == nil {
+					seen[o.ind] = map[string]bool{}
+				}
+				seen[o.ind][o.path] = true
+				want, ok := chosen[o.ind]
+				_, done := at[o.ind]
+				if (ok && want != o.path) || (!ok && done) {
+					continue
+				}
+				at[o.ind] = o.path
+				if father != nil {
+					next = append(next, occurrence{father, o.path + "F"})
+				}
+				if mother != nil {
+					next = append(next, occurrence{mother, o.path + "M"})
+				}
+			}
+			level = next
+		}
+		// A person shown, but not at the chosen occurrence, would have
+		// their ancestors shown nowhere.
+		stale := false
+		for ind, want := range chosen {
+			if len(seen[ind]) > 0 && !seen[ind][want] {
+				delete(chosen, ind)
+				stale = true
+			}
+		}
+		if !stale {
+			return at
+		}
+	}
 }
 
 // Descendants draws root and their descendants as an indented tree. Each

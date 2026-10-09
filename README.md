@@ -37,7 +37,10 @@ The screenshots below use the [GEDCOM-L sample file](testdata/Muster_GEDCOM_UTF-
   marriages and deaths of close relatives during their lifetime.
 - **Tree views**: a horizontal pedigree chart of ancestors and an indented
   descendant chart with spouses, both navigable with the arrow keys,
-  re-rootable, and adjustable from 2 to 20 generations.
+  re-rootable, and adjustable from 2 to 20 generations. Ancestors who
+  appear more than once in a pedigree, as after a marriage between cousins,
+  have their own ancestors drawn only once; elsewhere these read "truncated
+  as duplicate", and enter or space there moves them to that place.
 - **Events browser** listing all (or only the vital) events of the file in
   chronological order, with a filter for type, year range, place and names.
 - **Places browser**: every place in the file arranged by jurisdiction
@@ -178,7 +181,7 @@ Try it with the sample file in [`testdata/family.ged`](testdata/family.ged).
 |         | `t` / `d` | pedigree / descendant tree of this person |
 |         | `c` | show or hide relatives' events in the timeline |
 | Tree    | arrows (`h` `j` `k` `l`) | move: `←` towards the root, `→` away from it, `↑` `↓` to the previous or next person (in a pedigree: of the same generation) |
-|         | `enter` / `space` | open person / make them the root |
+|         | `enter` / `space` | open person / make them the root; on "truncated as duplicate": show those ancestors here instead |
 |         | `p` `d` `v`, `+` `-` | pedigree, descendants, toggle; more or fewer generations |
 | Events  | `f`, `a`, `x`, `enter` | edit filter, all/important events, clear filter, open person |
 | Places  | `←` `→` (`h` `l`), `-` / `+` | collapse/expand a place (or go to the enclosing/first contained place); collapse/expand all |

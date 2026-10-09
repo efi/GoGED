@@ -1,0 +1,59 @@
+0 HEAD
+1 GEDC
+2 VERS 5.5.1
+1 CHAR UTF-8
+0 @R@ INDI
+1 NAME Rosa /Kern/
+1 SEX F
+0 @F@ INDI
+1 NAME Felix /Kern/
+1 SEX M
+0 @M@ INDI
+1 NAME Marta /Lang/
+1 SEX F
+0 @FA@ INDI
+1 NAME Anton /Kern/
+1 SEX M
+0 @FB@ INDI
+1 NAME Berta /Vogt/
+1 SEX F
+0 @MA@ INDI
+1 NAME Max /Lang/
+1 SEX M
+0 @MB@ INDI
+1 NAME Clara /Kern/
+1 SEX F
+0 @G1@ INDI
+1 NAME Georg /Kern/
+1 SEX M
+0 @G2@ INDI
+1 NAME Hanna /Roth/
+1 SEX F
+0 @GG1@ INDI
+1 NAME Jakob /Kern/
+1 SEX M
+0 @GG2@ INDI
+1 NAME Lina /Weiss/
+1 SEX F
+0 @F1@ FAM
+1 HUSB @F@
+1 WIFE @M@
+1 CHIL @R@
+0 @F2@ FAM
+1 HUSB @FA@
+1 WIFE @FB@
+1 CHIL @F@
+0 @F3@ FAM
+1 HUSB @MA@
+1 WIFE @MB@
+1 CHIL @M@
+0 @F4@ FAM
+1 HUSB @G1@
+1 WIFE @G2@
+1 CHIL @FA@
+1 CHIL @MB@
+0 @F5@ FAM
+1 HUSB @GG1@
+1 WIFE @GG2@
+1 CHIL @G1@
+0 TRLR
