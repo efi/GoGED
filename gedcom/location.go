@@ -63,7 +63,7 @@ func (d *Document) buildLocation(l *Location) {
 		switch c.Tag {
 		case "NAME":
 			if name := strings.TrimSpace(c.Value); name != "" {
-				l.Names = append(l.Names, LocationName{Name: name, Lang: strings.TrimSpace(c.Val("LANG")), Date: ParseDate(c.Val("DATE"))})
+				l.Names = append(l.Names, LocationName{Name: name, Lang: strings.TrimSpace(c.Val("LANG")), Date: d.dateOf(c)})
 			}
 		case "TYPE":
 			if l.Type == "" {
@@ -92,7 +92,7 @@ func (d *Document) linkLocations() {
 				d.warn(c.Line, "place %s refers to missing place %s", l.ID, c.Value)
 				continue
 			}
-			l.Parents = append(l.Parents, LocationLink{Location: sup, Date: ParseDate(c.Val("DATE")), Type: strings.TrimSpace(c.Val("TYPE"))})
+			l.Parents = append(l.Parents, LocationLink{Location: sup, Date: d.dateOf(c), Type: strings.TrimSpace(c.Val("TYPE"))})
 		}
 	}
 }

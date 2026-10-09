@@ -142,6 +142,57 @@ func TestParseWarnings(t *testing.T) {
 	}
 }
 
+func TestUnrecognizedDateWarnings(t *testing.T) {
+	doc := mustParse(t, `0 HEAD
+0 @I1@ INDI
+1 BIRT
+2 DATE 12.03.1850
+1 DEAT
+2 DATE (in the war)
+1 BURI
+2 DATE
+1 RESI
+2 DATE ABT 1900
+0 @F1@ FAM
+1 MARR
+2 DATE sometime in May
+0 @L1@ _LOC
+1 NAME Neustadt
+2 DATE from the beginning
+1 _LOC @L2@
+2 DATE until the war
+0 @L2@ _LOC
+1 NAME Sachsen
+0 TRLR
+`)
+	// Phrases, empty and valid dates are fine.
+	want := []string{
+		`line 16: unrecognized date "from the beginning"; it is kept as text but not used as a date`,
+		`line 18: unrecognized date "until the war"; it is kept as text but not used as a date`,
+		`line 4: unrecognized date "12.03.1850"; it is kept as text but not used as a date`,
+		`line 13: unrecognized date "sometime in May"; it is kept as text but not used as a date`,
+	}
+	var got []string
+	for _, w := range doc.Warnings {
+		got = append(got, w.String())
+	}
+	if strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Errorf("warnings:\n%s\nwant:\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
+	}
+	if b := doc.Individual("I1").Birth(); b.Date.String() != "12.03.1850" || b.Date.IsValid() {
+		t.Errorf("birth date = %q, valid %v", b.Date.String(), b.Date.IsValid())
+	}
+
+	// Restricted data that is hidden is not mentioned in warnings either.
+	doc = mustParse(t, "0 HEAD\n0 @I1@ INDI\n1 BIRT\n2 DATE 12.03.1850\n2 RESN confidential\n0 TRLR\n")
+	if !hasWarning(doc, "unrecognized date") {
+		t.Errorf("warnings = %v", doc.Warnings)
+	}
+	if red := doc.Redacted(); hasWarning(red, "unrecognized date") {
+		t.Errorf("redacted warnings = %v", red.Warnings)
+	}
+}
+
 func TestParseStrayTextBecomesContinuation(t *testing.T) {
 	doc := mustParse(t, "0 HEAD\n0 @I1@ INDI\n1 NOTE line one\nline two\n0 TRLR\n")
 	if got := doc.Record("I1").Val("NOTE"); got != "line one\nline two" {

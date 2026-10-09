@@ -382,7 +382,7 @@ func newEvent(doc *Document, n *Node) *Event {
 		Tag:   n.Tag,
 		Value: strings.TrimSpace(n.Value),
 		Type:  strings.TrimSpace(n.Val("TYPE")),
-		Date:  ParseDate(n.Val("DATE")),
+		Date:  doc.dateOf(n),
 		Place: doc.placeOf(n),
 		Age:   strings.TrimSpace(n.Val("AGE")),
 		Cause: strings.TrimSpace(n.Val("CAUS")),

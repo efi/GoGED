@@ -97,6 +97,16 @@ func (d *Document) warn(line int, format string, args ...any) {
 	d.Warnings = append(d.Warnings, Warning{line, fmt.Sprintf(format, args...)})
 }
 
+// dateOf parses the DATE child of n. A date that cannot be read is
+// reported: it is still shown as written, but it cannot be placed in time.
+func (d *Document) dateOf(n *Node) Date {
+	date := ParseDate(n.Val("DATE"))
+	if date.Modifier == DateInvalid && !date.IsZero() {
+		d.warn(n.First("DATE").Line, "unrecognized date %q; it is kept as text but not used as a date", date.Raw)
+	}
+	return date
+}
+
 // resolveNote returns the text of a NOTE or SNOTE node, following pointers
 // to shared note records.
 func (d *Document) resolveNote(n *Node) string {
