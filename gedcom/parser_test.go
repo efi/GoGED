@@ -193,6 +193,19 @@ func TestUnrecognizedDateWarnings(t *testing.T) {
 	}
 }
 
+func TestParseIgnoresEverythingAfterTrailer(t *testing.T) {
+	doc := mustParse(t, "0 HEAD\n0 @I1@ INDI\n0 TRLR\nsome text\n0 @I2@ INDI\nmore text\n")
+	if len(doc.Warnings) != 1 || doc.Warnings[0].String() != "line 4: data after TRLR record ignored" {
+		t.Errorf("warnings = %v", doc.Warnings)
+	}
+	if trlr := doc.Records[len(doc.Records)-1]; trlr.Tag != "TRLR" || trlr.Value != "" {
+		t.Errorf("last record = %q", trlr.String())
+	}
+	if doc.Individual("I2") != nil {
+		t.Error("record after TRLR was read")
+	}
+}
+
 func TestParseStrayTextBecomesContinuation(t *testing.T) {
 	doc := mustParse(t, "0 HEAD\n0 @I1@ INDI\n1 NOTE line one\nline two\n0 TRLR\n")
 	if got := doc.Record("I1").Val("NOTE"); got != "line one\nline two" {

@@ -83,6 +83,14 @@ func parseRecords(text string) ([]*Node, []Warning) {
 		if strings.TrimSpace(raw) == "" {
 			return
 		}
+		if trailer {
+			// Whatever follows the trailer, valid lines or not, is ignored.
+			if !warnedTrailer {
+				warn(num, "data after TRLR record ignored")
+				warnedTrailer = true
+			}
+			return
+		}
 		l, err := ParseLine(raw, num)
 		if err != nil {
 			// A common defect is a note containing raw line breaks. Treat
@@ -92,13 +100,6 @@ func parseRecords(text string) ([]*Node, []Warning) {
 				last.Value += "\n" + strings.TrimSpace(raw)
 			} else {
 				warn(num, "%s; line ignored", err.(*SyntaxError).Msg)
-			}
-			return
-		}
-		if trailer {
-			if !warnedTrailer {
-				warn(num, "data after TRLR record ignored")
-				warnedTrailer = true
 			}
 			return
 		}
