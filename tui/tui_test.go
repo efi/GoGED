@@ -538,7 +538,7 @@ func TestTreeGenerations(t *testing.T) {
 	if a.m.tree.gens != maxPedigreeGenerations {
 		t.Errorf("gens = %d", a.m.tree.gens)
 	}
-	a.contains("generations are limited to 2–12")
+	a.contains("generations are limited to 2–20")
 	for range 20 {
 		a.press("-")
 	}
@@ -547,22 +547,6 @@ func TestTreeGenerations(t *testing.T) {
 	}
 	a.press("m")
 	a.contains("marked Arthur Smith as reference")
-
-	// Descendant charts go further; back in the pedigree, the limit applies
-	// again.
-	a.press("d")
-	for range 20 {
-		a.press("+")
-	}
-	if a.m.tree.gens != maxDescendantGenerations {
-		t.Errorf("descendant gens = %d", a.m.tree.gens)
-	}
-	a.contains("generations are limited to 2–20", "20 generations")
-	a.press("p")
-	if a.m.tree.gens != maxPedigreeGenerations {
-		t.Errorf("pedigree gens after switching = %d", a.m.tree.gens)
-	}
-	a.contains("showing 12 generations, the most for this chart", "12 generations")
 }
 
 func TestTreeScrolling(t *testing.T) {

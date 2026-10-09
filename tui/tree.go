@@ -21,7 +21,7 @@ const (
 	minGenerations = 2
 	// Pedigree charts grow exponentially with each generation, descendant
 	// charts only with the actual number of descendants.
-	maxPedigreeGenerations   = 12
+	maxPedigreeGenerations   = 20
 	maxDescendantGenerations = 20
 	fullLabels               = 1 << 16 // a label width limit that is never reached
 )
