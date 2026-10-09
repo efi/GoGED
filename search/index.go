@@ -17,11 +17,12 @@ type Result struct {
 }
 
 type foldedName struct {
-	full    string     // "john william smith"
-	given   []string   // ["john", "william"]
-	surname string     // "van der berg"
-	words   []string   // all words of the name
-	sounds  []phonetic // phonetic codes of the words
+	full      string     // "john william smith"
+	givenFull string     // "john william"
+	given     []string   // ["john", "william"]
+	surname   string     // "van der berg"
+	words     []string   // all words of the name
+	sounds    []phonetic // phonetic codes of the words
 }
 
 // phonetic holds the codes that must agree for names to sound alike.
@@ -108,9 +109,10 @@ func newEntry(ind *gedcom.Individual) *entry {
 	e := &entry{ind: ind, id: Fold(ind.ID)}
 	for _, n := range ind.Names {
 		fn := foldedName{
-			full:    Fold(collapse(n.Prefix + " " + n.Given + " " + n.FullSurname() + " " + n.Suffix + " " + n.Nickname)),
-			surname: Fold(n.FullSurname()),
-			given:   words(Fold(n.Given)),
+			full:      Fold(collapse(n.Prefix + " " + n.Given + " " + n.FullSurname() + " " + n.Suffix + " " + n.Nickname)),
+			givenFull: Fold(collapse(n.Given)),
+			surname:   Fold(n.FullSurname()),
+			given:     words(Fold(n.Given)),
 		}
 		fn.words = words(fn.full)
 		for _, w := range fn.words {
@@ -279,35 +281,43 @@ func (e *entry) bestName(score func(n *foldedName) int) (int, int) {
 	return best, idx
 }
 
+// isPhrase reports whether a name term contains spaces or hyphens; such
+// terms are compared with a whole name or name part (see matchPhrase).
+func isPhrase(t *Term) bool { return strings.ContainsAny(t.folded, " -") }
+
+// matchPhrase scores a phrase term: it may be all of text or a part of it.
+func matchPhrase(needle, text string) int {
+	switch {
+	case text == needle:
+		return scoreWord
+	case strings.Contains(text, needle):
+		return scorePrefix
+	}
+	return 0
+}
+
 func (e *entry) matchName(t *Term) (int, int) {
 	return e.bestName(func(n *foldedName) int {
-		if strings.ContainsAny(t.folded, " -") {
-			switch {
-			case n.full == t.folded:
-				return scoreWord
-			case strings.Contains(n.full, t.folded):
-				return scorePrefix
-			}
-			return 0
+		if isPhrase(t) {
+			return matchPhrase(t.folded, n.full)
 		}
 		return matchNameWords(t.words, n.words)
 	})
 }
 
-func (e *entry) matchGiven(needle string) (int, int) {
-	return e.bestName(func(n *foldedName) int { return matchWords(needle, n.given) })
+func (e *entry) matchGiven(t *Term) (int, int) {
+	return e.bestName(func(n *foldedName) int {
+		if isPhrase(t) {
+			return matchPhrase(t.folded, n.givenFull)
+		}
+		return matchNameWords(t.words, n.given)
+	})
 }
 
 func (e *entry) matchSurname(t *Term) (int, int) {
 	return e.bestName(func(n *foldedName) int {
-		switch {
-		case n.surname == t.folded:
-			return scoreWord
-		case strings.ContainsAny(t.folded, " -"):
-			if strings.Contains(n.surname, t.folded) {
-				return scorePrefix
-			}
-			return 0
+		if n.surname == t.folded || isPhrase(t) {
+			return matchPhrase(t.folded, n.surname)
 		}
 		return matchNameWords(t.words, words(n.surname))
 	})
@@ -346,7 +356,7 @@ func (ix *Index) matchTerm(e *entry, t *Term) (int, int) {
 	case FieldName:
 		return e.matchName(t)
 	case FieldGiven:
-		return e.matchGiven(t.folded)
+		return e.matchGiven(t)
 	case FieldSurname:
 		return e.matchSurname(t)
 	case FieldSounds:

@@ -463,6 +463,49 @@ func TestSearchNamesWithPunctuation(t *testing.T) {
 	}
 }
 
+func TestSearchGivenNamePhrases(t *testing.T) {
+	doc, err := gedcom.ParseString(`0 HEAD
+0 @I1@ INDI
+1 NAME Jean-Pierre /Dupont/
+0 @I2@ INDI
+1 NAME Pierre Jean /Martin/
+0 @I3@ INDI
+1 NAME Anna Maria Luise /Weber/
+0 @I4@ INDI
+1 NAME Maria Anna /Klein/
+0 @I5@ INDI
+1 NAME D'Arcy /Wentworth/
+0 TRLR
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ix := NewIndex(doc)
+	for q, want := range map[string]string{
+		"given:jean-pierre":   "I1",
+		"given:jean-p":        "I1",
+		"given:jean":          "I1,I2",
+		`given:"anna maria"`:  "I3",
+		`given:"maria anna"`:  "I4",
+		`given:"maria luise"`: "I3",
+		"given:d'arcy":        "I5",
+		"given:darcy":         "I5",
+	} {
+		rs, err := ix.SearchString(q)
+		if err != nil {
+			t.Errorf("%q: %v", q, err)
+			continue
+		}
+		if got := sortedIDs(rs); got != want {
+			t.Errorf("%q = %s, want %s", q, got, want)
+		}
+	}
+	rs, _ := ix.SearchString("given:jean-pierre")
+	if len(rs) != 1 || rs[0].Score != scoreWord {
+		t.Errorf("a whole given name is an exact match: %+v", rs)
+	}
+}
+
 func TestSearchMatchedName(t *testing.T) {
 	ix := NewIndex(loadSample(t))
 	rs, _ := ix.SearchString("smith")
