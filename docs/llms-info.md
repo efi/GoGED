@@ -107,6 +107,7 @@ search/            query language, folding, phonetics, person and event indexes
 chart/             text rendering of pedigree and descendant charts
 worldmap/          embedded Natural Earth data, projection, Braille renderer
 worldmap/mkworld/  converter from Natural Earth GeoJSON to world.bin
+export/            selection of people and links, GEXF writer, atomic file writing
 tui/               Bubble Tea model, one file per view
 licenses/          embedded third-party license texts (generated)
 scripts/           build-release.sh (makefat universal macOS), gen-licenses.sh
@@ -269,6 +270,27 @@ packages.
 - Natural Earth data is public domain; it is still credited ("Made with
   Natural Earth"). The `L` key in the TUI and the `-licenses` flag show all
   licenses.
+
+### export
+
+- **`Select`** decides who is exported: `All`, or `Component`, everybody
+  connected to `Options.Root` (the marked person). It also returns the
+  `Links`: the partners of each family, and each partner with each child,
+  with the child's pedigree towards that parent. The component is computed
+  over these same links, so it is connected in every export; siblings
+  without known parents are not linked.
+- **Formats** are values in `Formats` (name, description, extension and a
+  `Write` function), so the TUI lists them without knowing them. Filters
+  still to come, such as a temporal cutoff, belong in `Options` and
+  `Select`, so that every format gets them.
+- **GEXF** is written as version 1.2 (draft), the one Gephi, networkx and
+  sigma.js all read, with `encoding/xml` streaming. People are nodes (id =
+  GEDCOM ID). Parent edges are directed; partner edges have the type
+  `mutual`, because networkx refuses undirected edges in a directed graph.
+  The output was validated against the official XSD with lxml and loaded
+  with networkx; see llms-toolinfo.md for the throwaway environment.
+- **`WriteFile`** writes a temporary file in the target directory and
+  renames it, so a failed export leaves an existing file alone.
 
 ### tui
 

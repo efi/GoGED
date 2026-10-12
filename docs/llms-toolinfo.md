@@ -329,3 +329,73 @@ open(path, "w", encoding="utf-8").write(src)
   joined with `strings.Join`.
 - **Messages:** `%+q` prints strings with escapes, so failing tests show
   which code points differ.
+
+## 10. Validating exports
+
+The GEXF export was checked against the official schema and with networkx
+in a throwaway Python environment in the scratch directory:
+
+- **Python packages:** Debian's Python has no `venv` module (no
+  `ensurepip`), and the system Python is externally managed. The
+  standalone virtualenv works:
+
+  ```sh
+  curl -sSfL -o $SCRATCH/pydl/virtualenv.pyz https://bootstrap.pypa.io/virtualenv.pyz
+  python3 -I $SCRATCH/pydl/virtualenv.pyz -q $SCRATCH/venv
+  $SCRATCH/venv/bin/pip install -q lxml networkx
+  ```
+
+- **The schema:** `gexf.xsd` includes five more files. gexf.net answers
+  Python's default user agent with 403 Forbidden, so the fetcher sends one
+  like curl's:
+
+```python
+# Fetch an XSD and everything it includes or imports into a directory.
+import re, sys, urllib.request, os
+base, outdir = sys.argv[1], sys.argv[2]
+todo, seen = ["gexf.xsd"], set()
+while todo:
+    name = todo.pop()
+    if name in seen:
+        continue
+    seen.add(name)
+    data = urllib.request.urlopen(urllib.request.Request(base + name, headers={"User-Agent": "curl/8"}), timeout=30).read().decode("utf-8")
+    open(os.path.join(outdir, name), "w", encoding="utf-8").write(data)
+    for ref in re.findall(r'schemaLocation="([^"]+)"', data):
+        if "://" not in ref:
+            todo.append(ref)
+print(sorted(seen))
+```
+
+  `python3 -I fetchxsd.py http://gexf.net/1.2draft/ $SCRATCH/xsd`
+
+- **The check:** schema validation with lxml, then reading with networkx,
+  which is stricter than the schema (it refuses undirected edges in a
+  directed graph):
+
+```python
+# Validate GEXF files against the GEXF 1.2draft schema and load them with networkx.
+import sys
+from lxml import etree
+import networkx as nx
+schema = etree.XMLSchema(etree.parse(sys.argv[1]))
+for path in sys.argv[2:]:
+    doc = etree.parse(path)
+    ok = schema.validate(doc)
+    errors = "; ".join(f"line {e.line}: {e.message}" for e in list(schema.error_log)[:3])
+    g = nx.read_gexf(path)
+    kinds = {}
+    for _, _, d in g.edges(data=True):
+        kinds[d.get("relation")] = kinds.get(d.get("relation"), 0) + 1
+    print(f"{path.rsplit('/', 1)[-1]}: schema {'valid' if ok else 'INVALID ' + errors}; networkx {type(g).__name__} "
+          f"{g.number_of_nodes()} nodes, {g.number_of_edges()} edges {kinds}")
+    n = next(iter(g.nodes(data=True)))
+    print("   first node:", n)
+```
+
+  `$SCRATCH/venv/bin/python -I checkgexf.py $SCRATCH/xsd/gexf.xsd *.gexf`
+
+- **Test files:** a probe program in the scratch directory (section 4)
+  wrote exports of the sample files, a file with quotes, `&` and `<` in
+  names, and one with control characters, which `encoding/xml` replaces
+  with U+FFFD.

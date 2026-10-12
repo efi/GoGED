@@ -286,6 +286,7 @@ build date; a second run on the same day replaces that day's release.
 | [`search`](search) | query language, diacritic folding, Soundex and Cologne phonetics, person index, event filter |
 | [`chart`](chart) | pedigree and descendant charts with node positions for navigation |
 | [`worldmap`](worldmap) | embedded Natural Earth map data, Web Mercator projection and Braille renderer; [`mkworld`](worldmap/mkworld) converts GeoJSON |
+| [`export`](export) | selection of the people to export (everybody, or a connected component) and the GEXF writer |
 | [`licenses`](licenses) | embedded third-party license texts |
 | [`tui`](tui) | the Bubble Tea interface |
 | [`main.go`](main.go) | command-line entry point and batch mode |
