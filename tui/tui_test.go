@@ -181,6 +181,36 @@ func TestSearchShowsMatchedAlternateName(t *testing.T) {
 	a.contains("11 matches", "Doe, Jane (Jane Smith)")
 }
 
+func TestSearchViewAlignsDecomposedNames(t *testing.T) {
+	// The same name, precomposed (NFC) and decomposed (NFD): the
+	// combining mark takes no column, so the columns stay aligned.
+	doc, err := gedcom.ParseString(strings.Join([]string{
+		"0 HEAD",
+		"0 @I1@ INDI", "1 NAME Hans /M\u00FCller/", "1 BIRT", "2 DATE 1900", "2 PLAC Berlin",
+		"0 @I2@ INDI", "1 NAME Hanna /Mu\u0308ller/", "1 BIRT", "2 DATE 1901", "2 PLAC Berlin",
+		"0 TRLR", "",
+	}, "\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := &app{t: t, m: New(doc, Options{})}
+	a.resize(100, 30)
+	a.typ("mu\u0308ller")
+	a.contains("2 matches")
+	cols := map[string][]int{}
+	for _, line := range strings.Split(ansi.Strip(a.view()), "\n") {
+		for _, word := range []string{"1900", "1901", "Berlin"} {
+			if i := strings.Index(line, word); i >= 0 {
+				cols[word] = append(cols[word], ansi.StringWidth(line[:i]))
+			}
+		}
+	}
+	if len(cols["1900"]) != 1 || len(cols["1901"]) != 1 || cols["1900"][0] != cols["1901"][0] ||
+		len(cols["Berlin"]) != 2 || cols["Berlin"][0] != cols["Berlin"][1] {
+		t.Errorf("columns differ: %v\n%s", cols, a.view())
+	}
+}
+
 func TestSearchErrorsAndNavigation(t *testing.T) {
 	a := newApp(t, Options{})
 	a.typ("foo:bar")
