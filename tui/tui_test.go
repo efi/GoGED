@@ -669,12 +669,23 @@ func TestExportView(t *testing.T) {
 		t.Error("scope changed without a marked person")
 	}
 
+	// exported checks that a file is in dir, the current directory, and
+	// contains want. The message names the directory too, but that may
+	// not fit on the line.
+	exported := func(name string, nodes int, want string) {
+		t.Helper()
+		data, err := os.ReadFile(filepath.Join(dir, name))
+		if err != nil || strings.Count(string(data), "<node ") != nodes || !strings.Contains(string(data), want) {
+			t.Fatalf("%s: %v\n%.600s", name, err, data)
+		}
+	}
+
 	// Export everybody; a second export asks before replacing the file.
 	a.press("down", "down", "enter")
-	a.contains("exported 24 people and 37 relationships as GEXF to family.gexf in " + dir)
-	data, err := os.ReadFile(filepath.Join(dir, "family.gexf"))
-	if err != nil || strings.Count(string(data), "<node ") != 24 {
-		t.Fatalf("export: %v", err)
+	a.contains("exported 24 people and 37 relationships as GEXF to family.gexf")
+	exported("family.gexf", 24, "<description>All 24 people of family.ged and their relationships</description>")
+	if err := os.WriteFile(filepath.Join(dir, "family.gexf"), []byte("old"), 0o644); err != nil {
+		t.Fatal(err)
 	}
 	a.press("enter")
 	a.contains("family.gexf exists: press enter again to replace it")
@@ -682,15 +693,19 @@ func TestExportView(t *testing.T) {
 	a.contains("family.gexf exists")
 	a.press("enter")
 	a.contains("exported 24 people")
+	exported("family.gexf", 24, "<gexf ") // replaced
 
 	// Mark Harold: his connected people get a file name of their own.
 	a.openPerson("I20")
 	a.press("m", "alt+8", "up", "up", "right")
 	a.contains("◂ connected to ★ Harold Smith ▸", "24 people · 37 relationships", "family-I20.gexf")
 	a.notContains("mark a person with m to export")
+	a.press("down", "down", "enter")
+	a.contains("exported 24 people and 37 relationships as GEXF to family-I20.gexf")
+	exported("family-I20.gexf", 24, "connected to Harold Smith (I20)")
 
 	// A typed file name stays when the settings change; esc cancels typing.
-	a.press("down", "enter")
+	a.press("up", "enter")
 	if !a.m.typing() {
 		t.Fatal("enter on the file name starts editing")
 	}
