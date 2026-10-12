@@ -343,8 +343,8 @@ packages.
   at spaces and after hyphens within words, every column continues in its
   own place, flowing text continues where it began after its leading
   spaces. `expand` turns lines into rows marked `cont`; a wrapped link is
-  one link in `docView` (selected and scrolled to together). The PDF
-  always wraps.
+  one link in `docView` (selected and scrolled to together). The global
+  `W` key (`Model.wrap`) wraps the person view; the PDF always wraps.
   Span literals are keyed (`span{text: …, style: …}`) since `width`
   exists.
 - **Tree view:** generations range from 2 to 20 in both charts; the user

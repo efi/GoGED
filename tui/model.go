@@ -64,6 +64,9 @@ type Model struct {
 	histPos int
 	// reference is the marked person relationships are computed against.
 	reference *gedcom.Individual
+	// wrap shows long lines of the person view on several rows instead of
+	// cutting them (W).
+	wrap bool
 
 	search searchState
 	person personState
@@ -355,6 +358,15 @@ func (m *Model) handleKey(msg tea.KeyMsg) tea.Cmd {
 		m.forward()
 	case "m":
 		m.mark(m.current())
+	case "W":
+		m.wrap = !m.wrap
+		m.rebuildPerson()
+		m.person.doc.ensureVisible(m.bodyHeight())
+		if m.wrap {
+			m.setStatus("long lines in the person view are wrapped (W to cut them)")
+		} else {
+			m.setStatus("long lines in the person view are cut (W to wrap them)")
+		}
 	case "i":
 		m.switchTo(viewPerson)
 	}

@@ -194,6 +194,7 @@ Try it with the sample file in [`testdata/family.ged`](testdata/family.ged).
 |         | `tab` / `shift+tab`, `1`…`8` (`alt+1`…`alt+8` while typing) | switch view: search, person, tree, events, places, map, stats, export |
 |         | `b`, `backspace`, `[` / `]` | back / forward in history |
 |         | `m` | mark the current person as reference for relationships (again to clear) |
+|         | `W` | wrap long lines in the person view instead of cutting them (again to cut) |
 |         | `?` | help · `L` licenses · `q`, `ctrl+c` quit |
 | Search  | type, `↑` `↓` `pgup` `pgdown`, `enter`, `esc` | search, select, open, clear / return |
 | Person  | `↑` `↓` (`j` `k`), `enter` | move between relatives, go to relative |

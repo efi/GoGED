@@ -53,7 +53,11 @@ func (m *Model) rebuildPerson() {
 		m.person.doc.set(nil)
 		return
 	}
-	m.person.doc.set(m.personLines(ind, m.width))
+	lines := m.personLines(ind, m.width)
+	if m.wrap {
+		lines = expand(lines, max(10, m.width-2))
+	}
+	m.person.doc.set(lines)
 }
 
 // personLines builds the person view of ind for a screen width columns

@@ -512,6 +512,55 @@ func TestMarkReference(t *testing.T) {
 	a.contains("no relationship to Grace Hill found")
 }
 
+func TestPersonViewWrap(t *testing.T) {
+	a := newMusterApp(t)
+	a.resize(80, 60)
+	a.openPerson("I1")
+	a.press("down") // Mother
+	mother := a.m.person.doc.selected().target
+	a.contains("Civil marriage with Erika Gabler")
+	a.notContains("Deutschland · age 25") // cut at the edge of the screen
+
+	// rowWith returns the row of the view that contains text.
+	rowWith := func(text string) string {
+		for _, row := range strings.Split(a.view(), "\n") {
+			if strings.Contains(row, text) {
+				return row
+			}
+		}
+		return ""
+	}
+	a.press("W")
+	a.contains("long lines in the person view are wrapped (W to cut them)")
+	// The rest of the entry continues under its text, after the date.
+	if row := rowWith("Deutschland · age 25"); !strings.HasPrefix(row, strings.Repeat(" ", 22)) || row[22] == ' ' {
+		t.Errorf("continued row = %q", row)
+	}
+	if a.m.person.doc.selected().target != mother {
+		t.Error("the selection moved")
+	}
+	for _, row := range strings.Split(a.view(), "\n") {
+		if w := lipgloss.Width(row); w > 80 {
+			t.Errorf("row too wide (%d): %q", w, row)
+		}
+	}
+
+	// The setting is global: it stays when the view or the size changes,
+	// and W works in other views too, except while typing.
+	a.press("alt+3", "alt+2")
+	a.contains("Deutschland · age 25")
+	a.resize(100, 60)
+	a.notContains("…")
+	a.press("alt+3", "W")
+	a.contains("long lines in the person view are cut (W to wrap them)")
+	a.press("alt+2")
+	a.notContains("Deutschland · age 25")
+	a.press("W", "/", "W") // on, then a W typed into the search
+	if !a.m.wrap || !strings.HasSuffix(a.m.search.input.Value(), "W") {
+		t.Errorf("W while typing: wrap %v, query %q", a.m.wrap, a.m.search.input.Value())
+	}
+}
+
 func TestTreeView(t *testing.T) {
 	a := newApp(t, Options{})
 	a.openPerson("I20")
@@ -896,7 +945,9 @@ func TestHelp(t *testing.T) {
 		t.Fatal("? opens help")
 	}
 	a.contains("[Help]", "Global")
-	a.press("down", "pgdown", "pgdown", "pgdown")
+	for range 10 { // to the end of the help, however long it grows
+		a.press("pgdown")
+	}
 	a.contains("tag:_MILT", "Event filter")
 	a.press("up", "pgup")
 	a.press("x")
