@@ -11,6 +11,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/efi/goged/chart"
+	"github.com/efi/goged/export"
 	"github.com/efi/goged/gedcom"
 	"github.com/efi/goged/worldmap"
 	"github.com/muesli/termenv"
@@ -653,6 +654,83 @@ func TestTreeDuplicates(t *testing.T) {
 	}
 }
 
+func TestExportView(t *testing.T) {
+	a := newApp(t, Options{})
+	dir := t.TempDir()
+	t.Chdir(dir) // default file names are relative to the current directory
+	a.press("alt+8")
+	a.contains("[8 Export]", "Format", "GEXF", "Graph Exchange XML Format", "◂ all ▸", "24 people · 37 relationships",
+		"family.gexf", "mark a person with m to export only the people connected to them", "↑↓ choose")
+
+	// The connected people need a marked person.
+	a.press("down", "right")
+	a.contains("mark a person with m first")
+	if a.m.export.scope != export.All {
+		t.Error("scope changed without a marked person")
+	}
+
+	// Export everybody; a second export asks before replacing the file.
+	a.press("down", "down", "enter")
+	a.contains("exported 24 people and 37 relationships as GEXF to family.gexf in " + dir)
+	data, err := os.ReadFile(filepath.Join(dir, "family.gexf"))
+	if err != nil || strings.Count(string(data), "<node ") != 24 {
+		t.Fatalf("export: %v", err)
+	}
+	a.press("enter")
+	a.contains("family.gexf exists: press enter again to replace it")
+	a.press("up", "down", "enter") // another key in between asks again
+	a.contains("family.gexf exists")
+	a.press("enter")
+	a.contains("exported 24 people")
+
+	// Mark Harold: his connected people get a file name of their own.
+	a.openPerson("I20")
+	a.press("m", "alt+8", "up", "up", "right")
+	a.contains("◂ connected to ★ Harold Smith ▸", "24 people · 37 relationships", "family-I20.gexf")
+	a.notContains("mark a person with m to export")
+
+	// A typed file name stays when the settings change; esc cancels typing.
+	a.press("down", "enter")
+	if !a.m.typing() {
+		t.Fatal("enter on the file name starts editing")
+	}
+	a.contains("type file name")
+	a.typ("x")
+	a.press("esc")
+	a.contains("family-I20.gexf")
+	a.notContains("family-I20.gexfx")
+	a.press("enter")
+	a.typ("-8") // digits are typed, not view switches
+	a.press("enter")
+	if a.m.active != viewExport || a.m.export.path.Value() != "family-I20.gexf-8" {
+		t.Fatalf("active %v, path %q", a.m.active, a.m.export.path.Value())
+	}
+	a.press("up", "left")
+	a.contains("◂ all ▸", "family-I20.gexf-8")
+	// An emptied name follows the settings again.
+	a.press("down", "enter", "ctrl+u", "enter")
+	a.contains("family.gexf")
+
+	// Unmarking returns to everybody.
+	a.press("up", "right")
+	a.contains("family-I20.gexf")
+	a.press("m")
+	a.contains("reference person cleared", "◂ all ▸", "family.gexf")
+
+	// A failed export says why.
+	a.press("down", "enter", "ctrl+u")
+	a.typ(filepath.Join("missing", "x.gexf"))
+	a.press("enter", "down", "enter")
+	a.contains("export failed:")
+
+	a.resize(80, 24)
+	for _, line := range strings.Split(a.view(), "\n") {
+		if w := lipgloss.Width(line); w > 80 {
+			t.Errorf("line too wide (%d): %q", w, line)
+		}
+	}
+}
+
 func TestTreeScrolling(t *testing.T) {
 	a := newApp(t, Options{Generations: 5})
 	a.resize(50, 8)
@@ -841,26 +919,30 @@ func TestViewSwitching(t *testing.T) {
 		t.Errorf("active = %v", a.m.active)
 	}
 	a.press("tab")
+	if a.m.active != viewExport {
+		t.Errorf("active = %v", a.m.active)
+	}
+	a.press("tab")
 	if a.m.active != viewSearch {
 		t.Errorf("active = %v", a.m.active)
 	}
 	a.press("shift+tab")
-	if a.m.active != viewStats {
+	if a.m.active != viewExport {
 		t.Errorf("shift+tab -> %v", a.m.active)
 	}
 	a.press("2")
 	a.contains("select a person first")
 	a.press("3")
-	if a.m.active != viewStats {
+	if a.m.active != viewExport {
 		t.Error("tree needs a person")
 	}
 	a.openPerson("I3")
 	var seq []view
-	for range 7 {
+	for range 8 {
 		a.press("tab")
 		seq = append(seq, a.m.active)
 	}
-	want := []view{viewTree, viewEvents, viewPlaces, viewMap, viewStats, viewSearch, viewPerson}
+	want := []view{viewTree, viewEvents, viewPlaces, viewMap, viewStats, viewExport, viewSearch, viewPerson}
 	for i := range want {
 		if seq[i] != want[i] {
 			t.Fatalf("tab sequence = %v, want %v", seq, want)

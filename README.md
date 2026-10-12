@@ -60,6 +60,11 @@ The screenshots below use the [GEDCOM-L sample file](testdata/Muster_GEDCOM_UTF-
 - **Statistics and validation**: counts, time span, generations, lifespans,
   most common names, the events that happened on this day in earlier years,
   and all warnings found while reading the file.
+- **Export** of the family graph, either everybody or only the people
+  connected to the marked person, to
+  [GEXF](https://gexf.net/) (Graph Exchange XML Format) for Gephi, networkx
+  and sigma.js: people are nodes with their sex, birth and death; parents
+  point to their children, and partners are linked both ways.
 - **Privacy**: data marked confidential or private (`RESN`) is hidden unless
   you ask for it.
 - **Batch mode** for scripts: print search results, charts, timelines,
@@ -171,7 +176,7 @@ Try it with the sample file in [`testdata/family.ged`](testdata/family.ged).
 | Where   | Keys | Action |
 |---------|------|--------|
 | Global  | `/` | search |
-|         | `tab` / `shift+tab`, `1`…`7` (`alt+1`…`alt+7` while typing) | switch view: search, person, tree, events, places, map, stats |
+|         | `tab` / `shift+tab`, `1`…`8` (`alt+1`…`alt+8` while typing) | switch view: search, person, tree, events, places, map, stats, export |
 |         | `b`, `backspace`, `[` / `]` | back / forward in history |
 |         | `m` | mark the current person as reference for relationships (again to clear) |
 |         | `?` | help · `L` licenses · `q`, `ctrl+c` quit |
@@ -191,6 +196,8 @@ Try it with the sample file in [`testdata/family.ged`](testdata/family.ged).
 |         | `n` / `N`, `enter` | next/previous place (most events first), list the events at the place |
 |         | `0`, `w`, `c` | fit all places, whole world, center on the selected place |
 | Stats   | `enter` | list everybody with the selected surname |
+| Export  | `↑` `↓`, `←` `→` | choose a setting, change it: the format, everybody or the people connected to the marked person |
+|         | `enter` | edit the file name, or export (an existing file is replaced after `enter` again) |
 
 ## Search syntax
 

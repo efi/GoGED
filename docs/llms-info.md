@@ -14,7 +14,7 @@ important events listed, jump to relatives, render tree views. Extensive test
 suite to go alongside." Everything since grew from that brief and from
 feedback on the GEDCOM-L sample file (`testdata/Muster_GEDCOM_UTF-8.ged`).
 
-Main features, by TUI tab (keys 1–7, or alt+1–7 while typing):
+Main features, by TUI tab (keys 1–8, or alt+1–8 while typing):
 
 1. **Search**: query language with fields, ranges, negation, phonetic matching.
 2. **Person**: parents, siblings, families, associations, timeline, notes,
@@ -25,6 +25,8 @@ Main features, by TUI tab (keys 1–7, or alt+1–7 while typing):
 6. **Map** (experimental): Braille world map with markers, using embedded
    Natural Earth data.
 7. **Stats**: counts, time span, names, "On this day", warnings.
+8. **Export**: the family graph as GEXF, everybody or the people connected
+   to the marked person.
 
 The batch flags are `-q`, `-tree`, `-desc`, `-timeline`, `-relate ID1,ID2`,
 `-events FILTER` (plus `-all`), `-places`, `-stats`, `-gen`, `-ascii`,

@@ -22,10 +22,11 @@ const (
 	viewPlaces
 	viewMap
 	viewStats
+	viewExport
 	viewCount
 )
 
-var viewNames = [viewCount]string{"Search", "Person", "Tree", "Events", "Places", "Map", "Stats"}
+var viewNames = [viewCount]string{"Search", "Person", "Tree", "Events", "Places", "Map", "Stats", "Export"}
 
 // Options configure the interface.
 type Options struct {
@@ -71,6 +72,7 @@ type Model struct {
 	places placesState
 	mapv   mapState
 	stats  statsState
+	export exportState
 }
 
 // New creates the model for a document.
@@ -90,6 +92,7 @@ func New(doc *gedcom.Document, opts Options) Model {
 	m.search = newSearchState()
 	m.ev = newEventsState()
 	m.places = newPlacesState()
+	m.export = newExportState()
 	m.tree.gens = opts.Generations
 	m.runSearch()
 	m.active = viewSearch
@@ -139,6 +142,7 @@ func (m *Model) layout() {
 	m.search.input.Width = max(10, m.width-12)
 	m.ev.input.Width = max(10, m.width-12)
 	m.places.input.Width = max(10, m.width-12)
+	m.export.path.Width = max(10, m.width-18)
 	m.moveSearch(0)
 	m.moveEvents(0)
 	m.movePlaces(0)
@@ -226,6 +230,9 @@ func (m *Model) switchTo(v view) {
 	if v == viewMap {
 		m.ensureMap()
 	}
+	if v == viewExport {
+		m.ensureExport()
+	}
 	m.active = v
 }
 
@@ -241,6 +248,9 @@ func (m *Model) mark(ind *gedcom.Individual) {
 		m.setStatus(fmt.Sprintf("marked %s as reference: relationships are shown relative to them", ind.DisplayName()))
 	}
 	m.rebuildPerson()
+	if m.active == viewExport {
+		m.ensureExport()
+	}
 }
 
 func (m *Model) handleKey(msg tea.KeyMsg) tea.Cmd {
@@ -292,6 +302,10 @@ func (m *Model) handleKey(msg tea.KeyMsg) tea.Cmd {
 		if handled, cmd := m.updatePlacesFilter(msg); handled {
 			return cmd
 		}
+	case m.active == viewExport && m.export.editing:
+		if handled, cmd := m.updateExportPath(msg); handled {
+			return cmd
+		}
 	}
 
 	// View specific keys.
@@ -310,6 +324,8 @@ func (m *Model) handleKey(msg tea.KeyMsg) tea.Cmd {
 		handled, cmd = m.updateMap(msg)
 	case viewStats:
 		handled, cmd = m.updateStats(msg)
+	case viewExport:
+		handled, cmd = m.updateExport(msg)
 	}
 	if handled {
 		return cmd
@@ -329,9 +345,9 @@ func (m *Model) handleKey(msg tea.KeyMsg) tea.Cmd {
 		m.cycle(1)
 	case "shift+tab":
 		m.cycle(-1)
-	case "1", "2", "3", "4", "5", "6", "7":
+	case "1", "2", "3", "4", "5", "6", "7", "8":
 		m.switchTo(view(key[0] - '1'))
-	case "alt+1", "alt+2", "alt+3", "alt+4", "alt+5", "alt+6", "alt+7":
+	case "alt+1", "alt+2", "alt+3", "alt+4", "alt+5", "alt+6", "alt+7", "alt+8":
 		m.switchTo(view(key[4] - '1'))
 	case "backspace", "b", "[", "alt+left":
 		m.back()
@@ -366,14 +382,15 @@ func (m *Model) rebuildOverlay() {
 func (m *Model) typing() bool {
 	return !m.showHelp && (m.active == viewSearch ||
 		(m.active == viewEvents && m.ev.editing) ||
-		(m.active == viewPlaces && m.places.editing))
+		(m.active == viewPlaces && m.places.editing) ||
+		(m.active == viewExport && m.export.editing))
 }
 
 // isViewKey reports whether a key switches views; text inputs let these
 // keys through.
 func isViewKey(key string) bool {
 	switch key {
-	case "tab", "shift+tab", "alt+1", "alt+2", "alt+3", "alt+4", "alt+5", "alt+6", "alt+7":
+	case "tab", "shift+tab", "alt+1", "alt+2", "alt+3", "alt+4", "alt+5", "alt+6", "alt+7", "alt+8":
 		return true
 	}
 	return false
@@ -415,6 +432,8 @@ func (m Model) View() string {
 		body = m.viewMap(h)
 	case m.active == viewStats:
 		body = m.viewStats(h)
+	case m.active == viewExport:
+		body = m.viewExport(h)
 	}
 	body = fixHeight(body, h)
 	return header + "\n" + body + "\n" + m.viewFooter()
@@ -471,7 +490,7 @@ func (m Model) viewFooter() string {
 	case m.showHelp:
 		hints = [][2]string{{"↑↓", "scroll"}, {"any key", "close"}}
 	case m.active == viewSearch:
-		hints = [][2]string{{"type", "search"}, {"↑↓", "select"}, {"enter", "open"}, {"esc", "clear/back"}, {"tab/alt+1-7", "views"}, {"?", "help"}}
+		hints = [][2]string{{"type", "search"}, {"↑↓", "select"}, {"enter", "open"}, {"esc", "clear/back"}, {"tab/alt+1-8", "views"}, {"?", "help"}}
 	case m.active == viewPerson:
 		hints = [][2]string{{"↑↓", "relatives"}, {"enter", "go"}, {"←→", "history"}, {"t/d", "trees"}, {"c", "context"}, {"m", "mark"}, {"/", "search"}, {"?", "help"}}
 	case m.active == viewTree:
@@ -490,6 +509,10 @@ func (m Model) viewFooter() string {
 		hints = [][2]string{{"↑↓", "select"}, {"←→", "collapse/expand"}, {"enter", "events here"}, {"f", "filter"}, {"M", "map"}, {"?", "help"}}
 	case m.active == viewStats:
 		hints = [][2]string{{"↑↓", "surnames"}, {"enter", "search surname"}, {"?", "help"}}
+	case m.active == viewExport && m.export.editing:
+		hints = [][2]string{{"type", "file name"}, {"enter", "done"}, {"esc", "cancel"}}
+	case m.active == viewExport:
+		hints = [][2]string{{"↑↓", "choose"}, {"←→", "change"}, {"enter", "edit/export"}, {"m", "mark"}, {"?", "help"}}
 	}
 	var parts []string
 	for _, h := range hints {
