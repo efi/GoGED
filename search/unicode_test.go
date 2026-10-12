@@ -46,6 +46,8 @@ func TestFoldEquivalentSpellings(t *testing.T) {
 		{"Hebrew points", []string{"\u05E9\u05B8\u05C2\u05E8\u05B8\u05D4", "\u05E9\u05E8\u05D4"}, "\u05E9\u05E8\u05D4"},
 		{"Arabic vowel marks", []string{"\u0645\u064F\u062D\u064E\u0645\u064E\u0651\u062F", "\u0645\u062D\u0645\u062F"}, "\u0645\u062D\u0645\u062F"},
 		{"a grapheme joiner and a variation selector", []string{"A\u034Fnna", "Anna\uFE0F"}, "anna"},
+		{"invisible formatting characters", []string{"Sch\u00ADmidt", "Schmidt\u200B", "\uFEFFSchmidt", "\u200ESchmidt\u200F", "Sch\u2060midt", "Sch\u200Dmidt"}, "schmidt"},
+		{"a zero-width non-joiner", []string{"\u0645\u06CC\u200C\u0631\u0632\u0627", "\u0645\u06CC\u0631\u0632\u0627"}, "\u0645\u06CC\u0631\u0632\u0627"},
 	}
 	for _, tt := range tests {
 		for _, form := range tt.forms {
@@ -204,6 +206,44 @@ func TestSearchScriptsWithMarks(t *testing.T) {
 		{"\u03BD\u03B9\u03BA\u03BF\u03BB\u03B1\u03BF\u03C2", "GR"},
 		{"\u03C0\u03B1\u03C0\u03B1\u03C3", "GR"}, // sigma typed without its final form
 		{"\u03BD\u03B9\u03BA\u03BF\u03BB\u03B1", "GR"},
+	} {
+		rs, err := ix.SearchString(tt.q)
+		if err != nil {
+			t.Errorf("%+q: %v", tt.q, err)
+			continue
+		}
+		if got := sortedIDs(rs); got != tt.want {
+			t.Errorf("%+q = %s, want %s", tt.q, got, tt.want)
+		}
+	}
+}
+
+func TestSearchIgnoresInvisibleCharacters(t *testing.T) {
+	doc := parseLines(t,
+		"0 HEAD",
+		"0 @PL@ INDI",
+		"1 NAME Hans /Schmidt/",
+		"0 @SHY@ INDI",
+		"1 NAME Karl /Sch\u00ADmidt/", // a soft hyphen, e.g. from a word processor
+		"0 @ZW@ INDI",
+		"1 NAME Ali /Ra\u200Bza/", // a zero-width space
+		"0 @FA@ INDI",
+		"1 NAME \u0645\u06CC\u200C\u0631\u0632\u0627 /Ahmadi/", // Persian, with a zero-width non-joiner
+		"0 @RTL@ INDI",
+		"1 NAME \u200FYusuf /Haddad/", // a right-to-left mark
+		"0 TRLR",
+	)
+	ix := NewIndex(doc)
+	for _, tt := range []struct {
+		q, want string
+	}{
+		{"schmidt", "PL,SHY"},
+		{"sch\u00ADmidt", "PL,SHY"},
+		{"surname:schmidt", "PL,SHY"},
+		{"raza", "ZW"},
+		{"\u0645\u06CC\u0631\u0632\u0627", "FA"},
+		{"\u0645\u06CC\u200C\u0631\u0632\u0627", "FA"},
+		{"given:yusuf", "RTL"},
 	} {
 		rs, err := ix.SearchString(tt.q)
 		if err != nil {

@@ -70,7 +70,8 @@ func foldRune(r rune) string {
 
 // Fold normalizes text for matching: it lower-cases, strips diacritics
 // ("Müller" -> "muller"), expands compatibility characters such as
-// ligatures ("ﬁ" -> "fi") and transliterates letters such as ß, æ and ø.
+// ligatures ("ﬁ" -> "fi"), transliterates letters such as ß, æ and ø, and drops
+// invisible formatting characters such as soft hyphens.
 func Fold(s string) string {
 	if isASCII(s) {
 		return strings.ToLower(s)
@@ -91,6 +92,9 @@ func Fold(s string) string {
 			b.WriteByte(byte(r))
 		case unicode.Is(unicode.Mn, r):
 			// Stray combining marks.
+		case unicode.Is(unicode.Cf, r):
+			// Invisible formatting characters, which would split words: a
+			// soft hyphen, zero-width spaces and joiners, direction marks.
 		default:
 			b.WriteString(foldRune(r))
 		}
