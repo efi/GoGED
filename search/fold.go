@@ -12,8 +12,10 @@ import (
 )
 
 // special lists letters that do not decompose into a base letter plus
-// combining marks but have a conventional ASCII transliteration.
+// combining marks but have a conventional ASCII transliteration, and the
+// Greek final sigma, which lower-casing Σ does not produce.
 var special = map[rune]string{
+	'ς': "σ",
 	'ß': "ss", 'ẞ': "ss",
 	'æ': "ae", 'Æ': "ae",
 	'œ': "oe", 'Œ': "oe",

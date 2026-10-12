@@ -38,6 +38,7 @@ func TestFoldEquivalentSpellings(t *testing.T) {
 		{"the Kelvin sign", []string{"\u212Aarl"}, "karl"},
 		{"the Angstrom sign", []string{"\u212Bngstr\u00F6m", "\u00C5ngstr\u00F6m", "A\u030Angstro\u0308m"}, "angstrom"},
 		{"Greek tonos and oxia", []string{"\u0395\u03BB\u03AD\u03BD\u03B7", "\u0395\u03BB\u1F73\u03BD\u03B7", "\u0395\u03BB\u03B5\u0301\u03BD\u03B7"}, "\u03B5\u03BB\u03B5\u03BD\u03B7"},
+		{"the Greek final sigma", []string{"\u03A0\u03B1\u03C0\u03AC\u03C2", "\u03A0\u0391\u03A0\u0386\u03A3", "\u03C0\u03B1\u03C0\u03B1\u03C3"}, "\u03C0\u03B1\u03C0\u03B1\u03C3"},
 		{"a composition exclusion", []string{"\u0958", "\u0915\u093C"}, "\u0915"},
 		{"Hangul syllables and jamo", []string{"\uAE40", "\u1100\u1175\u11B7"}, "\u1100\u1175\u11B7"},
 		{"a ligature", []string{"\uFB01scher", "Fischer"}, "fischer"},
@@ -175,6 +176,8 @@ func TestSearchScriptsWithMarks(t *testing.T) {
 		"1 NAME \uFF2B\uFF41\uFF52\uFF4C /Zeh/",
 		"0 @KEL@ INDI",
 		"1 NAME \u212Aarl /Kelvin/",
+		"0 @GR@ INDI",
+		"1 NAME \u039D\u03B9\u03BA\u03CC\u03BB\u03B1\u03BF\u03C2 /\u03A0\u03B1\u03C0\u03AC\u03C2/",
 		"0 TRLR",
 	)
 	ix := NewIndex(doc)
@@ -197,6 +200,10 @@ func TestSearchScriptsWithMarks(t *testing.T) {
 		{"karl", "FW,KEL"},
 		{"\uFF4B\uFF41\uFF52\uFF4C", "FW,KEL"},
 		{"\u212Aarl", "FW,KEL"},
+		{"\u039D\u0399\u039A\u039F\u039B\u0391\u039F\u03A3", "GR"}, // capital sigma at the end
+		{"\u03BD\u03B9\u03BA\u03BF\u03BB\u03B1\u03BF\u03C2", "GR"},
+		{"\u03C0\u03B1\u03C0\u03B1\u03C3", "GR"}, // sigma typed without its final form
+		{"\u03BD\u03B9\u03BA\u03BF\u03BB\u03B1", "GR"},
 	} {
 		rs, err := ix.SearchString(tt.q)
 		if err != nil {
