@@ -15,11 +15,13 @@ type span struct {
 }
 
 // line is one row of a scrollable document. Lines with a target person or
-// a query are selectable links.
+// a query are selectable links. A heading starts a section; printed pages
+// keep it together with what follows.
 type line struct {
-	spans  []span
-	target *gedcom.Individual
-	query  string
+	spans   []span
+	target  *gedcom.Individual
+	query   string
+	heading bool
 }
 
 func (l line) isLink() bool { return l.target != nil || l.query != "" }

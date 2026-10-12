@@ -6,6 +6,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/efi/goged/gedcom"
 	"github.com/efi/goged/search"
 )
@@ -174,32 +175,46 @@ func (m Model) viewEvents(h int) string {
 // the row at cursor highlighted: date, event, people involved and place.
 func (m Model) eventRows(list []*gedcom.Event, cursor, offset, n int) []string {
 	var out []string
-	dateW, labelW := 20, 18
-	nameW := clamp((m.width-dateW-labelW-4)*3/5, 12, 40)
-	placeW := max(0, m.width-2-dateW-labelW-nameW-3)
 	for i := offset; i < len(list) && len(out) < n; i++ {
-		ev := list[i]
-		date, _ := ev.Date.Fit(dateW - 1)
-		if !ev.Date.IsValid() {
-			date = "—"
-		}
-		var names []string
-		for _, p := range ev.Principals() {
-			names = append(names, p.DisplayName())
-		}
-		label := ev.Label()
-		if d := ev.Detail(); d != "" && ev.Class() == gedcom.ClassAttribute {
-			label += ": " + d
-		}
-		who := strings.Join(names, " & ")
+		l := m.eventLine(list[i], m.width)
 		if i == cursor {
-			row := pad(date, dateW) + " " + pad(label, labelW) + " " + pad(who, nameW) + " " + ev.Place.String()
-			out = append(out, fit(m.st.selected.Render("▸ "+strings.TrimRight(row, " ")), m.width))
+			out = append(out, fit(m.st.selected.Render("▸ "+strings.TrimRight(l.plain(), " ")), m.width))
 			continue
 		}
-		row := "  " + m.st.label.Render(pad(date, dateW)) + " " + pad(label, labelW) + " " +
-			m.st.name.Render(pad(who, nameW)) + " " + m.st.dim.Render(pad(ev.Place.String(), placeW))
-		out = append(out, fit(row, m.width))
+		var b strings.Builder
+		b.WriteString("  ")
+		for _, sp := range l.spans {
+			b.WriteString(sp.style.Render(sp.text))
+		}
+		out = append(out, fit(b.String(), m.width))
 	}
 	return out
+}
+
+// eventLine formats an event as a row of the event lists for a screen
+// width columns wide: date, type, the people involved and the place. It
+// links to the first of the people.
+func (m Model) eventLine(ev *gedcom.Event, width int) line {
+	dateW, labelW := 20, 18
+	nameW := clamp((width-dateW-labelW-4)*3/5, 12, 40)
+	placeW := max(0, width-2-dateW-labelW-nameW-3)
+	date, _ := ev.Date.Fit(dateW - 1)
+	if !ev.Date.IsValid() {
+		date = "—"
+	}
+	var names []string
+	for _, p := range ev.Principals() {
+		names = append(names, p.DisplayName())
+	}
+	label := ev.Label()
+	if d := ev.Detail(); d != "" && ev.Class() == gedcom.ClassAttribute {
+		label += ": " + d
+	}
+	return line{spans: []span{
+		{pad(date, dateW), m.st.label},
+		{" " + pad(label, labelW) + " ", lipgloss.NewStyle()},
+		{pad(strings.Join(names, " & "), nameW), m.st.name},
+		{" ", lipgloss.NewStyle()},
+		{pad(ev.Place.String(), placeW), m.st.dim},
+	}, target: eventPerson(ev)}
 }

@@ -53,9 +53,15 @@ func (m *Model) rebuildPerson() {
 		m.person.doc.set(nil)
 		return
 	}
+	m.person.doc.set(m.personLines(ind, m.width))
+}
+
+// personLines builds the person view of ind for a screen width columns
+// wide; the PDF export prints the same lines.
+func (m *Model) personLines(ind *gedcom.Individual, width int) []line {
 	var ls []line
 	blank := textLine()
-	textW := max(20, m.width-4)
+	textW := max(20, width-4)
 
 	// Heading.
 	ls = append(ls, textLine(span{ind.DisplayName(), m.st.name}))
@@ -150,7 +156,9 @@ func (m *Model) rebuildPerson() {
 		if len(facts) > 0 {
 			heading = append(heading, span{"  " + strings.Join(facts, " · "), m.st.dim})
 		}
-		ls = append(ls, blank, textLine(heading...))
+		familyHeading := textLine(heading...)
+		familyHeading.heading = true
+		ls = append(ls, blank, familyHeading)
 		if partner != nil {
 			ls = append(ls, m.relativeLine(gendered(partner.Sex, "Husband", "Wife", "Spouse"), partner, ""))
 		}
@@ -235,7 +243,7 @@ func (m *Model) rebuildPerson() {
 	if ch := ind.Changed(); ch != "" {
 		ls = append(ls, blank, dimLine(m, "Record last changed "+ch))
 	}
-	m.person.doc.set(ls)
+	return ls
 }
 
 // associationLines lists the records that may describe the same person

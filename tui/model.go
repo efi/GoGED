@@ -523,7 +523,9 @@ func (m Model) viewFooter() string {
 
 // sectionLine renders a section heading.
 func (m *Model) sectionLine(title string) line {
-	return textLine(span{title, m.st.section})
+	l := textLine(span{title, m.st.section})
+	l.heading = true
+	return l
 }
 
 // personSpans renders a person as name plus dimmed lifespan.
