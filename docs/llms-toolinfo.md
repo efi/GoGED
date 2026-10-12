@@ -272,3 +272,60 @@ example: `$SCRATCH/shot.sh 01-search "LIT:born:1930..1950"`,
 - **README screenshots:** the screenshots in the README were made
   differently, in the cloud container, with an ANSI-to-HTML conversion and
   Playwright (llms-info.md section 3).
+
+## 9. Unicode escapes in tool input
+
+- **The problem:** the tool layer decodes `\uXXXX` escapes before they
+  reach a file or the shell. That happens in the Write and Edit tools
+  (llms-info.md section 3), and also in Bash commands, heredocs and Python
+  raw strings. A typed escape arrives as the raw character, so combining
+  marks and format characters end up invisible in Go source.
+- **The workaround:** write a placeholder such as `<u0308>` and let Python
+  turn it into the Go escape, building the backslash with `chr(92)`, which
+  the tool layer leaves alone. `search/unicode_test.go` was written this
+  way, with this helper (`$SCRATCH/esc.py`):
+
+```python
+# Usage: python3 -I esc.py FILE  (reads edits from stdin)
+# The edits are blocks "<<<OLD\n...\n===\n...\n>>>NEW" in which <uXXXX>
+# stands for a Go escape (backslash-u), because the tool layer would turn
+# a typed escape into the raw character. Each OLD must occur exactly once.
+import re, sys
+esc = lambda t: re.sub(r"<u([0-9A-F]{4})>", lambda m: chr(92) + "u" + m.group(1), t)
+path = sys.argv[1]
+src = open(path, encoding="utf-8").read()
+for block in re.findall(r"<<<OLD\n(.*?)\n>>>NEW", sys.stdin.read(), re.S):
+    old, new = block.split("\n===\n")
+    old, new = esc(old), esc(new)
+    if src.count(old) != 1:
+        sys.exit(f"{path}: found {src.count(old)} times:\n{old}")
+    src = src.replace(old, new)
+open(path, "w", encoding="utf-8").write(src)
+```
+
+  Use it with a heredoc of edit blocks, each `<<<OLD`, the old text, `===`,
+  the new text and `>>>NEW`:
+
+  ```sh
+  python3 -I $SCRATCH/esc.py search/unicode_test.go <<'EOF'
+  <<<OLD
+  ...old lines...
+  ===
+  ...new lines, with <u0308> where an escape belongs...
+  >>>NEW
+  EOF
+  ```
+
+- **Check the result:** count the escapes and the remaining non-ASCII
+  characters:
+
+  ```sh
+  python3 -I -c 'import sys; s = open(sys.argv[1], encoding="utf-8").read()
+  print(s.count(chr(92) + "u"), sum(ord(c) > 127 for c in s))' FILE
+  ```
+
+- **Raw strings:** Go raw strings (backticks) do not interpret escapes.
+  Test data with escapes must be in interpreted strings, for example lines
+  joined with `strings.Join`.
+- **Messages:** `%+q` prints strings with escapes, so failing tests show
+  which code points differ.
