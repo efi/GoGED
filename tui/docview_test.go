@@ -155,6 +155,147 @@ func TestDocViewRender(t *testing.T) {
 	}
 }
 
+// rowTexts returns the rows of a layout as plain text.
+func rowTexts(rows [][]span) []string {
+	var out []string
+	for _, r := range rows {
+		var b strings.Builder
+		for _, sp := range r {
+			b.WriteString(sp.text)
+		}
+		out = append(out, b.String())
+	}
+	return out
+}
+
+// colOf returns the display column at which sub begins in s, or -1.
+func colOf(s, sub string) int {
+	i := strings.Index(s, sub)
+	if i < 0 {
+		return -1
+	}
+	return lipgloss.Width(s[:i])
+}
+
+func TestLayoutCut(t *testing.T) {
+	// Columns are padded or cut to their width; the rest runs on, for the
+	// screen to cut.
+	l := textLine(span{text: "Witness", width: 10}, span{text: "Franz-Xaver Gabler"}, span{text: "  (at civil marriage 12 Sep 1968)"})
+	if got := rowTexts(l.layout(20, false)); len(got) != 1 || got[0] != "Witness   Franz-Xaver Gabler  (at civil marriage 12 Sep 1968)" {
+		t.Errorf("cut = %q", got)
+	}
+	if l.plain() != "Witness   Franz-Xaver Gabler  (at civil marriage 12 Sep 1968)" {
+		t.Errorf("plain = %q", l.plain())
+	}
+	l = textLine(span{text: "Religious marriage", width: 10}, span{text: "|"})
+	if got := l.plain(); got != "Religious…|" {
+		t.Errorf("cut column = %q", got)
+	}
+}
+
+func TestLayoutWrap(t *testing.T) {
+	bold := lipgloss.NewStyle().Bold(true)
+	// The text after a column continues where it began; hyphens may end a
+	// row.
+	l := textLine(span{text: "12 Sep 1968", width: 12}, span{text: "Civil marriage", style: bold}, span{text: "  Köln, Nordrhein-Westfalen, Deutschland"})
+	rows := l.layout(40, true)
+	want := []string{
+		"12 Sep 1968 Civil marriage  Köln,",
+		"            Nordrhein-Westfalen,",
+		"            Deutschland",
+	}
+	if got := rowTexts(rows); strings.Join(got, "|") != strings.Join(want, "|") {
+		t.Errorf("wrapped =\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
+	}
+	if rows[0][2].text != "Civil marriage" || !rows[0][2].style.GetBold() {
+		t.Errorf("styles are kept: %+v", rows[0])
+	}
+
+	// Every column continues in its own place.
+	l = textLine(span{text: "4 Jul 1958", width: 12}, span{text: " "}, span{text: "Civil marriage", width: 10}, span{text: " "},
+		span{text: "Karl Müller Junior & Rosina Thalhuber", width: 14}, span{text: " "}, span{text: "Sydney, Australien"})
+	got := rowTexts(l.layout(60, true))
+	if len(got) != 4 || colOf(got[0], "Sydney, Australien") != 39 || colOf(got[1], "marriage") != 13 ||
+		colOf(got[1], "Junior &") != 24 || colOf(got[3], "Thalhuber") != 24 {
+		t.Errorf("columns =\n%s", strings.Join(got, "\n"))
+	}
+
+	// Leading spaces are the indentation of further rows.
+	l = textLine(span{text: "    note: a few words that wrap"})
+	if got := rowTexts(l.layout(20, true)); strings.Join(got, "|") != "    note: a few|    words that wrap" {
+		t.Errorf("indented = %q", got)
+	}
+}
+
+func TestFlow(t *testing.T) {
+	for _, tt := range []struct {
+		text  string
+		width int
+		want  string
+	}{
+		{"Danzig-Westpreussen, Deutsches Reich", 19, "Danzig-|Westpreussen,|Deutsches Reich"},
+		{"https://gov.genealogy.net/item/show/BROOWOJO93FH", 20, "https://gov.genealog|y.net/item/show/BROO|WOJO93FH"},
+		{"a - b", 3, "a -|b"}, // a dash between spaces is no hyphen
+		{"Mu\u0308ller Mu\u0308ller", 6, "Mu\u0308ller|Mu\u0308ller"},
+		{"\u7530\u4E2D\u592A\u90CE", 5, "\u7530\u4E2D|\u592A\u90CE"},
+		{"", 5, ""},
+	} {
+		var got []string
+		for _, row := range flow([]span{{text: tt.text}}, tt.width, tt.width, 0) {
+			var b strings.Builder
+			for _, sp := range row {
+				b.WriteString(sp.text)
+			}
+			got = append(got, b.String())
+		}
+		if strings.Join(got, "|") != tt.want {
+			t.Errorf("flow(%+q, %d) = %+q, want %+q", tt.text, tt.width, strings.Join(got, "|"), tt.want)
+		}
+	}
+}
+
+func TestExpandAndWrappedLinks(t *testing.T) {
+	target := &gedcom.Individual{ID: "X"}
+	var ls []line
+	for range 5 {
+		ls = append(ls, textLine(span{text: "intro"}))
+	}
+	link := textLine(span{text: "Father", width: 8}, span{text: "a name that needs three rows"})
+	link.target = target
+	head := textLine(span{text: "Section heading"})
+	head.heading = true
+	ls = append(ls, link, head)
+
+	rows := expand(ls, 20)
+	if len(rows) != 9 {
+		t.Fatalf("%d rows", len(rows))
+	}
+	for i, wantCont := range []bool{false, false, false, false, false, false, true, true, false} {
+		if rows[i].cont != wantCont {
+			t.Errorf("row %d: cont = %v", i, rows[i].cont)
+		}
+	}
+	if rows[6].target != target || rows[7].target != target || !rows[8].heading || rows[6].heading {
+		t.Error("rows keep the target, only the first is the heading")
+	}
+
+	// The rows of a link are one link: selected together, and shown
+	// together when there is room.
+	d := &docView{}
+	d.set(rows)
+	if len(d.links) != 1 || d.links[0] != 5 {
+		t.Fatalf("links = %v", d.links)
+	}
+	d.ensureVisible(6)
+	if d.offset != 2 {
+		t.Errorf("offset = %d, want 2 to show all rows of the link", d.offset)
+	}
+	out := strings.Split(d.render(22, 6, defaultStyles()), "\n")
+	if out[3] != "▸ Father  a name that" || out[4] != "          needs three" || out[5] != "          rows" {
+		t.Errorf("render =\n%s", strings.Join(out, "\n"))
+	}
+}
+
 func TestTextHelpers(t *testing.T) {
 	if clamp(5, 0, 3) != 3 || clamp(-1, 0, 3) != 0 || clamp(2, 0, -1) != 0 {
 		t.Error("clamp")

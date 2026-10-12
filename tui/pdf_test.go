@@ -14,12 +14,14 @@ import (
 	"github.com/efi/goged/export"
 )
 
-// plainLines makes PDF lines from text; "#" marks a heading, "" is blank.
+// plainLines makes PDF lines from text; "#" marks a heading, "+" a
+// further row of the line before, "" is blank.
 func plainLines(texts ...string) []pdfLine {
 	var out []pdfLine
 	for _, t := range texts {
-		l := textLine(span{strings.TrimPrefix(t, "#"), lipgloss.NewStyle()})
+		l := textLine(span{text: strings.TrimLeft(t, "#+"), style: lipgloss.NewStyle()})
 		l.heading = strings.HasPrefix(t, "#")
+		l.cont = strings.HasPrefix(t, "+")
 		out = append(out, pdfLine{l, -1})
 	}
 	return out
@@ -55,6 +57,12 @@ func TestPaginate(t *testing.T) {
 		t.Errorf("starts = %v", starts)
 	}
 
+	// The rows of a wrapped line stay together.
+	pages, _ = paginate([]pdfBlock{{lines: plainLines("a1", "a2", "a3", "b1", "+b2", "+b3", "c1")}}, 5)
+	if got := pageTexts(pages); got != "a1,a2,a3 | b1,b2,b3,c1" {
+		t.Errorf("wrapped rows: %s", got)
+	}
+
 	// Short blocks share a page; a full page continues on the next.
 	pages, starts = paginate([]pdfBlock{
 		{lines: plainLines("a1", "a2")},
@@ -78,16 +86,28 @@ func TestPDFBlocks(t *testing.T) {
 	if m.reference == nil || m.reference.ID != "I1" {
 		t.Error("the marked person was cleared")
 	}
-	// Lines wider than the page are cut when printed, as on screen.
+	// Nothing is cut: long lines are wrapped to the page, and only their
+	// first row refers to a page.
+	wrapped := 0
 	for i, b := range blocks {
 		for _, l := range b.lines {
-			if text := l.plain(); strings.Contains(text, "★") || strings.HasPrefix(text, "Relationship") {
+			text := l.plain()
+			if strings.Contains(text, "★") || strings.HasPrefix(text, "Relationship") {
 				t.Errorf("block %d marks a person: %q", i, text)
 			}
-			if l.ref >= len(blocks) {
-				t.Errorf("block %d refers to block %d", i, l.ref)
+			if w := lipgloss.Width(text); w > pdfContent || strings.Contains(text, "…") {
+				t.Errorf("block %d: row of %d columns: %q", i, w, text)
+			}
+			if l.ref >= len(blocks) || (l.cont && l.ref != -1) {
+				t.Errorf("block %d refers to block %d from %q", i, l.ref, text)
+			}
+			if l.cont {
+				wrapped++
 			}
 		}
+	}
+	if wrapped == 0 {
+		t.Error("no line was wrapped")
 	}
 	// The contents, a page for each of the 37 people, then the places.
 	if len(blocks) <= 39 || blocks[0].part != "Contents" || blocks[1].part != "People" || blocks[38].part != "Places" {

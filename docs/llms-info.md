@@ -312,7 +312,9 @@ packages.
   at 9 pt; the views are built for 90 columns (88 plus the interface's
   2-column margin), and the last 8 columns hold page references.
   Characters are placed by terminal width (`ansi.StringWidth`), text is
-  NFC-normalized first, long lines are cut with "…" as on screen.
+  NFC-normalized first. Long lines are wrapped (`expand`), the page
+  reference goes with the first row, and `paginate` keeps the rows of a
+  wrapped line together.
   `paginate` starts each person on a new page and keeps headings
   (`line.heading`) and block starts together with at least two more lines.
 - **Links:** `writePDF` adds a link and a bookmark per block (contents,
@@ -334,6 +336,17 @@ packages.
   Multi-rune key messages are split.
 - **`docView`:** a scrollable list of lines, where lines with a target
   person or a query are links.
+- **Lines, columns and wrapping:** a `span` with a `width` is a column; the
+  spans after the last column flow. `line.layout(width, wrapped)` either
+  cuts (columns padded or cut with "…", the rest runs on and `fit` cuts it
+  at the screen edge, as the interface always did) or wraps: `flow` breaks
+  at spaces and after hyphens within words, every column continues in its
+  own place, flowing text continues where it began after its leading
+  spaces. `expand` turns lines into rows marked `cont`; a wrapped link is
+  one link in `docView` (selected and scrolled to together). The PDF
+  always wraps.
+  Span literals are keyed (`span{text: …, style: …}`) since `width`
+  exists.
 - **Tree view:** generations range from 2 to 20 in both charts; the user
   raised the pedigree limit from 12 in `01f4fad`. The limits are separate
   constants, and switching charts clamps to the new chart's limit should

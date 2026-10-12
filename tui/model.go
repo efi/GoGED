@@ -523,19 +523,19 @@ func (m Model) viewFooter() string {
 
 // sectionLine renders a section heading.
 func (m *Model) sectionLine(title string) line {
-	l := textLine(span{title, m.st.section})
+	l := textLine(span{text: title, style: m.st.section})
 	l.heading = true
 	return l
 }
 
 // personSpans renders a person as name plus dimmed lifespan.
 func (m *Model) personSpans(ind *gedcom.Individual) []span {
-	spans := []span{{ind.DisplayName(), m.st.name}}
+	spans := []span{{text: ind.DisplayName(), style: m.st.name}}
 	if ls := ind.Lifespan(); ls != "" {
-		spans = append(spans, span{" (" + ls + ")", m.st.dim})
+		spans = append(spans, span{text: " (" + ls + ")", style: m.st.dim})
 	}
 	if ind == m.reference {
-		spans = append(spans, span{" ★", m.st.reference})
+		spans = append(spans, span{text: " ★", style: m.st.reference})
 	}
 	return spans
 }

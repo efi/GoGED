@@ -6,7 +6,6 @@ import (
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/efi/goged/gedcom"
 	"github.com/efi/goged/search"
 )
@@ -183,7 +182,7 @@ func (m Model) eventRows(list []*gedcom.Event, cursor, offset, n int) []string {
 		}
 		var b strings.Builder
 		b.WriteString("  ")
-		for _, sp := range l.spans {
+		for _, sp := range l.layout(m.width-2, false)[0] {
 			b.WriteString(sp.style.Render(sp.text))
 		}
 		out = append(out, fit(b.String(), m.width))
@@ -192,12 +191,11 @@ func (m Model) eventRows(list []*gedcom.Event, cursor, offset, n int) []string {
 }
 
 // eventLine formats an event as a row of the event lists for a screen
-// width columns wide: date, type, the people involved and the place. It
-// links to the first of the people.
+// width columns wide: date, type and the people involved in columns, then
+// the place. It links to the first of the people.
 func (m Model) eventLine(ev *gedcom.Event, width int) line {
 	dateW, labelW := 20, 18
 	nameW := clamp((width-dateW-labelW-4)*3/5, 12, 40)
-	placeW := max(0, width-2-dateW-labelW-nameW-3)
 	date, _ := ev.Date.Fit(dateW - 1)
 	if !ev.Date.IsValid() {
 		date = "—"
@@ -211,10 +209,12 @@ func (m Model) eventLine(ev *gedcom.Event, width int) line {
 		label += ": " + d
 	}
 	return line{spans: []span{
-		{pad(date, dateW), m.st.label},
-		{" " + pad(label, labelW) + " ", lipgloss.NewStyle()},
-		{pad(strings.Join(names, " & "), nameW), m.st.name},
-		{" ", lipgloss.NewStyle()},
-		{pad(ev.Place.String(), placeW), m.st.dim},
+		{text: date, style: m.st.label, width: dateW},
+		{text: " "},
+		{text: label, width: labelW},
+		{text: " "},
+		{text: strings.Join(names, " & "), style: m.st.name, width: nameW},
+		{text: " "},
+		{text: ev.Place.String(), style: m.st.dim},
 	}, target: eventPerson(ev)}
 }

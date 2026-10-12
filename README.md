@@ -66,7 +66,8 @@ The screenshots below use the [GEDCOM-L sample file](testdata/Muster_GEDCOM_UTF-
     parents point to their children, and partners are linked both ways;
   - to PDF, pages to print or read: contents with indexes, a page per person
     as in the person view, then the places with their events, with page
-    references that link to the pages.
+    references that link to the pages. Nothing is cut on paper: long lines
+    wrap, every column within its own place.
 - **Privacy**: data marked confidential or private (`RESN`) is hidden unless
   you ask for it.
 - **Batch mode** for scripts: print search results, charts, timelines,

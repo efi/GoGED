@@ -116,7 +116,7 @@ func (m *Model) buildHelp() {
 	}
 	keyW = min(keyW+2, 28)
 	descW := max(20, m.width-keyW-4)
-	ls = append(ls, textLine(span{"goged — a terminal browser for GEDCOM family trees", m.st.name}), textLine())
+	ls = append(ls, textLine(span{text: "goged — a terminal browser for GEDCOM family trees", style: m.st.name}), textLine())
 	for _, s := range helpSections {
 		switch {
 		case len(s) == 1 && s[0] == "":
@@ -129,7 +129,7 @@ func (m *Model) buildHelp() {
 				if i == 0 {
 					k = s[0]
 				}
-				ls = append(ls, textLine(span{pad(k, keyW), m.st.key}, span{d, m.st.name.UnsetBold()}))
+				ls = append(ls, textLine(span{text: pad(k, keyW), style: m.st.key}, span{text: d, style: m.st.name.UnsetBold()}))
 			}
 		}
 	}
@@ -142,19 +142,19 @@ func (m *Model) buildLicenses() {
 	var ls []line
 	ls = append(ls, m.sectionLine("Map data"))
 	for _, l := range strings.Split(worldmap.License, "\n") {
-		ls = append(ls, textLine(span{l, m.st.name.UnsetBold()}))
+		ls = append(ls, textLine(span{text: l, style: m.st.name.UnsetBold()}))
 	}
 	ls = append(ls, textLine(), m.sectionLine("Font"))
 	for _, l := range strings.Split(strings.TrimRight(fonts.License, "\n"), "\n") {
-		ls = append(ls, textLine(span{l, m.st.dim}))
+		ls = append(ls, textLine(span{text: l, style: m.st.dim}))
 	}
 	ls = append(ls, textLine(), m.sectionLine("Third-party software"))
 	for _, l := range strings.Split(strings.TrimRight(licenses.ThirdParty, "\n"), "\n") {
 		if strings.HasPrefix(l, "== ") {
-			ls = append(ls, textLine(span{strings.TrimPrefix(l, "== "), m.st.name}))
+			ls = append(ls, textLine(span{text: strings.TrimPrefix(l, "== "), style: m.st.name}))
 			continue
 		}
-		ls = append(ls, textLine(span{l, m.st.dim}))
+		ls = append(ls, textLine(span{text: l, style: m.st.dim}))
 	}
 	m.help.set(ls)
 }

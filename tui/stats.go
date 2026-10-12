@@ -25,7 +25,7 @@ func (m *Model) ensureStats() {
 	s := genealogy.Compute(m.doc)
 	var ls []line
 	row := func(label, value string) line {
-		return textLine(span{pad(label, 22), m.st.label}, span{value, m.st.name.UnsetBold()})
+		return textLine(span{text: pad(label, 22), style: m.st.label}, span{text: value, style: m.st.name.UnsetBold()})
 	}
 	blank := textLine()
 
@@ -67,7 +67,7 @@ func (m *Model) ensureStats() {
 	if len(s.Surnames) > 0 {
 		ls = append(ls, blank, m.sectionLine("Most common surnames"), dimLine(m, "press enter to list everybody with that surname"))
 		for _, nc := range s.Surnames[:min(30, len(s.Surnames))] {
-			l := textLine(span{pad(nc.Name, 22), m.st.name}, span{fmt.Sprint(nc.Count), m.st.dim})
+			l := textLine(span{text: pad(nc.Name, 22), style: m.st.name}, span{text: fmt.Sprint(nc.Count), style: m.st.dim})
 			l.query = fmt.Sprintf("surname:%q", nc.Name)
 			ls = append(ls, l)
 		}
@@ -79,7 +79,7 @@ func (m *Model) ensureStats() {
 			parts = append(parts, fmt.Sprintf("%s (%d)", nc.Name, nc.Count))
 		}
 		for _, w := range wrap(strings.Join(parts, ", "), max(20, m.width-4)) {
-			ls = append(ls, textLine(span{w, m.st.name.UnsetBold()}))
+			ls = append(ls, textLine(span{text: w, style: m.st.name.UnsetBold()}))
 		}
 	}
 
@@ -133,7 +133,7 @@ func (m *Model) onThisDay(row func(label, value string) line) []line {
 		}
 		l := row(year, a.Event.Label()+"  "+strings.Join(names, " & "))
 		if place := a.Event.Place.String(); place != "" {
-			l.spans = append(l.spans, span{"  " + place, m.st.dim})
+			l.spans = append(l.spans, span{text: "  " + place, style: m.st.dim})
 		}
 		if len(people) > 0 {
 			l.target = people[0]

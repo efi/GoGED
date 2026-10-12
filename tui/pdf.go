@@ -132,7 +132,7 @@ func (m *Model) pdfBlocks(sel *export.Selection, opts export.Options) []pdfBlock
 		if len(places) == 0 {
 			b.part = "Places"
 		}
-		heading := textLine(span{n.Full, p.st.section})
+		heading := textLine(span{text: n.Full, style: p.st.section})
 		heading.heading = true
 		b.lines = append(b.lines, pdfLine{heading, -1})
 		for _, info := range placeInfo(n) {
@@ -157,7 +157,7 @@ func (m *Model) pdfBlocks(sel *export.Selection, opts export.Options) []pdfBlock
 	if title == "" {
 		title = "goged"
 	}
-	add(textLine(span{title, p.st.name}), -1)
+	add(textLine(span{text: title, style: p.st.name}), -1)
 	for _, w := range wrap(export.Describe(sel, opts), pdfContent) {
 		add(dimLine(&p, w), -1)
 	}
@@ -167,24 +167,40 @@ func (m *Model) pdfBlocks(sel *export.Selection, opts export.Options) []pdfBlock
 	add(textLine(), -1)
 	add(p.sectionLine("People"), -1)
 	for i, ind := range people {
-		spans := []span{{pad(ind.SortName(), 48), p.st.name.UnsetBold()}, {ind.Lifespan(), p.st.dim}}
+		spans := []span{{text: ind.SortName(), style: p.st.name.UnsetBold(), width: 47}, {text: " "}, {text: ind.Lifespan(), style: p.st.dim}}
 		add(textLine(spans...), i+1)
 	}
 	if len(places) > 0 {
 		add(textLine(), -1)
 		add(p.sectionLine("Places"), -1)
 		for i, n := range places {
-			add(textLine(span{n.Full, p.st.name.UnsetBold()}), len(people)+1+i)
+			add(textLine(span{text: n.Full, style: p.st.name.UnsetBold()}), len(people)+1+i)
 		}
+	}
+	// Nothing is cut on paper: long lines are wrapped. The page reference
+	// goes with the first row.
+	for i := range blocks {
+		var rows []pdfLine
+		for _, l := range blocks[i].lines {
+			for j, row := range expand([]line{l.line}, pdfContent) {
+				ref := l.ref
+				if j > 0 {
+					ref = -1
+				}
+				rows = append(rows, pdfLine{row, ref})
+			}
+		}
+		blocks[i].lines = rows
 	}
 	return blocks
 }
 
 // paginate distributes the blocks over pages of n lines. A block with
 // newPage begins a page, and so does a block or a heading that would have
-// fewer than three of its lines on the current page. Blank lines are left
-// out at the top of a page. paginate returns the pages and where each
-// block begins.
+// fewer than three of its lines on the current page. The rows of a wrapped
+// line stay together if they fit on a page. Blank lines are left out at
+// the top of a page. paginate returns the pages and where each block
+// begins.
 func paginate(blocks []pdfBlock, n int) (pages [][]pdfLine, starts []pdfPos) {
 	var page []pdfLine
 	next := func() {
@@ -199,7 +215,11 @@ func paginate(blocks []pdfBlock, n int) (pages [][]pdfLine, starts []pdfPos) {
 		}
 		started := false
 		for i, l := range b.lines {
-			if (l.heading && i > 0 && n-len(page) < 3) || len(page) == n {
+			rows := 1
+			for !l.cont && i+rows < len(b.lines) && b.lines[i+rows].cont {
+				rows++
+			}
+			if (l.heading && i > 0 && n-len(page) < 3) || len(page) == n || (!l.cont && len(page)+rows > n && rows <= n) {
 				next()
 			}
 			if len(page) == 0 && strings.TrimSpace(l.plain()) == "" {
