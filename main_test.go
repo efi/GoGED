@@ -225,6 +225,73 @@ func TestColumnsWithWideAndDecomposedText(t *testing.T) {
 	}
 }
 
+func TestExportFlag(t *testing.T) {
+	dir := t.TempDir()
+	data, err := os.ReadFile(sample)
+	if err != nil {
+		t.Fatal(err)
+	}
+	input := filepath.Join(dir, "family.ged")
+	if err := os.WriteFile(input, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	read := func(name string) string {
+		t.Helper()
+		b, err := os.ReadFile(filepath.Join(dir, name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(b)
+	}
+
+	// By default the export goes next to the input, with the format's
+	// extension; the format's name is not case-sensitive.
+	r := runCLI(t, "", "-export", "GEXF", input)
+	if r.code != 0 || r.stderr != "goged: exported 24 people as GEXF to "+filepath.Join(dir, "family.gexf")+"\n" || r.stdout != "" {
+		t.Fatalf("exit %d, stdout %q, stderr %q", r.code, r.stdout, r.stderr)
+	}
+	if g := read("family.gexf"); strings.Count(g, "<node ") != 24 || !strings.Contains(g, "All 24 people of family.ged") {
+		t.Errorf("family.gexf:\n%.400s", g)
+	}
+
+	// Only the people connected to a pivot, to a file of one's choice;
+	// flags may follow the file name.
+	out := filepath.Join(dir, "smith.pdf")
+	r = runCLI(t, "", input, "-export", "pdf", "-pivot", "I20", "-o", out)
+	if r.code != 0 || !strings.HasPrefix(read("smith.pdf"), "%PDF-") {
+		t.Fatalf("pdf: exit %d, %q", r.code, r.stderr)
+	}
+
+	// To standard output, also when reading from standard input.
+	r = runCLI(t, string(data), "-export", "gexf", "-pivot", "I20", "-o", "-", "-")
+	if r.code != 0 || strings.Count(r.stdout, "<node ") != 24 || !strings.Contains(r.stdout, "connected to Harold Smith (I20)") || r.stderr != "" {
+		t.Errorf("stdout: exit %d, stderr %q", r.code, r.stderr)
+	}
+
+	for _, tt := range []struct {
+		stdin string
+		args  []string
+		code  int
+		err   string
+	}{
+		{"", []string{"-export", "svg", input}, 2, `unknown export format "svg" (formats: gexf, pdf)`},
+		{"", []string{"-export", "gexf", "-pivot", "I999", input}, 1, `no individual with ID "I999"`},
+		{"", []string{"-pivot", "I20", input}, 2, "-pivot and -o go with -export"},
+		{"", []string{"-o", "x.gexf", input}, 2, "-pivot and -o go with -export"},
+		{string(data), []string{"-export", "gexf", "-"}, 2, "name the export with -o when reading from standard input"},
+		{"", []string{"-export", "gexf", "-o", input, input}, 2, "would replace the input file"},
+		{"", []string{"-export", "gexf", "-o", filepath.Join(dir, "missing", "x.gexf"), input}, 1, "export failed:"},
+	} {
+		r := runCLI(t, tt.stdin, tt.args...)
+		if r.code != tt.code || !strings.Contains(r.stderr, tt.err) {
+			t.Errorf("%v: exit %d, stderr %q; want %d, %q", tt.args, r.code, r.stderr, tt.code, tt.err)
+		}
+	}
+	if read("family.ged") != string(data) {
+		t.Error("the input file changed")
+	}
+}
+
 func TestStdin(t *testing.T) {
 	data, err := os.ReadFile(sample)
 	if err != nil {

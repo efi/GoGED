@@ -30,8 +30,12 @@ Main features, by TUI tab (keys 1–8, or alt+1–8 while typing):
 
 The batch flags are `-q`, `-tree`, `-desc`, `-timeline`, `-relate ID1,ID2`,
 `-events FILTER` (plus `-all`), `-places`, `-stats`, `-gen`, `-ascii`,
-`-person`, `-show-restricted`, `-version` and `-licenses`. Passing `-` as
-the file reads from stdin.
+`-person`, `-show-restricted`, `-version` and `-licenses`, and
+`-export FORMAT` with `-pivot ID` and `-o FILE` (default: the input's path
+with the format's extension; `-` is standard output, and required with
+stdin input). Passing `-` as the file reads from stdin. The batch export
+gets its formats from `tui.ExportFormats`, so it offers the same as the
+Export tab, PDF included.
 
 ## 2. Working agreements with the user
 

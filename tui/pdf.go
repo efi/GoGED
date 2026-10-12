@@ -58,6 +58,14 @@ type pdfBlock struct {
 // pdfPos is a line on a page, both counted from 0.
 type pdfPos struct{ page, line int }
 
+// ExportFormats returns the formats the Export tab offers for doc, for use
+// without the interface: those of package export, and the PDF, which
+// prints the views of this package.
+func ExportFormats(doc *gedcom.Document, opts Options) []export.Format {
+	m := New(doc, opts)
+	return m.exportFormats()
+}
+
 // exportFormats lists the export formats: those of package export, and
 // the PDF, which prints the views of this package.
 func (m *Model) exportFormats() []export.Format {

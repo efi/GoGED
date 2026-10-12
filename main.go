@@ -13,9 +13,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/efi/goged/chart"
+	"github.com/efi/goged/export"
 	"github.com/efi/goged/fonts"
 	"github.com/efi/goged/gedcom"
 	"github.com/efi/goged/genealogy"
@@ -49,8 +51,10 @@ func runTUI(doc *gedcom.Document, opts tui.Options, fromStdin bool) error {
 const usageText = `goged — browse GEDCOM genealogy files in the terminal
 
 Usage:
-  goged [flags] FILE.ged        open the interactive browser
-  goged -q QUERY FILE.ged       print matching people and exit
+  goged [flags] FILE.ged                  open the interactive browser
+  goged -q QUERY FILE.ged                 print matching people and exit
+  goged -export FORMAT [-pivot ID] [-o OUT] FILE.ged
+                                          export as gexf or pdf and exit
 
 Use - as FILE to read from standard input.
 
@@ -76,6 +80,9 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, startTUI tuiR
 		showRes  = fs.Bool("show-restricted", false, "show data marked confidential or private (RESN), which is hidden by default")
 		showVer  = fs.Bool("version", false, "print the version and exit")
 		showLic  = fs.Bool("licenses", false, "print the licenses of the map data and the third-party software")
+		exportAs = fs.String("export", "", "export as `FORMAT` (gexf or pdf) and exit")
+		pivot    = fs.String("pivot", "", "with -export: only the person with `ID` and everybody connected to them")
+		output   = fs.String("o", "", "with -export: write to `FILE` (- for standard output); default: the input file with the format's extension")
 	)
 	fs.Usage = func() {
 		fmt.Fprint(stderr, usageText)
@@ -108,6 +115,10 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, startTUI tuiR
 	if *showLic {
 		fmt.Fprintf(stdout, "%s\n\n%s\n%s", worldmap.License, fonts.License, licenses.ThirdParty)
 		return 0
+	}
+	if (set["pivot"] || set["o"]) && !set["export"] {
+		fmt.Fprintln(stderr, "goged: -pivot and -o go with -export")
+		return 2
 	}
 	if len(positional) != 1 {
 		fs.Usage()
@@ -183,6 +194,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, startTUI tuiR
 		return 0
 	case set["events"]:
 		return printEvents(doc, *events, *allEv, stdout, stderr)
+	case set["export"]:
+		return runExport(doc, path, *exportAs, *pivot, *output, stdout, stderr)
 	case *places:
 		printPlaces(doc, stdout)
 		return 0
@@ -200,6 +213,75 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, startTUI tuiR
 		return 1
 	}
 	return 0
+}
+
+// runExport exports doc, read from input, in the format named, to output
+// or by default to the input's path with the format's extension.
+func runExport(doc *gedcom.Document, input, format, pivot, output string, stdout, stderr io.Writer) int {
+	title := filepath.Base(input)
+	if input == "-" {
+		title = "stdin"
+	}
+	formats := tui.ExportFormats(doc, tui.Options{Title: title})
+	var names []string
+	f := -1
+	for i, ef := range formats {
+		names = append(names, strings.ToLower(ef.Name))
+		if strings.EqualFold(ef.Name, format) {
+			f = i
+		}
+	}
+	if f < 0 {
+		fmt.Fprintf(stderr, "goged: unknown export format %q (formats: %s)\n", format, strings.Join(names, ", "))
+		return 2
+	}
+	opts := export.Options{Title: title, Generated: time.Now()}
+	if pivot != "" {
+		root := doc.Individual(pivot)
+		if root == nil {
+			fmt.Fprintf(stderr, "goged: no individual with ID %q\n", pivot)
+			return 1
+		}
+		opts.Scope, opts.Root = export.Component, root
+	}
+	sel, err := export.Select(doc, opts)
+	if err != nil {
+		fmt.Fprintf(stderr, "goged: %v\n", err)
+		return 1
+	}
+
+	path := output
+	if path == "" {
+		if input == "-" {
+			fmt.Fprintln(stderr, "goged: name the export with -o when reading from standard input (- writes to standard output)")
+			return 2
+		}
+		path = strings.TrimSuffix(input, filepath.Ext(input)) + formats[f].Extension
+	}
+	if path == "-" {
+		err = formats[f].Write(stdout, sel, opts)
+	} else {
+		if a, b := absPath(path), absPath(input); a == b {
+			fmt.Fprintf(stderr, "goged: the export would replace the input file %s\n", input)
+			return 2
+		}
+		err = export.WriteFile(path, formats[f], sel, opts)
+	}
+	if err != nil {
+		fmt.Fprintf(stderr, "goged: export failed: %v\n", err)
+		return 1
+	}
+	if path != "-" {
+		fmt.Fprintf(stderr, "goged: exported %d people as %s to %s\n", len(sel.People), formats[f].Name, path)
+	}
+	return 0
+}
+
+func absPath(p string) string {
+	if a, err := filepath.Abs(p); err == nil {
+		return a
+	}
+	return p
 }
 
 func printQuery(doc *gedcom.Document, q string, stdout, stderr io.Writer) int {

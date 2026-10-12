@@ -143,6 +143,18 @@ goged -stats family.ged                    # statistics and warnings
 goged -licenses                            # licenses of map data and libraries
 ```
 
+Exports are written to a file and exit too. `-export` takes the format
+(`gexf` or `pdf`), `-pivot` limits the export to a person and everybody
+connected to them, and `-o` names the file, `-` for standard output. Without
+`-o` the export goes next to the GEDCOM file, with the format's extension:
+
+```sh
+goged -export gexf family.ged              # writes family.gexf
+goged -export pdf -pivot I20 family.ged    # Harold Smith's relatives, family.pdf
+goged -export pdf -o book.pdf family.ged
+cat family.ged | goged -export gexf -o - - # from standard input to standard output
+```
+
 ```
 $ goged -relate I20,I23 testdata/family.ged
 Dorothy Jones is Harold Smith's third cousin.
