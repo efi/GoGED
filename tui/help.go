@@ -3,6 +3,7 @@ package tui
 import (
 	"strings"
 
+	"github.com/efi/goged/fonts"
 	"github.com/efi/goged/licenses"
 	"github.com/efi/goged/worldmap"
 )
@@ -74,6 +75,7 @@ var helpSections = [][]string{
 	{"← →", "change it: the format, and all people or those connected to the marked person (m)"},
 	{"enter", "edit the file name, or export; an existing file is replaced after enter again"},
 	{"GEXF", "people are nodes with sex, birth and death; parents point to their children, partners are linked both ways"},
+	{"PDF", "contents, a page per person and the places with their events, as in the views, with links between the pages; nobody is marked"},
 	{""},
 	{"Search syntax"},
 	{"smith", "people with a name word starting with smith (diacritics are ignored)"},
@@ -134,13 +136,17 @@ func (m *Model) buildHelp() {
 	m.help.set(ls)
 }
 
-// buildLicenses shows the license of the map data and of the third-party
-// software compiled into goged.
+// buildLicenses shows the licenses of the map data, of the font of the PDF
+// export and of the third-party software compiled into goged.
 func (m *Model) buildLicenses() {
 	var ls []line
 	ls = append(ls, m.sectionLine("Map data"))
 	for _, l := range strings.Split(worldmap.License, "\n") {
 		ls = append(ls, textLine(span{l, m.st.name.UnsetBold()}))
+	}
+	ls = append(ls, textLine(), m.sectionLine("Font"))
+	for _, l := range strings.Split(strings.TrimRight(fonts.License, "\n"), "\n") {
+		ls = append(ls, textLine(span{l, m.st.dim}))
 	}
 	ls = append(ls, textLine(), m.sectionLine("Third-party software"))
 	for _, l := range strings.Split(strings.TrimRight(licenses.ThirdParty, "\n"), "\n") {

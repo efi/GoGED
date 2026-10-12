@@ -60,11 +60,13 @@ The screenshots below use the [GEDCOM-L sample file](testdata/Muster_GEDCOM_UTF-
 - **Statistics and validation**: counts, time span, generations, lifespans,
   most common names, the events that happened on this day in earlier years,
   and all warnings found while reading the file.
-- **Export** of the family graph, either everybody or only the people
-  connected to the marked person, to
-  [GEXF](https://gexf.net/) (Graph Exchange XML Format) for Gephi, networkx
-  and sigma.js: people are nodes with their sex, birth and death; parents
-  point to their children, and partners are linked both ways.
+- **Export** of everybody or only the people connected to the marked person:
+  - to [GEXF](https://gexf.net/) (Graph Exchange XML Format) for Gephi,
+    networkx and sigma.js: people are nodes with their sex, birth and death;
+    parents point to their children, and partners are linked both ways;
+  - to PDF, pages to print or read: contents with indexes, a page per person
+    as in the person view, then the places with their events, with page
+    references that link to the pages.
 - **Privacy**: data marked confidential or private (`RESN`) is hidden unless
   you ask for it.
 - **Batch mode** for scripts: print search results, charts, timelines,
@@ -265,10 +267,13 @@ go run ./worldmap/mkworld -o worldmap/world.bin \
 ## Licenses
 
 Natural Earth map data is in the public domain; goged credits it with "Made
-with Natural Earth". The licenses of the map data and of all libraries
-compiled into goged can be read in the program (`L`) or printed with
-`goged -licenses`. After changing dependencies, regenerate the embedded
-license texts with `scripts/gen-licenses.sh`.
+with Natural Earth". The PDF export uses the font
+[Martian Mono](https://github.com/evilmartians/mono) by Evil Martians, which
+is embedded under the SIL Open Font License 1.1 (see
+[`fonts/OFL.txt`](fonts/OFL.txt)). The licenses of the map data, the font and
+all libraries compiled into goged can be read in the program (`L`) or
+printed with `goged -licenses`. After changing dependencies, regenerate the
+embedded license texts with `scripts/gen-licenses.sh`.
 
 ## Development
 
@@ -294,6 +299,7 @@ build date; a second run on the same day replaces that day's release.
 | [`chart`](chart) | pedigree and descendant charts with node positions for navigation |
 | [`worldmap`](worldmap) | embedded Natural Earth map data, Web Mercator projection and Braille renderer; [`mkworld`](worldmap/mkworld) converts GeoJSON |
 | [`export`](export) | selection of the people to export (everybody, or a connected component) and the GEXF writer |
+| [`fonts`](fonts) | the embedded font of the PDF export, Martian Mono Condensed |
 | [`licenses`](licenses) | embedded third-party license texts |
 | [`tui`](tui) | the Bubble Tea interface |
 | [`main.go`](main.go) | command-line entry point and batch mode |

@@ -1326,7 +1326,8 @@ func TestLicensesScreen(t *testing.T) {
 	for _, l := range a.m.help.lines {
 		text += l.plain() + "\n"
 	}
-	for _, want := range []string{"Third-party software", "Go standard library", "github.com/charmbracelet/bubbletea", "golang.org/x/text", "MIT License"} {
+	for _, want := range []string{"Font", "Martian Mono", "SIL OPEN FONT LICENSE Version 1.1", "Third-party software", "Go standard library",
+		"github.com/charmbracelet/bubbletea", "golang.org/x/text", "codeberg.org/go-pdf/fpdf", "MIT License"} {
 		if !strings.Contains(text, want) {
 			t.Errorf("licenses lack %q", want)
 		}

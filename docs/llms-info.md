@@ -25,8 +25,8 @@ Main features, by TUI tab (keys 1–8, or alt+1–8 while typing):
 6. **Map** (experimental): Braille world map with markers, using embedded
    Natural Earth data.
 7. **Stats**: counts, time span, names, "On this day", warnings.
-8. **Export**: the family graph as GEXF, everybody or the people connected
-   to the marked person.
+8. **Export**: everybody or the people connected to the marked person, as a
+   GEXF graph or as PDF pages.
 
 The batch flags are `-q`, `-tree`, `-desc`, `-timeline`, `-relate ID1,ID2`,
 `-events FILTER` (plus `-all`), `-places`, `-stats`, `-gen`, `-ascii`,
@@ -110,6 +110,7 @@ chart/             text rendering of pedigree and descendant charts
 worldmap/          embedded Natural Earth data, projection, Braille renderer
 worldmap/mkworld/  converter from Natural Earth GeoJSON to world.bin
 export/            selection of people and links, GEXF writer, atomic file writing
+fonts/             Martian Mono Condensed (regular, bold) and its OFL, for the PDF
 tui/               Bubble Tea model, one file per view
 licenses/          embedded third-party license texts (generated)
 scripts/           build-release.sh (makefat universal macOS), gen-licenses.sh
@@ -293,6 +294,33 @@ packages.
   with networkx; see llms-toolinfo.md for the throwaway environment.
 - **`WriteFile`** writes a temporary file in the target directory and
   renames it, so a failed export leaves an existing file alone.
+
+### PDF export (tui/pdf.go)
+
+- **Same lines as the views:** the PDF prints the `line`s of the interface:
+  `personLines(ind, width)` (the person view), `eventLine(ev, width)` (the
+  rows of the event lists) and `placeInfo`. It lives in `tui` because
+  `tui` imports `export`; `exportFormats()` appends it to `export.Formats`.
+  Changes to the views show up in the PDF.
+- **Nobody is marked:** `pdfBlocks` works on a copy of the model without
+  the reference person, so no ★ and no relationship lines are printed.
+- **Layout:** A4, a grid of 96 columns of Martian Mono Condensed (0.6 em)
+  at 9 pt; the views are built for 90 columns (88 plus the interface's
+  2-column margin), and the last 8 columns hold page references.
+  Characters are placed by terminal width (`ansi.StringWidth`), text is
+  NFC-normalized first, long lines are cut with "…" as on screen.
+  `paginate` starts each person on a new page and keeps headings
+  (`line.heading`) and block starts together with at least two more lines.
+- **Links:** `writePDF` adds a link and a bookmark per block (contents,
+  people, places); lines that refer to a block print its page and link to
+  it. The footer says "page n of m".
+- **fpdf:** `codeberg.org/go-pdf/fpdf` is pinned to v0.11.1, because
+  v0.12.0 requires Go 1.25. Its output is not byte-identical between runs:
+  the font subset is built by iterating Go maps, so tests check the
+  structure and the paginated lines instead of bytes.
+- **Font coverage:** Martian Mono covers Latin-1, most of Latin Extended-A
+  and Cyrillic, and the box drawing goged uses, but not ★ ⚭ ▸ ▾, Greek,
+  Hebrew, Arabic or most Vietnamese letters, which print as boxes.
 
 ### tui
 

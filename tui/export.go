@@ -88,7 +88,7 @@ func (m *Model) defaultExportPath() string {
 			return '_'
 		}, m.reference.ID)
 	}
-	return base + export.Formats[m.export.format].Extension
+	return base + m.exportFormats()[m.export.format].Extension
 }
 
 func (m *Model) exportOptions() export.Options {
@@ -104,7 +104,7 @@ func (m *Model) changeExportSetting(dir int) {
 	e := &m.export
 	switch e.row {
 	case exportRowFormat:
-		n := len(export.Formats)
+		n := len(m.exportFormats())
 		e.format = (e.format + dir + n) % n
 	case exportRowPeople:
 		if e.scope == export.All && m.reference == nil {
@@ -197,7 +197,7 @@ func (m *Model) runExport(confirm string) {
 		m.setError(path + " exists: press enter again to replace it")
 		return
 	}
-	f := export.Formats[e.format]
+	f := m.exportFormats()[e.format]
 	if err := export.WriteFile(path, f, sel, opts); err != nil {
 		m.setError("export failed: " + err.Error())
 		return
@@ -211,9 +211,22 @@ func (m *Model) runExport(confirm string) {
 		plural(len(sel.Links), "relationship", "relationships"), f.Name, where))
 }
 
+// exportNotes explain what each format contains.
+var exportNotes = map[string][]string{
+	"GEXF": {
+		"People become nodes with their sex, birth and death. Parents point to their",
+		"children; partners are linked both ways.",
+	},
+	"PDF": {
+		"Contents with indexes, then a page per person in name order and the places",
+		"with their events. Page numbers link to the pages. Nobody is marked.",
+	},
+}
+
 func (m Model) viewExport(h int) string {
 	e := &m.export
-	f := export.Formats[e.format]
+	formats := (&m).exportFormats()
+	f := formats[e.format]
 	var out []string
 	out = append(out, m.st.section.Render("Export")+m.st.dim.Render(" · ↑↓ choose · ←→ change · enter edits the file name or exports"), "")
 
@@ -236,7 +249,7 @@ func (m Model) viewExport(h int) string {
 		return s
 	}
 
-	row(exportRowFormat, "Format", choice(f.Name, len(export.Formats)), f.Description)
+	row(exportRowFormat, "Format", choice(f.Name, len(formats)), f.Description)
 
 	people, count := "all", e.all
 	if e.scope == export.Component && m.reference != nil {
@@ -259,8 +272,10 @@ func (m Model) viewExport(h int) string {
 	out = append(out, "")
 	row(exportRowExport, "", "[ Export ]", "")
 
-	out = append(out, "", m.st.dim.Render("  People become nodes with their sex, birth and death. Parents point to their"),
-		m.st.dim.Render("  children; partners are linked both ways."))
+	out = append(out, "")
+	for _, l := range exportNotes[f.Name] {
+		out = append(out, m.st.dim.Render("  "+l))
+	}
 	if n := m.doc.Redactions; n > 0 {
 		out = append(out, m.st.dim.Render(fmt.Sprintf("  %d restricted records are hidden and not exported (see -show-restricted).", n)))
 	}

@@ -296,8 +296,14 @@ func TestHelpAndVersion(t *testing.T) {
 		t.Errorf("-h: %d %q", r.code, r.stderr)
 	}
 	r = runCLI(t, "", "-licenses")
-	if r.code != 0 || !strings.Contains(r.stdout, "Natural Earth") || !strings.Contains(r.stdout, "public domain") || !strings.Contains(r.stdout, "github.com/charmbracelet/bubbletea") {
-		t.Errorf("-licenses: %d %q", r.code, r.stdout[:min(200, len(r.stdout))])
+	if r.code != 0 {
+		t.Errorf("-licenses: exit %d", r.code)
+	}
+	for _, want := range []string{"Natural Earth", "public domain", "Martian Mono", "SIL OPEN FONT LICENSE Version 1.1",
+		"github.com/charmbracelet/bubbletea", "codeberg.org/go-pdf/fpdf"} {
+		if !strings.Contains(r.stdout, want) {
+			t.Errorf("-licenses lacks %q", want)
+		}
 	}
 	r = runCLI(t, "", "-version")
 	if r.code != 0 || r.stdout != "goged dev\n" {

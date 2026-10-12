@@ -16,6 +16,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/efi/goged/chart"
+	"github.com/efi/goged/fonts"
 	"github.com/efi/goged/gedcom"
 	"github.com/efi/goged/genealogy"
 	"github.com/efi/goged/licenses"
@@ -105,7 +106,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, startTUI tuiR
 		return 0
 	}
 	if *showLic {
-		fmt.Fprintf(stdout, "%s\n\n%s", worldmap.License, licenses.ThirdParty)
+		fmt.Fprintf(stdout, "%s\n\n%s\n%s", worldmap.License, fonts.License, licenses.ThirdParty)
 		return 0
 	}
 	if len(positional) != 1 {

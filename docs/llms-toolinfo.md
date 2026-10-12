@@ -399,3 +399,12 @@ for path in sys.argv[2:]:
   wrote exports of the sample files, a file with quotes, `&` and `<` in
   names, and one with control characters, which `encoding/xml` replaces
   with U+FFFD.
+
+## 11. Looking at PDFs
+
+PyMuPDF, installed into the same throwaway environment
+(`$SCRATCH/venv/bin/pip install -q pymupdf`), reads PDFs without a viewer:
+`pymupdf.open(path)` gives the page count, metadata, `get_toc()` (the
+bookmarks), `get_links()` per page and `get_text()`;
+`page.get_pixmap(dpi=100).save("page.png")` renders a page, which the Read
+tool then shows. This is how the PDF export was checked.

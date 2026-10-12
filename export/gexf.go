@@ -106,7 +106,7 @@ func WriteGEXF(w io.Writer, sel *Selection, opts Options) error {
 	}
 	end := func(name string) error { return enc.EncodeToken(xml.EndElement{Name: xml.Name{Local: name}}) }
 
-	meta := gexfMeta{Creator: "goged", Description: describe(sel, opts)}
+	meta := gexfMeta{Creator: "goged", Description: Describe(sel, opts)}
 	if !opts.Generated.IsZero() {
 		meta.LastModified = opts.Generated.Format("2006-01-02")
 	}
@@ -152,8 +152,9 @@ func WriteGEXF(w io.Writer, sel *Selection, opts Options) error {
 	return err
 }
 
-// describe says what the export contains, for the file's metadata.
-func describe(sel *Selection, opts Options) string {
+// Describe says what an export contains, e.g. "All 37 people of
+// family.ged and their relationships".
+func Describe(sel *Selection, opts Options) string {
 	source := opts.Title
 	if source == "" {
 		source = "a GEDCOM file"
