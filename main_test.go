@@ -11,6 +11,7 @@ import (
 
 	"github.com/efi/goged/gedcom"
 	"github.com/efi/goged/tui"
+	"github.com/mattn/go-runewidth"
 )
 
 var sample = filepath.Join("testdata", "family.ged")
@@ -168,6 +169,58 @@ func TestPlacesFlag(t *testing.T) {
 	} {
 		if lines[i] != want {
 			t.Errorf("line %d = %q, want %q", i, lines[i], want)
+		}
+	}
+}
+
+func TestColumnsWithWideAndDecomposedText(t *testing.T) {
+	// Hanna's name and places are decomposed (NFD): their combining marks
+	// take no column. Taro's are Japanese: every character takes two.
+	ged := strings.Join([]string{
+		"0 HEAD",
+		"0 @I1@ INDI", "1 NAME Hans /M\u00FCller/", "1 BIRT", "2 DATE 1900", "2 PLAC Berlin",
+		"0 @I2@ INDI", "1 NAME Hanna /Mu\u0308ller/", "1 BIRT", "2 DATE 1901", "2 PLAC Mu\u0308nchen",
+		"1 RESI", "2 DATE Fru\u0308hjahr 1920", "2 PLAC Mu\u0308nchen", // a date shown as written
+		"0 @I3@ INDI", "1 NAME \u592A\u90CE /\u7530\u4E2D/", "1 BIRT", "2 DATE 1902", "2 PLAC \u6771\u4EAC",
+		"0 TRLR", "",
+	}, "\n")
+	// columns returns, for every line containing one of subs, the display
+	// column at which it starts.
+	columns := func(out string, subs ...string) []int {
+		var cols []int
+		for _, line := range strings.Split(out, "\n") {
+			for _, sub := range subs {
+				if i := strings.Index(line, sub); i >= 0 {
+					cols = append(cols, runewidth.StringWidth(line[:i]))
+					break
+				}
+			}
+		}
+		return cols
+	}
+	places := []string{"Berlin", "Mu\u0308nchen", "\u6771\u4EAC"}
+	for _, tt := range []struct {
+		args []string
+		subs []string
+		col  int // where every line has the column
+		n    int // number of lines with it
+	}{
+		{[]string{"-q", ""}, places, 53, 3},
+		{[]string{"-events", "", "-all"}, places, 77, 4},
+		{[]string{"-places"}, []string{" event"}, 46, 3},
+		{[]string{"-timeline", "I2"}, []string{"Birth", "Residence"}, 25, 2},
+	} {
+		r := runCLI(t, ged, append(tt.args, "-")...)
+		if r.code != 0 {
+			t.Fatalf("%v: exit %d: %s", tt.args, r.code, r.stderr)
+		}
+		cols := columns(r.stdout, tt.subs...)
+		ok := len(cols) == tt.n
+		for _, c := range cols {
+			ok = ok && c == tt.col
+		}
+		if !ok {
+			t.Errorf("%v: columns %v, want %d lines at %d:\n%s", tt.args, cols, tt.n, tt.col, r.stdout)
 		}
 	}
 }

@@ -22,6 +22,7 @@ import (
 	"github.com/efi/goged/search"
 	"github.com/efi/goged/tui"
 	"github.com/efi/goged/worldmap"
+	"github.com/mattn/go-runewidth"
 )
 
 // version is set at build time with -ldflags "-X main.version=...".
@@ -212,7 +213,7 @@ func printQuery(doc *gedcom.Document, q string, stdout, stderr io.Writer) int {
 		if b := ind.FirstDatedEvent(gedcom.BirthTags...); b != nil {
 			place = b.Place.String()
 		}
-		line := strings.TrimRight(fmt.Sprintf("%-6s %-32s %-12s %s", ind.ID, ind.SortName(), ind.Lifespan(), place), " ")
+		line := strings.TrimRight(pad(ind.ID, 6)+" "+pad(ind.SortName(), 32)+" "+pad(ind.Lifespan(), 12)+" "+place, " ")
 		if r.NameIndex > 0 && r.NameIndex < len(ind.Names) {
 			// The query matched an alternate name; show it.
 			line += "  (as " + ind.Names[r.NameIndex].String() + ")"
@@ -220,6 +221,17 @@ func printQuery(doc *gedcom.Document, q string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stdout, line)
 	}
 	return 0
+}
+
+// pad fills s with spaces to width terminal columns. Unlike %-*s, which
+// counts characters, it measures what a terminal shows: combining marks,
+// as in decomposed (NFD) text, take no column and East Asian wide
+// characters take two.
+func pad(s string, width int) string {
+	if w := runewidth.StringWidth(s); w < width {
+		return s + strings.Repeat(" ", width-w)
+	}
+	return s
 }
 
 func printTimeline(ind *gedcom.Individual, w io.Writer) {
@@ -253,7 +265,7 @@ func printTimeline(ind *gedcom.Individual, w io.Writer) {
 				}
 			}
 		}
-		lineText := fmt.Sprintf("  %-22s %s", date, title)
+		lineText := "  " + pad(date, 22) + " " + title
 		if len(rest) > 0 {
 			lineText += "  (" + strings.Join(rest, "; ") + ")"
 		}
@@ -303,7 +315,7 @@ func printEvents(doc *gedcom.Document, filter string, all bool, stdout, stderr i
 		if d := ev.Detail(); d != "" && ev.Class() == gedcom.ClassAttribute {
 			label += ": " + d
 		}
-		fmt.Fprintln(stdout, strings.TrimRight(fmt.Sprintf("%-20s %-18s %-36s %s", date, label, strings.Join(names, " & "), ev.Place.String()), " "))
+		fmt.Fprintln(stdout, strings.TrimRight(pad(date, 20)+" "+pad(label, 18)+" "+pad(strings.Join(names, " & "), 36)+" "+ev.Place.String(), " "))
 	}
 	return 0
 }
@@ -318,7 +330,7 @@ func printPlaces(doc *gedcom.Document, w io.Writer) {
 	genealogy.Places(doc).Walk(func(n *genealogy.PlaceNode) bool {
 		if n.Depth > 0 {
 			name := strings.Repeat("  ", n.Depth-1) + n.Name
-			line := fmt.Sprintf("%-40s %5d %-6s %5d %s", name, n.Count(), word(n.Count(), "event", "events"), n.People(), word(n.People(), "person", "people"))
+			line := pad(name, 40) + fmt.Sprintf(" %5d %-6s %5d %s", n.Count(), word(n.Count(), "event", "events"), n.People(), word(n.People(), "person", "people"))
 			fmt.Fprintln(w, line)
 		}
 		return true
