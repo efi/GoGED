@@ -98,6 +98,9 @@ The screenshots below use the [GEDCOM-L sample file](testdata/Muster_GEDCOM_UTF-
   the mouse to the terminal for selecting text.
 - **Privacy**: data marked confidential or private (`RESN`) is hidden unless
   you ask for it.
+- **JSON** for scripts and other programs: `-json` prints the output of
+  every batch flag as data (people with their names, dates as shown and as
+  written, places; trees with parents or families and children; …).
 - **Batch mode** for scripts: print search results, charts, timelines,
   relationships, events and statistics without starting the interface.
 
@@ -172,6 +175,9 @@ goged -events '' -all family.ged           # every event, chronologically
 goged -places family.ged                   # place hierarchy with counts
 goged -stats family.ged                    # statistics and warnings
 goged -diff old.ged family.ged             # what changed since old.ged
+goged -checks all -person I20 family.ged   # plausibility checks and hints
+goged -checks old-age=100,similar-places=somewhat-resembling family.ged
+goged -json -q 'born:<1850' family.ged     # any of these as JSON
 goged -licenses                            # licenses of map data and libraries
 ```
 

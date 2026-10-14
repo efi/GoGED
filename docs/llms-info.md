@@ -31,7 +31,8 @@ Main features, by TUI tab (keys 1–9, or alt+1–9 while typing):
 9. **Export**: everybody or the people connected to the marked person, as a
    GEXF graph or as PDF pages.
 
-The batch flags are `-q`, `-tree`, `-desc`, `-hourglass`, `-diff OLD`, `-timeline`, `-relate ID1,ID2`,
+The batch flags are `-q`, `-tree`, `-desc`, `-hourglass`, `-diff OLD`, `-checks SPEC` (with `-person ID` as
+the marked person), `-timeline`, `-relate ID1,ID2`,
 `-events FILTER` (plus `-all`), `-places`, `-stats`, `-gen`, `-ascii`,
 `-person`, `-no-mouse`, `-show-restricted`, `-version` and `-licenses`, and
 `-export FORMAT` with `-pivot ID` and `-o FILE` (default: the input's path
@@ -416,6 +417,27 @@ packages.
   whose people and families link to them: the overlays now move between
   links (`docView.move`, which scrolls when there are none) and enter
   opens one. Both versions are redacted the same way.
+
+### JSON and batch checks (main package)
+
+- **`-json`** (`jsonout.go`) goes with every flag that prints (`jsonFlags`);
+  otherwise it is a usage error. `show` in `run` picks text or data. The
+  data is built from the model, not from the printed text: `jsonPerson`
+  (id, name, given, surname, sex as a word, lifespan, birth and death),
+  `jsonEvent` (tag, label, date as shown, `date_gedcom` as written, year,
+  place, detail); trees are `jsonTree` with father/mother (from the
+  pedigree chart's nodes, so the same occurrence of a repeated ancestor is
+  expanded, the others `ancestors_elsewhere`) and families with partner,
+  marriage and children (as the descendant chart walks them,
+  `descendants_elsewhere` for repeats); the hourglass has both. Field names
+  are snake case, empty values omitted, lists never null; `writeJSON`
+  indents and does not escape `&`. The tests decode into the same types
+  with unknown fields disallowed.
+- **`-checks`** (`checks.go`): `all`, `checks`, `hints` or IDs with
+  `=threshold` (numbers within the range, or a level with `-` or spaces).
+  `-person` marks the person for `missing-parents`; `now` gives today's
+  date (tests fix it). The text lists every chosen check with its count,
+  summary and findings in the two sections of the TUI.
 
 ### PDF and HTML export (tui/book.go, pdf.go, html.go)
 

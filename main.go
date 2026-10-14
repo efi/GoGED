@@ -12,6 +12,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -60,6 +61,9 @@ Usage:
   goged -export FORMAT [-pivot ID] [-o OUT] FILE.ged
                                           export as gexf, pdf or html and exit
   goged -diff OLD.ged FILE.ged            print what changed since OLD.ged
+  goged -checks all [-person ID] FILE.ged print the findings of the checks and hints
+
+Add -json to a flag that prints to get the output as JSON.
 
 Use - as FILE to read from standard input.
 
@@ -83,7 +87,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, startTUI tuiR
 		gens     = fs.Int("gen", 4, "number of `generations` shown in trees")
 		ascii    = fs.Bool("ascii", false, "draw trees with ASCII characters only")
 		noMouse  = fs.Bool("no-mouse", false, "leave the mouse to the terminal, to select text as usual")
-		person   = fs.String("person", "", "open the browser at the person with `ID`")
+		person   = fs.String("person", "", "open the browser at the person with `ID`; with -checks, mark them for the hint on unknown parents")
 		showRes  = fs.Bool("show-restricted", false, "show data marked confidential or private (RESN), which is hidden by default")
 		showVer  = fs.Bool("version", false, "print the version and exit")
 		showLic  = fs.Bool("licenses", false, "print the licenses of the map data and the third-party software")
@@ -91,6 +95,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, startTUI tuiR
 		pivot    = fs.String("pivot", "", "with -export: only the person with `ID` and everybody connected to them")
 		output   = fs.String("o", "", "with -export: write to `FILE` (- for standard output); default: the input file with the format's extension")
 		diffWith = fs.String("diff", "", "print what changed from the older version in `OLD.ged` to the file given, records paired by their IDs")
+		checks   = fs.String("checks", "", "print the findings of the plausibility checks and hints: all, checks, hints, or `IDs` with thresholds, e.g. old-age=100,similar-places=somewhat-resembling")
+		asJSON   = fs.Bool("json", false, "with -q, -tree, -desc, -hourglass, -timeline, -relate, -events, -places, -stats, -checks or -diff: print JSON")
 	)
 	fs.Usage = func() {
 		fmt.Fprint(stderr, usageText)
@@ -126,6 +132,10 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, startTUI tuiR
 	}
 	if (set["pivot"] || set["o"]) && !set["export"] {
 		fmt.Fprintln(stderr, "goged: -pivot and -o go with -export")
+		return 2
+	}
+	if *asJSON && !slices.ContainsFunc(jsonFlags, func(f string) bool { return set[f] }) {
+		fmt.Fprintln(stderr, "goged: -json goes with -"+strings.Join(jsonFlags, ", -"))
 		return 2
 	}
 	if len(positional) != 1 {
@@ -173,39 +183,50 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, startTUI tuiR
 		return ind, true
 	}
 
+	// show prints the output as text, or with -json its data.
+	show := func(text func(), data func() any) int {
+		if !*asJSON {
+			text()
+			return 0
+		}
+		if err := writeJSON(stdout, data()); err != nil {
+			fmt.Fprintf(stderr, "goged: %v\n", err)
+			return 1
+		}
+		return 0
+	}
+	// chartOf prints the chart of the person with id.
+	chartOf := func(id string, draw func(*gedcom.Individual) *chart.Chart, ancestors, descendants bool) int {
+		ind, ok := lookup(id)
+		if !ok {
+			return 1
+		}
+		return show(func() { fmt.Fprint(stdout, draw(ind).String()) },
+			func() any { return treeJSON(ind, chartOpts, ancestors, descendants) })
+	}
+
 	switch {
 	case set["q"]:
-		return printQuery(doc, *query, stdout, stderr)
+		results, err := search.NewIndex(doc).SearchString(*query)
+		if err != nil {
+			fmt.Fprintf(stderr, "goged: %v\n", err)
+			return 2
+		}
+		return show(func() { printResults(results, stdout) }, func() any { return queryJSON(results) })
 	case set["tree"]:
-		ind, ok := lookup(*pedigree)
-		if !ok {
-			return 1
-		}
-		fmt.Fprint(stdout, chart.Pedigree(ind, chartOpts).String())
-		return 0
+		return chartOf(*pedigree, func(ind *gedcom.Individual) *chart.Chart { return chart.Pedigree(ind, chartOpts) }, true, false)
 	case set["desc"]:
-		ind, ok := lookup(*desc)
-		if !ok {
-			return 1
-		}
 		descOpts := chartOpts
 		descOpts.MaxLabel = 1 << 16 // one person per line: no need to shorten labels
-		fmt.Fprint(stdout, chart.Descendants(ind, descOpts).String())
-		return 0
+		return chartOf(*desc, func(ind *gedcom.Individual) *chart.Chart { return chart.Descendants(ind, descOpts) }, false, true)
 	case set["hourglass"]:
-		ind, ok := lookup(*hourglas)
-		if !ok {
-			return 1
-		}
-		fmt.Fprint(stdout, chart.Hourglass(ind, chartOpts).String())
-		return 0
+		return chartOf(*hourglas, func(ind *gedcom.Individual) *chart.Chart { return chart.Hourglass(ind, chartOpts) }, true, true)
 	case set["timeline"]:
 		ind, ok := lookup(*timeline)
 		if !ok {
 			return 1
 		}
-		printTimeline(ind, stdout)
-		return 0
+		return show(func() { printTimeline(ind, stdout) }, func() any { return timelineJSON(ind) })
 	case set["relate"]:
 		a, b, found := strings.Cut(*relate, ",")
 		if !found {
@@ -217,10 +238,24 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, startTUI tuiR
 		if !ok1 || !ok2 {
 			return 1
 		}
-		printRelationship(indA, indB, stdout)
-		return 0
+		return show(func() { printRelationship(indA, indB, stdout) }, func() any { return relationshipJSON(indA, indB) })
 	case set["events"]:
-		return printEvents(doc, *events, *allEv, stdout, stderr)
+		q, err := search.ParseEventQuery(*events)
+		if err != nil {
+			fmt.Fprintf(stderr, "goged: %v\n", err)
+			return 2
+		}
+		list := search.NewEventIndex(doc.Events()).Filter(q, !*allEv)
+		return show(func() { printEvents(list, stdout) }, func() any { return eventsJSON(list) })
+	case set["checks"]:
+		var marked *gedcom.Individual
+		if set["person"] {
+			var ok bool
+			if marked, ok = lookup(*person); !ok {
+				return 1
+			}
+		}
+		return runChecks(doc, *checks, marked, *asJSON, stdout, stderr)
 	case set["export"]:
 		return runExport(doc, path, *exportAs, *pivot, *output, stdout, stderr)
 	case set["diff"]:
@@ -229,14 +264,12 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, startTUI tuiR
 			fmt.Fprintf(stderr, "goged: %s: %v\n", *diffWith, err)
 			return 1
 		}
-		printDiff(diff.Compare(old, doc), stdout)
-		return 0
+		r := diff.Compare(old, doc)
+		return show(func() { printDiff(r, stdout) }, func() any { return diffJSON(r) })
 	case *places:
-		printPlaces(doc, stdout)
-		return 0
+		return show(func() { printPlaces(doc, stdout) }, func() any { return placesJSON(genealogy.Places(doc)) })
 	case *stats:
-		printStats(doc, filepath.Base(path), stdout)
-		return 0
+		return show(func() { printStats(doc, filepath.Base(path), stdout) }, func() any { return statsJSON(doc, filepath.Base(path)) })
 	}
 
 	opts := tui.Options{Title: filepath.Base(path), StartPerson: *person, Generations: *gens, ASCII: *ascii, NoMouse: *noMouse}
@@ -321,12 +354,10 @@ func absPath(p string) string {
 	return p
 }
 
-func printQuery(doc *gedcom.Document, q string, stdout, stderr io.Writer) int {
-	results, err := search.NewIndex(doc).SearchString(q)
-	if err != nil {
-		fmt.Fprintf(stderr, "goged: %v\n", err)
-		return 2
-	}
+// jsonFlags are the flags whose output -json gives as data.
+var jsonFlags = []string{"q", "tree", "desc", "hourglass", "timeline", "relate", "events", "places", "stats", "checks", "diff"}
+
+func printResults(results []search.Result, stdout io.Writer) {
 	for _, r := range results {
 		ind := r.Individual
 		place := ""
@@ -340,7 +371,6 @@ func printQuery(doc *gedcom.Document, q string, stdout, stderr io.Writer) int {
 		}
 		fmt.Fprintln(stdout, line)
 	}
-	return 0
 }
 
 // pad fills s with spaces to width terminal columns. Unlike %-*s, which
@@ -416,13 +446,8 @@ func printRelationship(a, b *gedcom.Individual, w io.Writer) {
 	}
 }
 
-func printEvents(doc *gedcom.Document, filter string, all bool, stdout, stderr io.Writer) int {
-	q, err := search.ParseEventQuery(filter)
-	if err != nil {
-		fmt.Fprintf(stderr, "goged: %v\n", err)
-		return 2
-	}
-	for _, ev := range search.NewEventIndex(doc.Events()).Filter(q, !all) {
+func printEvents(list []*gedcom.Event, stdout io.Writer) {
+	for _, ev := range list {
 		date := "—"
 		if ev.Date.IsValid() {
 			date, _ = ev.Date.Fit(20)
@@ -437,7 +462,6 @@ func printEvents(doc *gedcom.Document, filter string, all bool, stdout, stderr i
 		}
 		fmt.Fprintln(stdout, strings.TrimRight(pad(date, 20)+" "+pad(label, 18)+" "+pad(strings.Join(names, " & "), 36)+" "+ev.Place.String(), " "))
 	}
-	return 0
 }
 
 func printPlaces(doc *gedcom.Document, w io.Writer) {
