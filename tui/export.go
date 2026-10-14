@@ -221,6 +221,10 @@ var exportNotes = map[string][]string{
 		"Contents with indexes, then a page per person in name order and the places",
 		"with their events. Page numbers link to the pages. Nobody is marked.",
 	},
+	"HTML": {
+		"One page for the browser: contents, a section per person in name order and the",
+		"places with their events, linked to each other. Nobody is marked.",
+	},
 }
 
 func (m Model) viewExport(h int) string {

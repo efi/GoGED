@@ -16,18 +16,18 @@ import (
 
 // plainLines makes PDF lines from text; "#" marks a heading, "+" a
 // further row of the line before, "" is blank.
-func plainLines(texts ...string) []pdfLine {
-	var out []pdfLine
+func plainLines(texts ...string) []bookLine {
+	var out []bookLine
 	for _, t := range texts {
 		l := textLine(span{text: strings.TrimLeft(t, "#+"), style: lipgloss.NewStyle()})
 		l.heading = strings.HasPrefix(t, "#")
 		l.cont = strings.HasPrefix(t, "+")
-		out = append(out, pdfLine{l, -1})
+		out = append(out, bookLine{l, -1})
 	}
 	return out
 }
 
-func pageTexts(pages [][]pdfLine) string {
+func pageTexts(pages [][]bookLine) string {
 	var out []string
 	for _, p := range pages {
 		var ls []string
@@ -40,7 +40,7 @@ func pageTexts(pages [][]pdfLine) string {
 }
 
 func TestPaginate(t *testing.T) {
-	blocks := []pdfBlock{
+	blocks := []bookBlock{
 		{newPage: true, lines: plainLines("a1", "a2", "", "#h", "a3", "a4")},
 		{newPage: true, lines: plainLines("", "b1")},      // the leading blank is left out
 		{lines: plainLines("c1", "c2", "c3", "c4", "c5")}, // four lines fit after b1
@@ -58,13 +58,13 @@ func TestPaginate(t *testing.T) {
 	}
 
 	// The rows of a wrapped line stay together.
-	pages, _ = paginate([]pdfBlock{{lines: plainLines("a1", "a2", "a3", "b1", "+b2", "+b3", "c1")}}, 5)
+	pages, _ = paginate([]bookBlock{{lines: plainLines("a1", "a2", "a3", "b1", "+b2", "+b3", "c1")}}, 5)
 	if got := pageTexts(pages); got != "a1,a2,a3 | b1,b2,b3,c1" {
 		t.Errorf("wrapped rows: %s", got)
 	}
 
 	// Short blocks share a page; a full page continues on the next.
-	pages, starts = paginate([]pdfBlock{
+	pages, starts = paginate([]bookBlock{
 		{lines: plainLines("a1", "a2")},
 		{lines: plainLines("b1", "b2", "b3", "b4")},
 	}, 5)
@@ -82,7 +82,11 @@ func TestPDFBlocks(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	blocks := m.pdfBlocks(sel, export.Options{Title: "muster.ged", Generated: time.Date(2026, 10, 12, 0, 0, 0, 0, time.UTC)})
+	blocks := m.bookBlocks(sel, export.Options{Title: "muster.ged", Generated: time.Date(2026, 10, 12, 0, 0, 0, 0, time.UTC)})
+	if blocks[0].id != "contents" || blocks[1].id != "I32" || blocks[38].id != "place-1" {
+		t.Errorf("anchors %q, %q, %q", blocks[0].id, blocks[1].id, blocks[38].id)
+	}
+	wrapToPage(blocks)
 	if m.reference == nil || m.reference.ID != "I1" {
 		t.Error("the marked person was cleared")
 	}
@@ -124,7 +128,7 @@ func TestPDFBlocks(t *testing.T) {
 		contents[2].plain() != "exported by goged on 12 Oct 2026" {
 		t.Errorf("contents = %q / %q / %q", contents[0].plain(), contents[1].plain(), contents[2].plain())
 	}
-	var max *pdfBlock
+	var max *bookBlock
 	for i := range blocks {
 		if blocks[i].title == "Max Manfred Mustermann (1943–)" {
 			max = &blocks[i]
@@ -145,7 +149,7 @@ func TestPDFBlocks(t *testing.T) {
 
 	// The connected people only: the index lists fewer people.
 	sel, _ = export.Select(m.doc, export.Options{Scope: export.Component, Root: m.reference})
-	if n := len(m.pdfBlocks(sel, export.Options{})); n >= len(blocks) {
+	if n := len(m.bookBlocks(sel, export.Options{})); n >= len(blocks) {
 		t.Errorf("component: %d blocks, all: %d", n, len(blocks))
 	}
 }
@@ -162,7 +166,9 @@ func TestWritePDF(t *testing.T) {
 	if !strings.HasPrefix(pdf, "%PDF-") || !strings.HasSuffix(strings.TrimSpace(pdf), "%%EOF") {
 		t.Fatalf("not a PDF: %.40q … %q", pdf, pdf[max(0, len(pdf)-20):])
 	}
-	pages, _ := paginate(a.m.pdfBlocks(sel, opts), pdfLines)
+	blocks := a.m.bookBlocks(sel, opts)
+	wrapToPage(blocks)
+	pages, _ := paginate(blocks, pdfLines)
 	count := func(re string) int { return len(regexp.MustCompile(re).FindAllString(pdf, -1)) }
 	if n := count(`/Type /Page\b`); n != len(pages) {
 		t.Errorf("%d pages, want %d", n, len(pages))
@@ -182,7 +188,7 @@ func TestWritePDF(t *testing.T) {
 	}
 }
 
-func TestPDFColor(t *testing.T) {
+func TestPaperColor(t *testing.T) {
 	for _, tt := range []struct {
 		c    lipgloss.TerminalColor
 		want [3]int
@@ -192,8 +198,8 @@ func TestPDFColor(t *testing.T) {
 		{lipgloss.Color("12"), [3]int{}},
 		{lipgloss.NoColor{}, [3]int{}},
 	} {
-		if got := pdfColor(tt.c); got != tt.want {
-			t.Errorf("pdfColor(%v) = %v, want %v", tt.c, got, tt.want)
+		if got := paperColor(tt.c); got != tt.want {
+			t.Errorf("paperColor(%v) = %v, want %v", tt.c, got, tt.want)
 		}
 	}
 }
@@ -210,6 +216,6 @@ func TestExportViewPDF(t *testing.T) {
 	if err != nil || !bytes.HasPrefix(data, []byte("%PDF-")) {
 		t.Fatalf("family.pdf: %v %.20q", err, data)
 	}
-	a.press("up", "up", "up", "right") // the formats wrap around
+	a.press("up", "up", "up", "right", "right") // the formats wrap around
 	a.contains("◂ GEXF ▸", "family.gexf")
 }

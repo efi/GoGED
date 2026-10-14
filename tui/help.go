@@ -77,6 +77,7 @@ var helpSections = [][]string{
 	{"enter", "edit the file name, or export; an existing file is replaced after enter again"},
 	{"GEXF", "people are nodes with sex, birth and death; parents point to their children, partners are linked both ways"},
 	{"PDF", "contents, a page per person and the places with their events, as in the views, with links between the pages; nobody is marked"},
+	{"HTML", "the same as one web page, with links between the sections"},
 	{""},
 	{"Search syntax"},
 	{"smith", "people with a name word starting with smith (diacritics are ignored)"},

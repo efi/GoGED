@@ -254,6 +254,11 @@ func TestExportFlag(t *testing.T) {
 		t.Errorf("family.gexf:\n%.400s", g)
 	}
 
+	r = runCLI(t, "", "-export", "html", input)
+	if r.code != 0 || !strings.HasPrefix(read("family.html"), "<!DOCTYPE html>") {
+		t.Fatalf("html: exit %d, %q", r.code, r.stderr)
+	}
+
 	// Only the people connected to a pivot, to a file of one's choice;
 	// flags may follow the file name.
 	out := filepath.Join(dir, "smith.pdf")
@@ -274,7 +279,7 @@ func TestExportFlag(t *testing.T) {
 		code  int
 		err   string
 	}{
-		{"", []string{"-export", "svg", input}, 2, `unknown export format "svg" (formats: gexf, pdf)`},
+		{"", []string{"-export", "svg", input}, 2, `unknown export format "svg" (formats: gexf, pdf, html)`},
 		{"", []string{"-export", "gexf", "-pivot", "I999", input}, 1, `no individual with ID "I999"`},
 		{"", []string{"-pivot", "I20", input}, 2, "-pivot and -o go with -export"},
 		{"", []string{"-o", "x.gexf", input}, 2, "-pivot and -o go with -export"},

@@ -67,7 +67,9 @@ The screenshots below use the [GEDCOM-L sample file](testdata/Muster_GEDCOM_UTF-
   - to PDF, pages to print or read: contents with indexes, a page per person
     as in the person view, then the places with their events, with page
     references that link to the pages. Nothing is cut on paper: long lines
-    wrap, every column within its own place.
+    wrap, every column within its own place;
+  - to HTML, the same contents, people and places as one web page with links
+    between them, in any script the browser can show.
 - **Privacy**: data marked confidential or private (`RESN`) is hidden unless
   you ask for it.
 - **Batch mode** for scripts: print search results, charts, timelines,
@@ -145,7 +147,7 @@ goged -licenses                            # licenses of map data and libraries
 ```
 
 Exports are written to a file and exit too. `-export` takes the format
-(`gexf` or `pdf`), `-pivot` limits the export to a person and everybody
+(`gexf`, `pdf` or `html`), `-pivot` limits the export to a person and everybody
 connected to them, and `-o` names the file, `-` for standard output. Without
 `-o` the export goes next to the GEDCOM file, with the format's extension:
 
@@ -153,6 +155,7 @@ connected to them, and `-o` names the file, `-` for standard output. Without
 goged -export gexf family.ged              # writes family.gexf
 goged -export pdf -pivot I20 family.ged    # Harold Smith's relatives, family.pdf
 goged -export pdf -o book.pdf family.ged
+goged -export html family.ged              # writes family.html
 cat family.ged | goged -export gexf -o - - # from standard input to standard output
 ```
 

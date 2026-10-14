@@ -41,6 +41,16 @@ func (l line) plain() string {
 	return b.String()
 }
 
+// tail returns the index of the first span after the last column; the
+// spans from there on flow.
+func (l line) tail() int {
+	t := len(l.spans)
+	for t > 0 && l.spans[t-1].width == 0 {
+		t--
+	}
+	return t
+}
+
 // layout arranges the line in rows width columns wide. Columns keep their
 // place and width, and so does text between them. The text after the last
 // column flows. Cut, there is a single row: columns are cut to their
@@ -48,10 +58,7 @@ func (l line) plain() string {
 // every column continues on further rows within its place, and the
 // flowing text continues where it began, after its leading spaces.
 func (l line) layout(width int, wrapped bool) [][]span {
-	tail := len(l.spans)
-	for tail > 0 && l.spans[tail-1].width == 0 {
-		tail--
-	}
+	tail := l.tail()
 	type cell struct {
 		x    int
 		rows [][]span

@@ -54,7 +54,7 @@ Usage:
   goged [flags] FILE.ged                  open the interactive browser
   goged -q QUERY FILE.ged                 print matching people and exit
   goged -export FORMAT [-pivot ID] [-o OUT] FILE.ged
-                                          export as gexf or pdf and exit
+                                          export as gexf, pdf or html and exit
 
 Use - as FILE to read from standard input.
 
@@ -80,7 +80,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, startTUI tuiR
 		showRes  = fs.Bool("show-restricted", false, "show data marked confidential or private (RESN), which is hidden by default")
 		showVer  = fs.Bool("version", false, "print the version and exit")
 		showLic  = fs.Bool("licenses", false, "print the licenses of the map data and the third-party software")
-		exportAs = fs.String("export", "", "export as `FORMAT` (gexf or pdf) and exit")
+		exportAs = fs.String("export", "", "export as `FORMAT` (gexf, pdf or html) and exit")
 		pivot    = fs.String("pivot", "", "with -export: only the person with `ID` and everybody connected to them")
 		output   = fs.String("o", "", "with -export: write to `FILE` (- for standard output); default: the input file with the format's extension")
 	)

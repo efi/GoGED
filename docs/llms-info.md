@@ -299,14 +299,25 @@ packages.
 - **`WriteFile`** writes a temporary file in the target directory and
   renames it, so a failed export leaves an existing file alone.
 
-### PDF export (tui/pdf.go)
+### PDF and HTML export (tui/book.go, pdf.go, html.go)
 
+- **The book:** `bookBlocks` (book.go) builds what both present: the
+  contents, a block per person and the places, each a list of `bookLine`s
+  (a line and the block it refers to) with an anchor `id`. The PDF wraps
+  them to the page (`wrapToPage`) and paginates; the HTML (`writeHTML`)
+  writes one page with a `<section>` per block and lets the browser wrap:
+  columns become `<span class="c" style="width:Nch">` in a monospaced
+  font, the text after them `<span class="t">` with its leading spaces as
+  `padding-left`, and lines that refer to a block are `<a>` links. The
+  HTML is well-formed XML (self-closed `<meta />`, no named entities), so
+  tests parse it with `encoding/xml`. No JavaScript yet; search and
+  styling are for later.
 - **Same lines as the views:** the PDF prints the `line`s of the interface:
   `personLines(ind, width)` (the person view), `eventLine(ev, width)` (the
   rows of the event lists) and `placeInfo`. It lives in `tui` because
   `tui` imports `export`; `exportFormats()` appends it to `export.Formats`.
   Changes to the views show up in the PDF.
-- **Nobody is marked:** `pdfBlocks` works on a copy of the model without
+- **Nobody is marked:** `bookBlocks` works on a copy of the model without
   the reference person, so no ★ and no relationship lines are printed.
 - **Layout:** A4, a grid of 96 columns of Martian Mono Condensed (0.6 em)
   at 9 pt; the views are built for 90 columns (88 plus the interface's
