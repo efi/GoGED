@@ -188,7 +188,7 @@ func TestReloadKeepsWhatItCan(t *testing.T) {
 	a.contains("▹ Canada")
 	// The checks keep their thresholds, the export its format, the map its
 	// selection, the tree its chart.
-	if c := a.m.checks; c.params[4] != 112 || c.cursor != 4 || a.m.export.format != 1 {
+	if c := a.m.checks; c.params[4] != 112 || c.rows[c.cursor].check != 4 || a.m.export.format != 1 {
 		t.Errorf("checks %v, cursor %d, export format %d", c.params, c.cursor, a.m.export.format)
 	}
 	if s := a.m.mapv; s.places[s.sel].Name != "Köln" {

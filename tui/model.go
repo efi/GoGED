@@ -280,6 +280,7 @@ func (m *Model) mark(ind *gedcom.Individual) {
 		m.setStatus(fmt.Sprintf("marked %s as reference: relationships are shown relative to them", ind.DisplayName()))
 	}
 	m.rebuildPerson()
+	m.markChanged()
 	if m.active == viewExport {
 		m.ensureExport()
 	}
@@ -593,7 +594,7 @@ func (m Model) viewFooter() string {
 	case m.active == viewStats:
 		hints = [][2]string{{"↑↓", "surnames, births"}, {"enter", "list those people"}, {"?", "help"}}
 	case m.active == viewChecks:
-		hints = [][2]string{{"↑↓", "select"}, {"←→", "threshold"}, {"space", "on/off"}, {"enter", "fold/open"}, {"o", "other person"}, {"r", "reset"}, {"?", "help"}}
+		hints = [][2]string{{"↑↓", "select"}, {"←→", "threshold"}, {"space", "on/off"}, {"enter", "fold/open"}, {"o", "other person/place"}, {"r", "reset"}, {"?", "help"}}
 	case m.active == viewExport && m.export.editing:
 		hints = [][2]string{{"type", "file name"}, {"enter", "done"}, {"esc", "cancel"}}
 	case m.active == viewExport:

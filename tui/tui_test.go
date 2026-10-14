@@ -707,7 +707,7 @@ func TestTreeDuplicates(t *testing.T) {
 func TestChecksView(t *testing.T) {
 	a := newMusterApp(t)
 	a.press("alt+8")
-	a.contains("[8 Checks]", "3 findings in 3 people", "Born less than 9 months after a sibling (twins excepted)",
+	a.contains("[8 Checks]", "Checks · 3 findings in 3 people", "Hints · ", "Born less than 9 months after a sibling (twins excepted)",
 		"Wilhelm Schüchter (1936–1964)  birth 17 Nov 1936 and birth 18 Nov 1936", "at most 189 days after Hans Mustermann")
 	row := func(id string) int {
 		for r, cr := range a.m.checks.rows {
@@ -724,18 +724,17 @@ func TestChecksView(t *testing.T) {
 	a.contains("this check has no threshold")
 
 	// Lower the threshold: the findings change at once.
-	for range row("siblings-close") {
-		a.press("down")
-	}
+	a.m.checks.cursor = row("siblings-close")
+	a.m.moveChecks(0)
 	a.press("left", "left", "left")
-	a.contains("Born less than 6 months after a sibling (twins excepted): 1 finding", "2 findings in 2 people")
+	a.contains("Born less than 6 months after a sibling (twins excepted): 1 finding", "Checks · 2 findings in 2 people")
 	a.notContains("189 days")
 	a.press("right", "right", "right")
-	a.contains("189 days", "3 findings in 3 people")
+	a.contains("189 days", "Checks · 3 findings in 3 people")
 
 	// Switched off, a check finds nothing.
 	a.press(" ")
-	a.contains("1 finding in 1 person")
+	a.contains("Checks · 1 finding in 1 person")
 	a.notContains("189 days")
 	a.press(" ")
 	a.contains("3 findings")
@@ -762,7 +761,7 @@ func TestChecksView(t *testing.T) {
 	}
 	a.contains("Lived longer than 150 years")
 	a.press("r")
-	a.contains("all checks are on, with the usual thresholds", "Lived longer than 110 years")
+	a.contains("all checks and hints are on, with the usual thresholds", "Lived longer than 110 years")
 	a.press("-")
 	a.notContains("Wilhelm Schüchter")
 	a.press("+")
@@ -772,6 +771,89 @@ func TestChecksView(t *testing.T) {
 			t.Errorf("line too wide (%d): %q", w, l)
 		}
 	}
+}
+
+func TestHintsView(t *testing.T) {
+	a := newApp(t, Options{Today: time.Date(2026, 10, 14, 0, 0, 0, 0, time.UTC)})
+	a.resize(110, 60)
+	a.press("alt+8")
+	a.contains("Checks · 0 findings in 0 people", "Hints · 74 findings in 24 people",
+		"▾ Unknown parents within 4 generations of the marked person",
+		"      nobody is marked: mark a person to see the gaps in their ancestry",
+		"Harold Smith (1891–)  birth 1891, at least 134 years ago")
+	row := func(id string) int {
+		for r, cr := range a.m.checks.rows {
+			if genealogy.Checks[cr.check].ID == id && cr.finding == rowCheck {
+				return r
+			}
+		}
+		t.Fatalf("no row for %s", id)
+		return 0
+	}
+	at := func() string { return genealogy.Checks[a.m.checks.rows[a.m.checks.cursor].check].ID }
+
+	// The cursor passes the headings and the summaries.
+	a.m.checks.cursor = row("duplicates")
+	a.press("down")
+	if at() != "missing-parents" {
+		t.Errorf("down from the last check: %s", at())
+	}
+	a.press("down")
+	if at() != "no-birth-date" || a.m.finding() != nil {
+		t.Errorf("down past the summary: %s", at())
+	}
+	a.press("up", "up")
+	if at() != "duplicates" {
+		t.Errorf("up past the heading: %s", at())
+	}
+	a.press("home")
+	if a.m.checks.cursor != 1 || a.m.checks.offset != 0 {
+		t.Errorf("home: cursor %d, offset %d", a.m.checks.cursor, a.m.checks.offset)
+	}
+	a.clickOn("Hints · ")
+	if a.m.checks.cursor != 1 {
+		t.Error("a click on a heading moved the cursor")
+	}
+
+	// Marking a person runs the hint on their ancestry again.
+	a.openPerson("I20")
+	a.press("m", "alt+8")
+	a.contains("Hints · 77 findings in 24 people",
+		"      known: parents 2 of 2 · grandparents 2 of 4 · great-grandparents 2 of 8 · 2nd great-grandparents 2 of 16",
+		"Lucy King (1868–)  parents unknown · the marked person's mother",
+		"Jane Doe (1844–)  parents unknown · the marked person's grandmother",
+		"Ann Taylor (1820–1845)  parents unknown · the marked person's great-grandmother")
+	a.m.checks.cursor = row("missing-parents")
+	a.press("left")
+	a.contains("Unknown parents within 3 generations of the marked person: 2 findings")
+	a.notContains("Ann Taylor (1820–1845)  parents unknown")
+	a.press("enter")
+	a.notContains("known: parents")
+	a.press("enter", "m")
+	a.contains("nobody is marked")
+
+	// Groups of place names open in the places view, which shows them.
+	a.press("alt+5", "-", "alt+8")
+	a.m.checks.cursor = row("similar-places")
+	a.m.moveChecks(0)
+	a.press("up") // the level stands out where the check is not selected
+	a.contains("Places that may be the same: " + a.m.st.key.Render("similar") + a.m.st.name.Render(" names"))
+	a.press("down", "right")
+	a.contains("Places that may be the same: somewhat resembling names: 1 finding")
+	a.press("down")
+	a.contains("St Peter's · St Peter's Churchyard (in Leeds, Yorkshire, England)")
+	a.press("enter")
+	if p := a.m.selectedPlace(); a.m.active != viewPlaces || p == nil || p.Full != "St Peter's, Leeds, Yorkshire, England" {
+		t.Fatalf("view %d, place %v", a.m.active, p)
+	}
+	a.contains("place 1 of 2 in the group")
+	for _, want := range []string{"St Peter's Churchyard, Leeds, Yorkshire, England", "St Peter's, Leeds, Yorkshire, England"} {
+		a.press("alt+8", "o")
+		if p := a.m.selectedPlace(); a.m.active != viewPlaces || p == nil || p.Full != want {
+			t.Errorf("o opened %v, want %s", p, want)
+		}
+	}
+	a.contains("place 1 of 2 in the group")
 }
 
 func TestExportView(t *testing.T) {

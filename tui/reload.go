@@ -357,13 +357,9 @@ func (m *Model) replaceDoc(doc *gedcom.Document) {
 		}
 	}
 
-	if c := m.checks; c.params != nil {
+	if c := m.checks; c.results != nil {
 		n.checks.params, n.checks.enabled, n.checks.folded = slices.Clone(c.params), slices.Clone(c.enabled), slices.Clone(c.folded)
-		n.checks.results = make([][]genealogy.Finding, len(c.params))
-		for i := range c.params {
-			n.runCheck(i)
-		}
-		n.checkRows()
+		n.ensureChecks()
 		if c.cursor < len(c.rows) {
 			n.checks.cursor = n.checkRowOf(c.rows[c.cursor].check)
 			n.moveChecks(0)

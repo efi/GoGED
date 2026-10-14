@@ -63,7 +63,13 @@ The screenshots below use the [GEDCOM-L sample file](testdata/Muster_GEDCOM_UTF-
   children born after a parent's death or too soon after a sibling, and
   people who may have been entered twice (names that sound alike, born
   close together). Imprecise dates only count where the problem is
-  certain; every finding links to the people concerned.
+  certain; every finding links to the people concerned. **Hints** point to
+  gaps: unknown parents in the ancestry of the marked person (and how
+  complete each generation is), people without a date or place of birth,
+  born long ago without a recorded death, or without any events, couples
+  married without a date, events without a source, and groups of place
+  names that may be spellings of one (almost identical, similar or
+  somewhat resembling).
 - **Statistics and validation**: counts, time span, generations, lifespans,
   most common names, the events that happened on this day in earlier years,
   the pedigree collapse (the share of places in everybody's pedigree taken
@@ -240,7 +246,7 @@ Try it with the sample file in [`testdata/family.ged`](testdata/family.ged).
 |         | `0`, `w`, `c` | fit all places, whole world, center on the selected place |
 | Stats   | `enter` | list everybody with the selected surname, or born in the selected period |
 | Checks  | `←` `→`, `space` | lower or raise the threshold of a check (the findings change at once), switch it off or on |
-|         | `enter`, `o`, `r` | fold a check or open the person of a finding, open the other person, reset all thresholds |
+|         | `enter`, `o`, `r` | fold a check or open the person (or first place) of a finding, open the other person (or next place), reset all thresholds |
 | Export  | `↑` `↓`, `←` `→` | choose a setting, change it: the format, everybody or the people connected to the marked person |
 |         | `enter` | edit the file name, or export (an existing file is replaced after `enter` again) |
 

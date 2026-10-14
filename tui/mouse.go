@@ -140,6 +140,9 @@ func (m *Model) click(x, y int) tea.Cmd {
 		m.clickMap(x, y)
 	case viewChecks:
 		c := &m.checks
+		if r := c.offset + y - 2; y >= 2 && r < len(c.rows) && !c.rows[r].selectable() {
+			return nil // a heading or a summary
+		}
 		return m.clickRow(y-2, c.offset, len(c.rows), &c.cursor, func() { m.moveChecks(0) })
 	case viewExport:
 		return m.clickExport(x, y)

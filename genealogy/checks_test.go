@@ -215,18 +215,27 @@ const checksGED = `0 HEAD
 0 TRLR
 `
 
-// run returns the findings of a check as "ID>OTHER: message" lines.
+// run returns the findings of a check as "ID>OTHER: message" lines; a
+// finding without a person has "-" for the ID.
 func run(t *testing.T, doc *gedcom.Document, id string, param int) string {
+	t.Helper()
+	return runWith(t, doc, id, param, Context{})
+}
+
+func runWith(t *testing.T, doc *gedcom.Document, id string, param int, ctx Context) string {
 	t.Helper()
 	for _, c := range Checks {
 		if c.ID == id {
 			var out []string
-			for _, f := range c.Run(doc, param) {
-				other := ""
-				if f.Other != nil {
-					other = ">" + f.Other.ID
+			for _, f := range c.Run(doc, param, ctx) {
+				who := "-"
+				if f.Person != nil {
+					who = f.Person.ID
 				}
-				out = append(out, f.Person.ID+other+": "+f.Message)
+				if f.Other != nil {
+					who += ">" + f.Other.ID
+				}
+				out = append(out, who+": "+f.Message)
 			}
 			return strings.Join(out, "\n")
 		}
@@ -257,16 +266,18 @@ func TestChecks(t *testing.T) {
 		"duplicates": "J1>J2: may be the same as Johan Schmitt: names sound alike, birth 1850 and 1851\n" +
 			"W3>W4: may be the same as Gustav Wolf: names sound alike, birth 3 Mar 1845 and 3 Mar 1845",
 	}
-	if len(want) != len(Checks) {
-		t.Errorf("%d checks, %d expectations", len(Checks), len(want))
-	}
+	checks := 0
 	for _, c := range Checks {
+		if c.Hint {
+			continue
+		}
+		checks++
 		if got := run(t, doc, c.ID, c.Param); got != want[c.ID] {
 			t.Errorf("%s:\n%s\nwant:\n%s", c.ID, got, want[c.ID])
 		}
-		if c.HasParam() && (c.Param < c.Min || c.Param > c.Max || c.Unit == "" || !strings.Contains(c.Title, "%d")) {
-			t.Errorf("%s: threshold %d in %d..%d %q", c.ID, c.Param, c.Min, c.Max, c.Unit)
-		}
+	}
+	if len(want) != checks {
+		t.Errorf("%d checks, %d expectations", checks, len(want))
 	}
 
 	// Thresholds decide.
@@ -298,11 +309,29 @@ func TestChecks(t *testing.T) {
 }
 
 func TestCheckNames(t *testing.T) {
+	ids := map[string]bool{}
+	hints := false
 	for _, c := range Checks {
 		name := c.Name(c.Param)
-		if strings.Contains(name, "%") || name == "" {
+		if strings.Contains(name, "%") || name == "" || ids[c.ID] {
 			t.Errorf("%s: name %q", c.ID, name)
 		}
+		ids[c.ID] = true
+		// A threshold is a number with a unit, or a level.
+		switch {
+		case !c.HasParam():
+		case c.Levels != nil:
+			if c.Min != 0 || c.Max != len(c.Levels)-1 || c.Param > c.Max || !strings.Contains(c.Title, "%s") || c.Value(c.Max) != c.Levels[c.Max] {
+				t.Errorf("%s: levels %d of %d..%d", c.ID, c.Param, c.Min, c.Max)
+			}
+		case c.Param < c.Min || c.Param > c.Max || c.Unit == "" || !strings.Contains(c.Title, "%d") || c.Value(c.Param) != fmt.Sprint(c.Param):
+			t.Errorf("%s: threshold %d in %d..%d %q", c.ID, c.Param, c.Min, c.Max, c.Unit)
+		}
+		// The hints come after the checks.
+		if hints && !c.Hint {
+			t.Errorf("%s: a check among the hints", c.ID)
+		}
+		hints = c.Hint
 	}
 	if Checks[0].Name(7) != "Born after death" || fmt.Sprint(Checks[4].Name(99)) != "Lived longer than 99 years" {
 		t.Errorf("names %q, %q", Checks[0].Name(7), Checks[4].Name(99))

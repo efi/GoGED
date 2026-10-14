@@ -160,6 +160,36 @@ func (m *Model) selectPlace(n *genealogy.PlaceNode) {
 	}
 }
 
+// showPlace selects the place with the full name in the places view: the
+// places that hold it are expanded, and a filter that hides it is
+// cleared.
+func (m *Model) showPlace(full string) {
+	m.ensurePlaces()
+	p := &m.places
+	var node *genealogy.PlaceNode
+	p.root.Walk(func(n *genealogy.PlaceNode) bool {
+		if node == nil && n.Depth > 0 && n.Full == full {
+			node = n
+		}
+		return node == nil
+	})
+	if node == nil {
+		return
+	}
+	p.detail, p.events = nil, nil
+	if m.filteringPlaces() {
+		p.input.SetValue("")
+		p.editing = false
+		p.input.Blur()
+	}
+	for a := node.Parent; a != nil; a = a.Parent {
+		delete(p.collapsed, a)
+	}
+	m.refreshPlaces()
+	m.switchTo(viewPlaces)
+	m.selectPlace(node)
+}
+
 // filtering reports whether a place filter is active; collapsing is
 // disabled while filtering.
 func (m *Model) filteringPlaces() bool { return strings.TrimSpace(m.places.input.Value()) != "" }

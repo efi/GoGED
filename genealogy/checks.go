@@ -5,52 +5,102 @@ import (
 	"math"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/efi/goged/gedcom"
 	"github.com/efi/goged/search"
 )
 
 // Check is a plausibility check: a rule that dates and relationships
-// usually follow. A check may have a threshold, whose default is Param
-// and which may be changed between Min and Max.
+// usually follow. A hint (Hint) reports a gap or a likely duplicate
+// instead. A check may have a threshold, whose default is Param and which
+// may be changed between Min and Max.
 type Check struct {
 	ID string
-	// Title describes what is reported; %d stands for the threshold.
+	// Title describes what is reported; %d stands for the threshold, %s
+	// for its level.
 	Title string
 	// Param is the default threshold, Min and Max its range; all are 0 for
 	// checks without one.
 	Param, Min, Max int
 	Unit            string // of the threshold: "years" or "months"
+	// Levels name the steps of a threshold that is not a number, from the
+	// strictest; Param, Min and Max index them.
+	Levels []string
+	Hint   bool
 
-	run func(doc *gedcom.Document, param int) []Finding
+	run func(doc *gedcom.Document, param int, ctx Context) []Finding
+	// summary describes the result as a whole, if set.
+	summary func(doc *gedcom.Document, param int, ctx Context) string
+	ordered bool // the findings keep the order of run
+	marked  bool // the check depends on the marked person
+}
+
+// Context is what some checks need besides the file.
+type Context struct {
+	Marked *gedcom.Individual // the reference person of the browser
+	Today  time.Time          // the current date; zero means now
+}
+
+func (ctx Context) today() time.Time {
+	if ctx.Today.IsZero() {
+		return time.Now()
+	}
+	return ctx.Today
 }
 
 // Finding is a doubtful fact found by a check.
 type Finding struct {
-	Person  *gedcom.Individual // the person concerned
-	Other   *gedcom.Individual // a second person involved, or nil
+	Person *gedcom.Individual // the person concerned, or nil
+	Other  *gedcom.Individual // a second person involved, or nil
+	// Places are the places concerned, for hints on place names.
+	Places  []*PlaceNode
 	Message string
 }
 
 // HasParam reports whether the check has a threshold.
 func (c Check) HasParam() bool { return c.Max > 0 }
 
+// UsesMarked reports whether the result depends on the marked person.
+func (c Check) UsesMarked() bool { return c.marked }
+
 // Name returns the title with the threshold filled in.
 func (c Check) Name(param int) string {
-	if !c.HasParam() {
+	switch {
+	case !c.HasParam():
 		return c.Title
+	case c.Levels != nil:
+		return fmt.Sprintf(c.Title, c.Levels[param])
 	}
 	return fmt.Sprintf(c.Title, param)
 }
 
+// Value returns the threshold as shown: a number or a level.
+func (c Check) Value(param int) string {
+	if c.Levels != nil {
+		return c.Levels[param]
+	}
+	return fmt.Sprint(param)
+}
+
 // Run applies the check with the threshold param. The findings are sorted
-// by the name of the person concerned.
-func (c Check) Run(doc *gedcom.Document, param int) []Finding {
-	out := c.run(doc, param)
-	slices.SortStableFunc(out, func(a, b Finding) int {
-		return strings.Compare(search.Fold(a.Person.SortName()), search.Fold(b.Person.SortName()))
-	})
+// by the name of the person concerned, unless the check orders them.
+func (c Check) Run(doc *gedcom.Document, param int, ctx Context) []Finding {
+	out := c.run(doc, param, ctx)
+	if !c.ordered {
+		slices.SortStableFunc(out, func(a, b Finding) int {
+			return strings.Compare(search.Fold(a.Person.SortName()), search.Fold(b.Person.SortName()))
+		})
+	}
 	return out
+}
+
+// Summary describes the result as a whole; most checks have none.
+func (c Check) Summary(doc *gedcom.Document, param int, ctx Context) string {
+	if c.summary == nil {
+		return ""
+	}
+	return c.summary(doc, param, ctx)
 }
 
 // Checks lists the plausibility checks in the order they are shown.
@@ -75,6 +125,17 @@ var Checks = []Check{
 	{ID: "siblings-close", Title: "Born less than %d months after a sibling (twins excepted)", Param: 9, Min: 1, Max: 24, Unit: "months", run: siblingsClose},
 	{ID: "married-young", Title: "Married younger than %d", Param: 14, Min: 5, Max: 30, Unit: "years", run: marriedYoung},
 	{ID: "duplicates", Title: "Possibly the same person: names sound alike, born at most %d years apart", Param: 2, Min: 0, Max: 20, Unit: "years", run: duplicates},
+
+	{ID: "missing-parents", Title: "Unknown parents within %d generations of the marked person", Param: 4, Min: 1, Max: 12, Unit: "generations",
+		Hint: true, run: missingParents, summary: completeness, ordered: true, marked: true},
+	{ID: "no-birth-date", Title: "No date of birth or baptism", Hint: true, run: noBirthDate},
+	{ID: "no-birth-place", Title: "No place of birth or baptism", Hint: true, run: noBirthPlace},
+	{ID: "no-death", Title: "Born more than %d years ago, but no death recorded", Param: 110, Min: 60, Max: 150, Unit: "years", Hint: true, run: noDeath},
+	{ID: "no-events", Title: "No events or facts at all", Hint: true, run: noEvents},
+	{ID: "no-marriage-date", Title: "Married, but no date of marriage", Hint: true, run: noMarriageDate},
+	{ID: "unsourced", Title: "Births, baptisms, marriages, deaths and burials without a source", Hint: true, run: unsourced},
+	{ID: "similar-places", Title: "Places that may be the same: %s names", Param: 1, Min: 0, Max: 2,
+		Levels: []string{"almost identical", "similar", "somewhat resembling"}, Hint: true, run: similarPlaces, ordered: true},
 }
 
 const (
@@ -173,7 +234,7 @@ func lifeEvents(ind *gedcom.Individual) (events []*gedcom.Event, partners []*ged
 	return events, partners
 }
 
-func bornAfterDeath(doc *gedcom.Document, _ int) []Finding {
+func bornAfterDeath(doc *gedcom.Document, _ int, _ Context) []Finding {
 	var out []Finding
 	for _, ind := range doc.Individuals {
 		b, d := birthOf(ind), deathOf(ind)
@@ -189,7 +250,7 @@ func bornAfterDeath(doc *gedcom.Document, _ int) []Finding {
 
 // vitalTwice reports births, christenings, deaths and burials recorded
 // more than once whose dates cannot be the same day.
-func vitalTwice(doc *gedcom.Document, _ int) []Finding {
+func vitalTwice(doc *gedcom.Document, _ int, _ Context) []Finding {
 	var out []Finding
 	for _, ind := range doc.Individuals {
 		for _, tag := range []string{"BIRT", "CHR", "BAPM", "DEAT", "BURI", "CREM"} {
@@ -206,7 +267,7 @@ func vitalTwice(doc *gedcom.Document, _ int) []Finding {
 	return out
 }
 
-func eventsBeforeBirth(doc *gedcom.Document, _ int) []Finding {
+func eventsBeforeBirth(doc *gedcom.Document, _ int, _ Context) []Finding {
 	var out []Finding
 	for _, ind := range doc.Individuals {
 		b := birthOf(ind)
@@ -227,7 +288,7 @@ func eventsBeforeBirth(doc *gedcom.Document, _ int) []Finding {
 	return out
 }
 
-func eventsAfterDeath(doc *gedcom.Document, _ int) []Finding {
+func eventsAfterDeath(doc *gedcom.Document, _ int, _ Context) []Finding {
 	after := map[string]bool{"DEAT": true, "BURI": true, "CREM": true, "PROB": true}
 	var out []Finding
 	for _, ind := range doc.Individuals {
@@ -248,7 +309,7 @@ func eventsAfterDeath(doc *gedcom.Document, _ int) []Finding {
 	return out
 }
 
-func oldAge(doc *gedcom.Document, limit int) []Finding {
+func oldAge(doc *gedcom.Document, limit int, _ Context) []Finding {
 	var out []Finding
 	for _, ind := range doc.Individuals {
 		b, d := birthOf(ind), deathOf(ind)
@@ -280,8 +341,8 @@ func birthParents(doc *gedcom.Document, sex gedcom.Sex, fn func(child, parent *g
 
 // parentAge reports parents of the sex who were younger (or, with old,
 // older) than the threshold at the birth of a child.
-func parentAge(sex gedcom.Sex, old bool) func(*gedcom.Document, int) []Finding {
-	return func(doc *gedcom.Document, limit int) []Finding {
+func parentAge(sex gedcom.Sex, old bool) func(*gedcom.Document, int, Context) []Finding {
+	return func(doc *gedcom.Document, limit int, _ Context) []Finding {
 		var out []Finding
 		birthParents(doc, sex, func(child, parent *gedcom.Individual, cb *gedcom.Event) {
 			pb := birthOf(parent)
@@ -312,8 +373,8 @@ func parentAge(sex gedcom.Sex, old bool) func(*gedcom.Document, int) []Finding {
 
 // bornAfterParentDeath reports children born after the death of their
 // birth parent of the sex, or more than the threshold in months after it.
-func bornAfterParentDeath(sex gedcom.Sex) func(*gedcom.Document, int) []Finding {
-	return func(doc *gedcom.Document, months int) []Finding {
+func bornAfterParentDeath(sex gedcom.Sex) func(*gedcom.Document, int, Context) []Finding {
+	return func(doc *gedcom.Document, months int, _ Context) []Finding {
 		var out []Finding
 		birthParents(doc, sex, func(child, parent *gedcom.Individual, cb *gedcom.Event) {
 			pd := deathOf(parent)
@@ -335,7 +396,7 @@ func bornAfterParentDeath(sex gedcom.Sex) func(*gedcom.Document, int) []Finding 
 	}
 }
 
-func siblingsClose(doc *gedcom.Document, months int) []Finding {
+func siblingsClose(doc *gedcom.Document, months int, _ Context) []Finding {
 	var out []Finding
 	limit := float64(months) * daysPerMonth
 	for _, mother := range doc.Individuals {
@@ -375,7 +436,7 @@ func siblingsClose(doc *gedcom.Document, months int) []Finding {
 	return out
 }
 
-func marriedYoung(doc *gedcom.Document, limit int) []Finding {
+func marriedYoung(doc *gedcom.Document, limit int, _ Context) []Finding {
 	var out []Finding
 	for _, f := range doc.Families {
 		m := f.Marriage()
@@ -404,7 +465,7 @@ func dated(e *gedcom.Event) bool { return e != nil && e.Date.IsValid() }
 // in years apart. Siblings, who are often named alike, only count if they
 // may have been born on the same day. People linked as aliases are
 // already known to be the same.
-func duplicates(doc *gedcom.Document, limit int) []Finding {
+func duplicates(doc *gedcom.Document, limit int, _ Context) []Finding {
 	type person struct {
 		ind   *gedcom.Individual
 		birth *gedcom.Event

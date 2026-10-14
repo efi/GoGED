@@ -220,6 +220,31 @@ packages.
   and the findings per check and reruns only the changed check. The
   GEDCOM-L sample yields three findings: Wilhelm Schüchter's two birth
   dates, and two siblings born 81 and 189 days apart.
+- **Hints** (`hints.go`) are `Check`s with `Hint` set, after the checks,
+  shown as a section of their own. A `Context` brings the marked person
+  and today's date (`Options.Today` in the TUI); `UsesMarked` checks run
+  again when the mark changes (`markChanged`). `summary` gives a line
+  under the title (the completeness of the marked person's ancestry per
+  generation, counted by positions); `ordered` keeps the run's order
+  (generations; place groups). `missing-parents` walks birth links,
+  reporting each person once at the nearest generation. `unsourced`
+  counts a SOUR anywhere below the event or directly in the record. A
+  family counts as married with a MARR (also `MARR Y`) or a DIV/ANUL.
+- **Place-name groups** (`similar-places`): a threshold of `Levels`
+  ("almost identical", "similar", "somewhat resembling"), as the user
+  wanted the complexity hidden. Only the children of one `PlaceNode` are
+  compared, so different Neustadts stay apart; groups are connected
+  components (union-find), names and groups sorted alphabetically.
+  Almost identical: same `newPlaceName` key (folded, umlauts written out
+  as plain vowels, ß as s, St/Sankt/Saint, no punctuation or spaces).
+  Similar: also both phonetic codes equal, one edit (4+ letters), or an
+  abbreviation word by word (4+ letters, or a dot in the name). Somewhat
+  resembling: also one code, two edits (5+), a quarter of the letters
+  (8+), or one name beginning with the other. The samples have no group
+  at "similar"; at the loosest, "St Peter's"/"St Peter's Churchyard" and
+  "Berlin"/"Berlin (West)". Findings carry `Places`; enter opens the
+  first in the Places tab (`showPlace` expands and clears the filter), o
+  the next.
 - **Pedigree collapse** (`Stats.PedigreeCollapse`): one number for the
   file. Every line of birth links (`ParentLinks`, `IsBirth`, so
   unspecified links count) from a person up to an ancestor is a position
