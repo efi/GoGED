@@ -86,6 +86,12 @@ func (m *Model) ensureStats() {
 	ls = append(ls, blank)
 	ls = append(ls, m.onThisDay(row)...)
 
+	if s.AncestorPositions > 0 {
+		ls = append(ls, blank, m.sectionLine("Pedigree collapse"),
+			row("Repeated ancestors", fmt.Sprintf("%.1f%% of all ancestor positions · %s", s.PedigreeCollapse(), s.CollapsedPeople())),
+			dimLine(m, "every place in someone's pedigree is a position; it repeats when an ancestor is there more than once, as with married cousins"))
+	}
+
 	ls = append(ls, blank, m.sectionLine(fmt.Sprintf("Warnings (%d)", len(m.doc.Warnings))))
 	if len(m.doc.Warnings) == 0 {
 		ls = append(ls, dimLine(m, "none — the file looks consistent"))

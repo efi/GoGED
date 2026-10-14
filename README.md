@@ -66,7 +66,9 @@ The screenshots below use the [GEDCOM-L sample file](testdata/Muster_GEDCOM_UTF-
   certain; every finding links to the people concerned.
 - **Statistics and validation**: counts, time span, generations, lifespans,
   most common names, the events that happened on this day in earlier years,
-  and all warnings found while reading the file.
+  the pedigree collapse (the share of places in everybody's pedigree taken
+  by an ancestor who is there more than once, as with married cousins), and
+  all warnings found while reading the file.
 - **Export** of everybody or only the people connected to the marked person:
   - to [GEXF](https://gexf.net/) (Graph Exchange XML Format) for Gephi,
     networkx and sigma.js: people are nodes with their sex, birth and death;

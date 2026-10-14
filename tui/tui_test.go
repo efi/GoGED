@@ -956,7 +956,11 @@ func TestStatsView(t *testing.T) {
 	a.contains("[7 Stats]", "Encoding", "UTF-8", "Individuals", "24  (10 male, 13 female, 1 other/unknown)", "Generations", "Longest lived",
 		"Mary Smith, ~80 years", "Most common surnames", "Smith")
 	a.press("end")
-	a.contains("Warnings (0)", "none — the file looks consistent", "Most common given names")
+	a.contains("Warnings (0)", "none — the file looks consistent", "Most common given names",
+		"Pedigree collapse", "0.0% of all ancestor positions · no one has an ancestor more than once")
+	if v := a.view(); strings.Index(v, "Pedigree collapse") < strings.Index(v, "On this day") || strings.Index(v, "Pedigree collapse") > strings.Index(v, "Warnings (0)") {
+		t.Errorf("the pedigree collapse belongs between On this day and the warnings:\n%s", v)
+	}
 	a.press("home", "enter")
 	if a.currentID() != "I4" || a.m.active != viewPerson {
 		t.Errorf("longest lived link should open Mary, got %s", a.currentID())

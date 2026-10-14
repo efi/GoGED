@@ -138,7 +138,8 @@ func TestEventsFlag(t *testing.T) {
 
 func TestStatsFlag(t *testing.T) {
 	r := runCLI(t, "", "-stats", sample)
-	for _, want := range []string{"File:          family.ged (UTF-8, GEDCOM 5.5.1)", "Individuals:   24 (10 male, 13 female, 1 other/unknown)", "Years:         1790–1940", "Generations:   5", "Avg lifespan:  50.0 years (10 people)", "Top surnames:  Smith (10), Jones (5)", "Warnings:      0"} {
+	for _, want := range []string{"File:          family.ged (UTF-8, GEDCOM 5.5.1)", "Individuals:   24 (10 male, 13 female, 1 other/unknown)", "Years:         1790–1940", "Generations:   5", "Avg lifespan:  50.0 years (10 people)", "Top surnames:  Smith (10), Jones (5)",
+		"Collapse:      0.0% of ancestor positions repeat an ancestor (no one has an ancestor more than once)\nWarnings:      0"} {
 		if !strings.Contains(r.stdout, want) {
 			t.Errorf("stats lack %q:\n%s", want, r.stdout)
 		}
@@ -414,7 +415,8 @@ func TestMusterFile(t *testing.T) {
 		want []string
 	}{
 		{[]string{"-stats"}, []string{"(UTF-8, GEDCOM 5.5.1)", "Individuals:   37 (21 male, 16 female", "Families:      18", "Places:        23", "Sources:       11", "Years:         1794–2005",
-			"Restricted:    2 hidden (confidential or private; see -show-restricted)", "Warnings:      0"}},
+			"Restricted:    2 hidden (confidential or private; see -show-restricted)", "Warnings:      0",
+			"Collapse:      0.0% of ancestor positions repeat an ancestor (no one has an ancestor more than once)"}},
 		// Karl Junior's birth and christening are confidential and private.
 		{[]string{"-q", "surname:muller"}, []string{"I22    Müller, Karl Junior              –1980", "I37    Müller, Roswitha"}},
 		{[]string{"-show-restricted", "-q", "surname:muller"}, []string{"I22    Müller, Karl Junior              1933–1980"}},

@@ -463,6 +463,10 @@ func printStats(doc *gedcom.Document, name string, w io.Writer) {
 		}
 		fmt.Fprintf(w, "Top surnames:  %s\n", strings.Join(top, ", "))
 	}
+	if s.AncestorPositions > 0 {
+		fmt.Fprintf(w, "Collapse:      %.1f%% of ancestor positions repeat an ancestor (%s)\n",
+			s.PedigreeCollapse(), s.CollapsedPeople())
+	}
 	if doc.Redactions > 0 {
 		fmt.Fprintf(w, "Restricted:    %d hidden (confidential or private; see -show-restricted)\n", doc.Redactions)
 	}

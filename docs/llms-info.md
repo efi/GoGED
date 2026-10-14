@@ -220,6 +220,19 @@ packages.
   and the findings per check and reruns only the changed check. The
   GEDCOM-L sample yields three findings: Wilhelm Schüchter's two birth
   dates, and two siblings born 81 and 189 days apart.
+- **Pedigree collapse** (`Stats.PedigreeCollapse`): one number for the
+  file. Every line of birth links (`ParentLinks`, `IsBirth`, so
+  unspecified links count) from a person up to an ancestor is a position
+  in that person's pedigree; the share of positions taken by an ancestor
+  already in another position of the same pedigree, summed over all
+  pedigrees, is the collapse. Positions are counted by recurrence (a
+  float: they double per generation of collapse), distinct ancestors by a
+  marked walk per person. Uniqueness must be per pedigree: counting
+  child-parent links against the distinct parents of the whole file
+  measured family size (65% for family.ged), which the user rightly
+  doubted. family.ged and the GEDCOM-L sample have no collapse (0.0%);
+  a child of first cousins has 2 repeats in 10 positions. The Stats view
+  shows it before the warnings, `-stats` too.
 - **`Compute`** (`stats.go`) for statistics, and **`OnThisDay`**
   (`onthisday.go`): exact dates only, compared in the Gregorian calendar,
   with 29 February shown on 28 February in common years.

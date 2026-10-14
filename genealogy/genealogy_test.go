@@ -637,6 +637,97 @@ func TestStats(t *testing.T) {
 	if s.LongestLived == nil || s.LongestLived.ID != "I4" || s.LongestAge.Years != 80 {
 		t.Errorf("longest lived = %v %v", s.LongestLived, s.LongestAge)
 	}
+	if s.AncestorPositions != 66 || s.DistinctAncestors != 66 || s.Collapsed != 0 || s.PedigreeCollapse() != 0 {
+		t.Errorf("collapse: %v positions, %d ancestors, %d people", s.AncestorPositions, s.DistinctAncestors, s.Collapsed)
+	}
+	if got := s.CollapsedPeople(); got != "no one has an ancestor more than once" {
+		t.Errorf("CollapsedPeople = %q", got)
+	}
+}
+
+func TestPedigreeCollapse(t *testing.T) {
+	// Z is the child of the cousins X and Y: the great-grandparents G1 and
+	// G2 take two positions each among Z's ten.
+	doc := mustParse(t, `0 HEAD
+0 @G1@ INDI
+0 @G2@ INDI
+0 @A@ INDI
+1 FAMC @F0@
+0 @SA@ INDI
+0 @B@ INDI
+1 FAMC @F0@
+0 @SB@ INDI
+0 @X@ INDI
+1 FAMC @F1@
+0 @Y@ INDI
+1 FAMC @F2@
+0 @Z@ INDI
+1 FAMC @F3@
+0 @AD@ INDI
+1 FAMC @F3@
+2 PEDI adopted
+0 @F0@ FAM
+1 HUSB @G1@
+1 WIFE @G2@
+1 CHIL @A@
+1 CHIL @B@
+0 @F1@ FAM
+1 HUSB @A@
+1 WIFE @SA@
+1 CHIL @X@
+0 @F2@ FAM
+1 HUSB @SB@
+1 WIFE @B@
+1 CHIL @Y@
+0 @F3@ FAM
+1 HUSB @X@
+1 WIFE @Y@
+1 CHIL @Z@
+1 CHIL @AD@
+0 TRLR
+`)
+	s := Compute(doc)
+	// A, B: 2 each; X, Y: 4 each; Z: 10; the adopted child has none.
+	if s.AncestorPositions != 22 || s.DistinctAncestors != 20 || s.Collapsed != 1 || math.Abs(s.PedigreeCollapse()-100.0*2/22) > 1e-9 {
+		t.Errorf("collapse: %v positions, %d ancestors, %d people, %.2f%%", s.AncestorPositions, s.DistinctAncestors, s.Collapsed, s.PedigreeCollapse())
+	}
+	if got := s.CollapsedPeople(); got != "1 person has ancestors more than once" {
+		t.Errorf("CollapsedPeople = %q", got)
+	}
+
+	// Siblings marry in each of 70 generations: C has 2^k positions in
+	// generation k, filled by the same two people. The positions are
+	// counted, not walked, and exceed any integer.
+	const gens = 70
+	var b strings.Builder
+	b.WriteString("0 HEAD\n0 @C@ INDI\n1 FAMC @F0@\n")
+	for g := 0; g <= gens; g++ {
+		fmt.Fprintf(&b, "0 @M%d@ INDI\n0 @W%d@ INDI\n", g, g)
+		fmt.Fprintf(&b, "0 @F%d@ FAM\n1 HUSB @M%d@\n1 WIFE @W%d@\n", g, g, g)
+		if g == 0 {
+			b.WriteString("1 CHIL @C@\n")
+		} else {
+			fmt.Fprintf(&b, "1 CHIL @M%d@\n1 CHIL @W%d@\n", g-1, g-1)
+		}
+	}
+	b.WriteString("0 TRLR\n")
+	s = Compute(mustParse(t, b.String()))
+	if s.AncestorPositions < math.Pow(2, gens) || s.PedigreeCollapse() < 99 || s.Collapsed != 1+2*(gens-1) {
+		t.Errorf("collapse: %v positions, %d people, %.2f%%", s.AncestorPositions, s.Collapsed, s.PedigreeCollapse())
+	}
+	if got := s.CollapsedPeople(); got != "139 people have ancestors more than once" {
+		t.Errorf("CollapsedPeople = %q", got)
+	}
+
+	// Each the other's parent: the loop is cut, and nobody repeats.
+	s = Compute(mustParse(t, "0 HEAD\n0 @A@ INDI\n1 FAMC @F1@\n0 @B@ INDI\n1 FAMC @F2@\n"+
+		"0 @F1@ FAM\n1 HUSB @B@\n1 CHIL @A@\n0 @F2@ FAM\n1 HUSB @A@\n1 CHIL @B@\n0 TRLR\n"))
+	if s.AncestorPositions != 2 || s.DistinctAncestors != 2 || s.Collapsed != 0 || s.PedigreeCollapse() != 0 {
+		t.Errorf("loop: %v positions, %d ancestors, %d people", s.AncestorPositions, s.DistinctAncestors, s.Collapsed)
+	}
+	if s := Compute(mustParse(t, "0 HEAD\n0 @I1@ INDI\n0 TRLR\n")); s.AncestorPositions != 0 || s.PedigreeCollapse() != 0 {
+		t.Errorf("no ancestors: %v positions, %.2f%%", s.AncestorPositions, s.PedigreeCollapse())
+	}
 }
 
 func TestStatsEmptyAndLoops(t *testing.T) {

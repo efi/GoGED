@@ -1,6 +1,7 @@
 package genealogy
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 
@@ -39,6 +40,26 @@ type Stats struct {
 
 	// Generations is the length of the longest line of descent.
 	Generations int
+
+	// AncestorPositions counts the places in everybody's pedigree: every
+	// line of birth links from a person up to an ancestor is one. It is a
+	// float, as it doubles with every generation in which ancestry
+	// collapses. DistinctAncestors counts the people in these places,
+	// once per pedigree, and Collapsed the people who have an ancestor in
+	// more than one place, as the children of cousins do.
+	AncestorPositions float64
+	DistinctAncestors int
+	Collapsed         int
+}
+
+// PedigreeCollapse returns the file's pedigree collapse: the share of the
+// ancestor positions that are taken by an ancestor who also takes another
+// position in the same pedigree, in percent. It is 0 without ancestors.
+func (s Stats) PedigreeCollapse() float64 {
+	if s.AncestorPositions == 0 {
+		return 0
+	}
+	return 100 * (1 - float64(s.DistinctAncestors)/s.AncestorPositions)
 }
 
 // Compute gathers statistics about doc.
@@ -100,7 +121,93 @@ func Compute(doc *gedcom.Document) Stats {
 	s.Surnames = sortCounts(surnames)
 	s.GivenNames = sortCounts(given)
 	s.Generations = generations(doc)
+	pedigreeCollapse(doc, &s)
 	return s
+}
+
+// CollapsedPeople says how many people have an ancestor more than once.
+func (s Stats) CollapsedPeople() string {
+	switch s.Collapsed {
+	case 0:
+		return "no one has an ancestor more than once"
+	case 1:
+		return "1 person has ancestors more than once"
+	}
+	return fmt.Sprintf("%d people have ancestors more than once", s.Collapsed)
+}
+
+// pedigreeCollapse counts the ancestor positions and the distinct
+// ancestors in every pedigree, following birth links (see Stats). Paths
+// are not walked one by one, as their number grows exponentially where
+// ancestry collapses.
+func pedigreeCollapse(doc *gedcom.Document, s *Stats) {
+	n := len(doc.Individuals)
+	index := make(map[*gedcom.Individual]int, n)
+	for i, ind := range doc.Individuals {
+		index[ind] = i
+	}
+	parents := make([][]int, n)
+	for i, ind := range doc.Individuals {
+		for _, pl := range ind.ParentLinks() {
+			if j, ok := index[pl.Parent]; ok && pl.Pedigree.IsBirth() {
+				parents[i] = append(parents[i], j)
+			}
+		}
+	}
+
+	// A person's positions are their parents and the parents' positions.
+	// A loop in the data is cut where it is found.
+	const (
+		unvisited = iota
+		inProgress
+		done
+	)
+	positions := make([]float64, n)
+	state := make([]int8, n)
+	var visit func(i int)
+	visit = func(i int) {
+		state[i] = inProgress
+		for _, p := range parents[i] {
+			switch state[p] {
+			case unvisited:
+				visit(p)
+			case inProgress:
+				continue
+			}
+			positions[i] += 1 + positions[p]
+		}
+		state[i] = done
+	}
+
+	// The distinct ancestors: each pedigree marks the people it reached.
+	seen := make([]int, n)
+	var stack []int
+	for i := range n {
+		if state[i] == unvisited {
+			visit(i)
+		}
+		mark := i + 1
+		seen[i] = mark
+		count := 0
+		stack = append(stack[:0], parents[i]...)
+		for len(stack) > 0 {
+			p := stack[len(stack)-1]
+			stack = stack[:len(stack)-1]
+			if seen[p] == mark {
+				continue
+			}
+			seen[p] = mark
+			count++
+			stack = append(stack, parents[p]...)
+		}
+		// A loop can hide positions; every ancestor takes one at least.
+		pos := max(positions[i], float64(count))
+		s.AncestorPositions += pos
+		s.DistinctAncestors += count
+		if pos > float64(count) {
+			s.Collapsed++
+		}
+	}
 }
 
 func sortCounts(m map[string]int) []NameCount {
