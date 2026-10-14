@@ -31,7 +31,7 @@ Main features, by TUI tab (keys 1–9, or alt+1–9 while typing):
 9. **Export**: everybody or the people connected to the marked person, as a
    GEXF graph or as PDF pages.
 
-The batch flags are `-q`, `-tree`, `-desc`, `-hourglass`, `-timeline`, `-relate ID1,ID2`,
+The batch flags are `-q`, `-tree`, `-desc`, `-hourglass`, `-diff OLD`, `-timeline`, `-relate ID1,ID2`,
 `-events FILTER` (plus `-all`), `-places`, `-stats`, `-gen`, `-ascii`,
 `-person`, `-no-mouse`, `-show-restricted`, `-version` and `-licenses`, and
 `-export FORMAT` with `-pivot ID` and `-o FILE` (default: the input's path
@@ -111,12 +111,13 @@ These came from the user and should be kept unless they say otherwise.
 ```
 main.go            flag parsing, batch output, starts the TUI (run() is testable)
 gedcom/            parsing and the typed model (no UI)
-genealogy/         analyses: relationships, timeline, places, stats, on-this-day
+genealogy/         analyses: relationships, timeline, places, stats, checks, hints, on-this-day
 search/            query language, folding, phonetics, person and event indexes
-chart/             text rendering of pedigree and descendant charts
+chart/             text rendering of pedigree, descendant and hourglass charts
 worldmap/          embedded Natural Earth data, projection, Braille renderer
 worldmap/mkworld/  converter from Natural Earth GeoJSON to world.bin
 export/            selection of people and links, GEXF writer, atomic file writing
+diff/              what changed between two versions of a file
 fonts/             Martian Mono Condensed (regular, bold) and its OFL, for the PDF
 tui/               Bubble Tea model, one file per view
 licenses/          embedded third-party license texts (generated)
@@ -126,8 +127,8 @@ testdata/          family.ged (own, fictional), Muster_GEDCOM_UTF-8.ged (CC BY 4
 
 Data flows in one direction: bytes → `gedcom.Decode` (charset) → lines →
 node tree → `Document` with `Individual`, `Family`, `Source`, `Location`
-and `Association`. The `genealogy`, `search` and `chart` packages read the
-model; `tui` and `main` present it. `gedcom` imports nothing from the other
+and `Association`. The `genealogy`, `search`, `chart` and `diff` packages
+read the model; `tui` and `main` present it. `gedcom` imports nothing from the other
 packages.
 
 ### gedcom
@@ -382,6 +383,28 @@ packages.
   with networkx; see llms-toolinfo.md for the throwaway environment.
 - **`WriteFile`** writes a temporary file in the target directory and
   renames it, so a failed export leaves an existing file alone.
+
+### diff
+
+- **`Compare(old, cur)`** pairs records by identifier only: the user
+  wanted a diff of versions, not a comparator of different files, so a
+  renumbered person is removed and added. An identifier that now names
+  another kind of record counts the same way. HEAD is compared as the
+  header ("program", "date of the file" …; the user asked for the
+  metadata), submitters lead the other records.
+- **Within a record** the level-1 structures (CHAN left out everywhere)
+  are paired: identical ones first, then the same tag in order; the rest
+  were added or removed. `describe` names them in words with a short
+  value (events: detail, date, place; links: the names; NOTE, SOUR,
+  OBJE …); when the short values are equal, a change deeper in the
+  structure reads "details changed".
+- **Output:** `-diff OLD.ged FILE.ged` prints sections with a line per
+  detail and `Summary()`; exit code 0 either way. In the TUI the reload
+  computes the changes before replacing the document, the status shows
+  the summary, and `D` opens them as the "Changes" overlay (`buildChanges`),
+  whose people and families link to them: the overlays now move between
+  links (`docView.move`, which scrolls when there are none) and enter
+  opens one. Both versions are redacted the same way.
 
 ### PDF and HTML export (tui/book.go, pdf.go, html.go)
 

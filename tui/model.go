@@ -8,6 +8,7 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/efi/goged/diff"
 	"github.com/efi/goged/gedcom"
 	"github.com/efi/goged/search"
 )
@@ -70,6 +71,10 @@ type Model struct {
 	// Browser-like history of visited people.
 	history []*gedcom.Individual
 	histPos int
+	// changes are the differences found when the file was last loaded
+	// again; nil before.
+	changes *diff.Result
+
 	// reference is the marked person relationships are computed against.
 	reference *gedcom.Individual
 	// wrap shows long lines of the person view on several rows instead of
@@ -307,17 +312,24 @@ func (m *Model) handleKey(msg tea.KeyMsg) tea.Cmd {
 		return m.updateDialog(msg)
 	}
 	if m.showHelp {
+		// The overlay scrolls; the list of changes moves between its
+		// people and families, and enter opens one.
 		switch key {
 		case "up", "k":
-			m.help.scroll(-1, m.bodyHeight())
+			m.help.move(-1, m.bodyHeight())
 		case "down", "j":
-			m.help.scroll(1, m.bodyHeight())
+			m.help.move(1, m.bodyHeight())
 		case "pgup", "ctrl+u":
 			m.help.page(-1, m.bodyHeight())
 		case "pgdown", "ctrl+d", " ":
 			m.help.page(1, m.bodyHeight())
 		case "q":
 			return tea.Quit
+		case "enter":
+			m.showHelp = false
+			if sel := m.help.selected(); sel != nil && sel.target != nil && m.help.visible(m.help.selectedLine(), m.bodyHeight()) {
+				m.open(sel.target)
+			}
 		default:
 			m.showHelp = false
 		}
@@ -377,6 +389,12 @@ func (m *Model) handleKey(msg tea.KeyMsg) tea.Cmd {
 		m.openOverlay("Help")
 	case "L":
 		m.openOverlay("Licenses")
+	case "D":
+		if m.changes == nil {
+			m.setStatus("D lists what changed when the file has been loaded again")
+			break
+		}
+		m.openOverlay("Changes")
 	case "/":
 		m.switchTo(viewSearch)
 	case "tab":
@@ -418,9 +436,12 @@ func (m *Model) openOverlay(title string) {
 
 // rebuildOverlay regenerates the overlay content, e.g. after a resize.
 func (m *Model) rebuildOverlay() {
-	if m.overlay == "Licenses" {
+	switch m.overlay {
+	case "Licenses":
 		m.buildLicenses()
-	} else {
+	case "Changes":
+		m.buildChanges()
+	default:
 		m.buildHelp()
 	}
 }
@@ -571,6 +592,8 @@ func (m Model) viewFooter() string {
 	switch {
 	case m.watch.asking:
 		hints = [][2]string{{"←→", "choose"}, {"enter", "confirm"}, {"y", "reload"}, {"n", "not this time"}, {"N", "never this session"}}
+	case m.showHelp && m.overlay == "Changes":
+		hints = [][2]string{{"↑↓", "select"}, {"enter", "open"}, {"any other key", "close"}}
 	case m.showHelp:
 		hints = [][2]string{{"↑↓", "scroll"}, {"any key", "close"}}
 	case m.active == viewSearch:

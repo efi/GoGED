@@ -23,6 +23,7 @@ var helpSections = [][]string{
 	{"y / n / N", "when another program has changed the file: load it again, not this time, never this session"},
 	{"?", "this help"},
 	{"L", "licenses of the map data and the software goged is built with"},
+	{"D", "what changed when the file was last loaded again: header, people, families and other records; enter opens a person"},
 	{"q, ctrl+c", "quit"},
 	{""},
 	{"Mouse"},

@@ -107,7 +107,7 @@ func TestReloadAsks(t *testing.T) {
 	cmd := a.press("enter")
 	a.contains("loading family.ged again")
 	a.finish(cmd)
-	a.contains("loaded family.ged again: 24 people · 9 families", "Johann Smith", "★ Johann Smith")
+	a.contains("loaded family.ged again · people: 1 changed · D lists the changes", "Johann Smith", "★ Johann Smith")
 	a.notContains("Another program")
 	if a.currentID() != "I3" || a.m.active != viewPerson || a.m.ev.input.Value() != "type:death" {
 		t.Errorf("person %s, view %d, filter %q", a.currentID(), a.m.active, a.m.ev.input.Value())
@@ -115,6 +115,20 @@ func TestReloadAsks(t *testing.T) {
 	a.press("b")
 	if a.currentID() != "I1" {
 		t.Errorf("history: %s", a.currentID())
+	}
+
+	// D lists the changes; the people in it link to them.
+	a.press("D")
+	a.contains("[Changes]", "Changes in family.ged when it was loaded again", "people: 1 changed",
+		"~ I3  Johann Smith (1817–1880)", "name: John Smith → Johann Smith", "↑↓ select")
+	a.press("down", "enter")
+	if a.m.showHelp || a.currentID() != "I3" || a.m.active != viewPerson {
+		t.Errorf("enter in the changes: overlay %v, person %s", a.m.showHelp, a.currentID())
+	}
+	a.press("alt+7", "D") // the only link is selected: a click opens it
+	a.clickOn("Johann Smith (1817–1880)")
+	if a.m.showHelp || a.currentID() != "I3" || a.m.active != viewPerson {
+		t.Error("a click on the selected change does not open it")
 	}
 
 	// Not this time: asked again at the next change only.
@@ -176,7 +190,7 @@ func TestReloadKeepsWhatItCan(t *testing.T) {
 	a.poll(path)
 	a.answerable()
 	a.finish(a.press("y"))
-	a.contains("loaded family.ged again: 23 people")
+	a.contains("loaded family.ged again · people: 1 removed · families: 1 changed", "23 people")
 	if a.currentID() != "I14" || len(a.m.history) != 1 {
 		t.Errorf("person %s, history %d", a.currentID(), len(a.m.history))
 	}
@@ -215,6 +229,8 @@ func TestReloadKeepsWhatItCan(t *testing.T) {
 
 func TestReloadFails(t *testing.T) {
 	a, path := watchedApp(t)
+	a.press("alt+7", "D")
+	a.contains("D lists what changed when the file has been loaded again")
 	rewrite(t, path, `John`, `Jon`)
 	a.poll(path)
 	a.poll(path)

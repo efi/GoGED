@@ -9,6 +9,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/efi/goged/diff"
 	"github.com/efi/goged/gedcom"
 	"github.com/efi/goged/genealogy"
 )
@@ -128,9 +129,76 @@ func (m *Model) reloaded(msg reloadedMsg) {
 		m.setError(fmt.Sprintf("%s could not be loaded again: %v", m.opts.Title, msg.err))
 		return
 	}
+	changes := diff.Compare(m.doc, msg.doc)
 	m.replaceDoc(msg.doc)
-	m.setStatus(fmt.Sprintf("loaded %s again: %s · %s", m.opts.Title,
-		plural(len(m.doc.Individuals), "person", "people"), plural(len(m.doc.Families), "family", "families")))
+	m.changes = &changes
+	if changes.Empty() {
+		m.setStatus(fmt.Sprintf("loaded %s again: no differences", m.opts.Title))
+		return
+	}
+	m.setStatus(fmt.Sprintf("loaded %s again · %s · D lists the changes", m.opts.Title, changes.Summary()))
+}
+
+// buildChanges lists what changed when the file was last loaded again;
+// the people and families link to them.
+func (m *Model) buildChanges() {
+	r := m.changes
+	ls := []line{
+		textLine(span{text: "Changes in " + m.opts.Title + " when it was loaded again", style: m.st.name}),
+		dimLine(m, r.Summary()),
+	}
+	symbol := func(k diff.Kind) span {
+		style := m.st.dim
+		switch k {
+		case diff.Added:
+			style = m.st.key
+		case diff.Removed:
+			style = m.st.err
+		}
+		return span{text: k.Symbol() + " ", style: style}
+	}
+	if len(r.Header) > 0 {
+		ls = append(ls, textLine(), m.sectionLine("Header"))
+		for _, d := range r.Header {
+			ls = append(ls, textLine(symbol(d.Kind), span{text: d.String(), style: m.st.name.UnsetBold()}))
+		}
+	}
+	for _, section := range []struct {
+		name string
+		recs []diff.Record
+	}{{"People", r.People}, {"Families", r.Families}, {"Other records", r.Others}} {
+		if len(section.recs) == 0 {
+			continue
+		}
+		ls = append(ls, textLine(), m.sectionLine(section.name))
+		idW := 0
+		for _, rec := range section.recs {
+			idW = max(idW, len(rec.ID))
+		}
+		for _, rec := range section.recs {
+			title := rec.Title
+			if rec.Tag != "INDI" && rec.Tag != "FAM" {
+				title = strings.TrimSpace(rec.Noun() + " " + title)
+			}
+			l := textLine(symbol(rec.Kind), span{text: rec.ID, style: m.st.dim, width: idW + 2}, span{text: title, style: m.st.name})
+			// What was removed is gone from the file.
+			if rec.Kind != diff.Removed {
+				switch {
+				case rec.Person != nil:
+					l.target = m.doc.Individual(rec.ID)
+				case rec.Family != nil:
+					if f := m.doc.Family(rec.ID); f != nil && len(f.Partners()) > 0 {
+						l.target = f.Partners()[0]
+					}
+				}
+			}
+			ls = append(ls, l)
+			for _, d := range rec.Details {
+				ls = append(ls, dimLine(m, strings.Repeat(" ", idW+4)+d.String()))
+			}
+		}
+	}
+	m.help.set(ls)
 }
 
 func (m *Model) updateDialog(msg tea.KeyMsg) tea.Cmd {

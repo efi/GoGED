@@ -89,7 +89,10 @@ The screenshots below use the [GEDCOM-L sample file](testdata/Muster_GEDCOM_UTF-
     between them, in any script the browser can show.
 - **Watches the file**: when another program, such as a genealogy editor,
   has changed it, goged asks whether to load it again, and keeps the
-  person, history, search, filters and settings where it can.
+  person, history, search, filters and settings where it can. `D` then
+  lists what changed: the header (program, date of the file …), people,
+  families and other records added, removed or changed, with the details.
+  `goged -diff OLD.ged FILE.ged` prints the same for two versions of a file.
 - **Mouse**: click to select and again to open, click the tabs, scroll with
   the wheel, zoom the map around the pointer and drag it. `-no-mouse` leaves
   the mouse to the terminal for selecting text.
@@ -168,6 +171,7 @@ goged -events 'type:marr place:leeds' family.ged
 goged -events '' -all family.ged           # every event, chronologically
 goged -places family.ged                   # place hierarchy with counts
 goged -stats family.ged                    # statistics and warnings
+goged -diff old.ged family.ged             # what changed since old.ged
 goged -licenses                            # licenses of map data and libraries
 ```
 
@@ -225,6 +229,7 @@ Try it with the sample file in [`testdata/family.ged`](testdata/family.ged).
 |         | `W` | wrap long lines in the person view instead of cutting them (again to cut) |
 |         | `y` / `n` / `N` | when another program has changed the file: load it again, not this time, never this session |
 |         | `?` | help · `L` licenses · `q`, `ctrl+c` quit |
+|         | `D` | what changed when the file was loaded again (`enter` opens a person) |
 | Mouse   | click | select a row, a relative or a person in the tree; click it again to do what `enter` does |
 |         | click a tab, the marked person (★) | switch views; open the marked person |
 |         | wheel, drag | scroll (on the map: zoom around the pointer); pan the map |
@@ -350,6 +355,7 @@ build date; a second run on the same day replaces that day's release.
 | [`chart`](chart) | pedigree and descendant charts with node positions for navigation |
 | [`worldmap`](worldmap) | embedded Natural Earth map data, Web Mercator projection and Braille renderer; [`mkworld`](worldmap/mkworld) converts GeoJSON |
 | [`export`](export) | selection of the people to export (everybody, or a connected component) and the GEXF writer |
+| [`diff`](diff) | what changed between two versions of a file, records paired by their identifiers |
 | [`fonts`](fonts) | the embedded font of the PDF export, Martian Mono Condensed |
 | [`licenses`](licenses) | embedded third-party license texts |
 | [`tui`](tui) | the Bubble Tea interface |

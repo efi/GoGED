@@ -81,6 +81,33 @@ func TestTreeFlags(t *testing.T) {
 	}
 }
 
+func TestDiffFlag(t *testing.T) {
+	// The newer version: a name changed, a person added to a family.
+	data, err := os.ReadFile(sample)
+	if err != nil {
+		t.Fatal(err)
+	}
+	newer := strings.Replace(string(data), "1 NAME John /Smith/", "1 NAME Johann /Smith/", 1)
+	newer = strings.Replace(newer, "0 TRLR", "0 @I99@ INDI\n1 NAME Jane /New/\n1 FAMC @F1@\n0 TRLR", 1)
+	newer = strings.Replace(newer, "1 CHIL @I3@", "1 CHIL @I3@\n1 CHIL @I99@", 1)
+	r := runCLI(t, newer, "-diff", sample, "-")
+	want := `People
+  + I99  Jane New
+  ~ I3   Johann Smith (1817–1880)
+         name: John Smith → Johann Smith
+Families
+  ~ F1  William Smith & Elizabeth Brown
+        child added: Jane New
+people: 1 changed, 1 added · families: 1 changed
+`
+	if r.code != 0 || r.stdout != want {
+		t.Errorf("exit %d, stderr %q, stdout:\n%s\nwant:\n%s", r.code, r.stderr, r.stdout, want)
+	}
+	if r := runCLI(t, "", "-diff", sample, sample); r.code != 0 || r.stdout != "no differences\n" {
+		t.Errorf("the same file: %q", r.stdout)
+	}
+}
+
 func TestTimelineFlag(t *testing.T) {
 	r := runCLI(t, "", "-timeline", "I14", sample)
 	if r.code != 0 {
@@ -369,6 +396,7 @@ func TestErrors(t *testing.T) {
 		{[]string{filepath.Join("testdata", "missing.ged")}, 1, "missing.ged"},
 		{[]string{"-tree", "I99", sample}, 1, `no individual with ID "I99"`},
 		{[]string{"-hourglass", "I99", sample}, 1, `no individual with ID "I99"`},
+		{[]string{"-diff", filepath.Join("testdata", "missing.ged"), sample}, 1, "missing.ged"},
 		{[]string{"-desc", "I99", sample}, 1, `no individual with ID "I99"`},
 		{[]string{"-timeline", "I99", sample}, 1, `no individual with ID "I99"`},
 		{[]string{"-relate", "I1", sample}, 2, "two IDs separated by a comma"},

@@ -17,6 +17,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/efi/goged/chart"
+	"github.com/efi/goged/diff"
 	"github.com/efi/goged/export"
 	"github.com/efi/goged/fonts"
 	"github.com/efi/goged/gedcom"
@@ -58,6 +59,7 @@ Usage:
   goged -q QUERY FILE.ged                 print matching people and exit
   goged -export FORMAT [-pivot ID] [-o OUT] FILE.ged
                                           export as gexf, pdf or html and exit
+  goged -diff OLD.ged FILE.ged            print what changed since OLD.ged
 
 Use - as FILE to read from standard input.
 
@@ -88,6 +90,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, startTUI tuiR
 		exportAs = fs.String("export", "", "export as `FORMAT` (gexf, pdf or html) and exit")
 		pivot    = fs.String("pivot", "", "with -export: only the person with `ID` and everybody connected to them")
 		output   = fs.String("o", "", "with -export: write to `FILE` (- for standard output); default: the input file with the format's extension")
+		diffWith = fs.String("diff", "", "print what changed from the older version in `OLD.ged` to the file given, records paired by their IDs")
 	)
 	fs.Usage = func() {
 		fmt.Fprint(stderr, usageText)
@@ -131,9 +134,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, startTUI tuiR
 	}
 
 	path := positional[0]
-	// load reads the file; the browser uses it again to reload the file.
-	load := func() (*gedcom.Document, error) {
-		doc, err := gedcom.ParseFile(path)
+	loadFile := func(p string) (*gedcom.Document, error) {
+		doc, err := gedcom.ParseFile(p)
 		if err != nil {
 			return nil, err
 		}
@@ -142,6 +144,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, startTUI tuiR
 		}
 		return doc, nil
 	}
+	// load reads the file; the browser uses it again to reload the file.
+	load := func() (*gedcom.Document, error) { return loadFile(path) }
 	var (
 		doc *gedcom.Document
 		err error
@@ -219,6 +223,14 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, startTUI tuiR
 		return printEvents(doc, *events, *allEv, stdout, stderr)
 	case set["export"]:
 		return runExport(doc, path, *exportAs, *pivot, *output, stdout, stderr)
+	case set["diff"]:
+		old, err := loadFile(*diffWith)
+		if err != nil {
+			fmt.Fprintf(stderr, "goged: %s: %v\n", *diffWith, err)
+			return 1
+		}
+		printDiff(diff.Compare(old, doc), stdout)
+		return 0
 	case *places:
 		printPlaces(doc, stdout)
 		return 0
@@ -443,6 +455,41 @@ func printPlaces(doc *gedcom.Document, w io.Writer) {
 		}
 		return true
 	})
+}
+
+// printDiff prints the differences: the header's, then the people, the
+// families and the other records with their changes, and the counts.
+func printDiff(r diff.Result, w io.Writer) {
+	if len(r.Header) > 0 {
+		fmt.Fprintln(w, "Header")
+		for _, d := range r.Header {
+			fmt.Fprintf(w, "  %s %s\n", d.Kind.Symbol(), d)
+		}
+	}
+	for _, section := range []struct {
+		name string
+		recs []diff.Record
+	}{{"People", r.People}, {"Families", r.Families}, {"Other records", r.Others}} {
+		if len(section.recs) == 0 {
+			continue
+		}
+		fmt.Fprintln(w, section.name)
+		idW := 0
+		for _, rec := range section.recs {
+			idW = max(idW, len(rec.ID))
+		}
+		for _, rec := range section.recs {
+			title := rec.Title
+			if rec.Tag != "INDI" && rec.Tag != "FAM" {
+				title = strings.TrimSpace(rec.Noun() + " " + title)
+			}
+			fmt.Fprintf(w, "  %s %-*s  %s\n", rec.Kind.Symbol(), idW, rec.ID, title)
+			for _, d := range rec.Details {
+				fmt.Fprintf(w, "%s%s\n", strings.Repeat(" ", idW+6), d)
+			}
+		}
+	}
+	fmt.Fprintln(w, r.Summary())
 }
 
 func printStats(doc *gedcom.Document, name string, w io.Writer) {
