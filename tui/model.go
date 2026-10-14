@@ -39,6 +39,9 @@ type Options struct {
 	Generations int
 	// ASCII draws trees with ASCII characters only.
 	ASCII bool
+	// NoMouse leaves the mouse to the terminal, which can then select
+	// text as usual.
+	NoMouse bool
 	// Today is the date used for "On this day"; zero means the current date.
 	Today time.Time
 }
@@ -135,6 +138,8 @@ func (m *Model) update(msg tea.Msg) tea.Cmd {
 		return nil
 	case tea.KeyMsg:
 		return m.handleKey(msg)
+	case tea.MouseMsg:
+		return m.handleMouse(msg)
 	}
 	return nil
 }
@@ -472,7 +477,8 @@ func fixHeight(s string, h int) string {
 	return strings.Join(lines, "\n")
 }
 
-func (m Model) viewHeader() string {
+// headerInfo is the text after the program name in the first line.
+func (m *Model) headerInfo() string {
 	info := fmt.Sprintf("%d people · %d families", len(m.doc.Individuals), len(m.doc.Families))
 	if n := m.doc.Redactions; n > 0 {
 		info += fmt.Sprintf(" · %d restricted hidden", n)
@@ -480,23 +486,49 @@ func (m Model) viewHeader() string {
 	if m.opts.Title != "" {
 		info = m.opts.Title + " · " + info
 	}
-	title := m.st.title.Render("goged") + " " + m.st.dim.Render(info)
+	return info
+}
+
+// tab is a label in the tab bar: a view, or the open overlay (view -1).
+type tab struct {
+	label  string
+	view   view
+	active bool
+}
+
+// tabs lists the tab bar. An open overlay comes first, so that it shows
+// however narrow the screen is.
+func (m *Model) tabs() []tab {
+	var tabs []tab
+	if m.showHelp {
+		tabs = append(tabs, tab{m.overlay, -1, true})
+	}
+	for i, name := range viewNames {
+		tabs = append(tabs, tab{fmt.Sprintf("%d %s", i+1, name), view(i), view(i) == m.active && !m.showHelp})
+	}
+	return tabs
+}
+
+func (m *Model) renderTab(t tab) string {
+	if t.active {
+		return m.st.tabActive.Render("[" + t.label + "]")
+	}
+	return m.st.tabInactive.Render(" " + t.label + " ")
+}
+
+// title is the first line up to the marked person.
+func (m *Model) title() string {
+	return m.st.title.Render("goged") + " " + m.st.dim.Render(m.headerInfo())
+}
+
+func (m Model) viewHeader() string {
+	title := m.title()
 	if m.reference != nil {
 		title += "  " + m.st.reference.Render("★ "+m.reference.DisplayName())
 	}
 	var tabs []string
-	for i, name := range viewNames {
-		label := fmt.Sprintf("%d %s", i+1, name)
-		if view(i) == m.active && !m.showHelp {
-			tabs = append(tabs, m.st.tabActive.Render("["+label+"]"))
-		} else {
-			tabs = append(tabs, m.st.tabInactive.Render(" "+label+" "))
-		}
-	}
-	// An open overlay comes first, so that it shows however narrow the
-	// screen is.
-	if m.showHelp {
-		tabs = append([]string{m.st.tabActive.Render("[" + m.overlay + "]")}, tabs...)
+	for _, t := range m.tabs() {
+		tabs = append(tabs, m.renderTab(t))
 	}
 	return fit(title, m.width) + "\n" + fit(strings.Join(tabs, " "), m.width)
 }

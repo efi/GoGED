@@ -23,6 +23,13 @@ type mapState struct {
 	markers []worldmap.Marker
 	sel     int
 	unknown int // places without coordinates
+
+	// The cell where the mouse was while it drags the map, and whether
+	// releasing the button opens the selected place: it was pressed on
+	// its marker and did not drag.
+	dragging     bool
+	dragX, dragY int
+	opening      bool
 }
 
 const (

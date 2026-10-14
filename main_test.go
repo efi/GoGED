@@ -313,11 +313,11 @@ func TestStdin(t *testing.T) {
 }
 
 func TestStartsTUI(t *testing.T) {
-	r := runCLI(t, "", "-person", "I3", "-gen", "6", "-ascii", sample)
+	r := runCLI(t, "", "-person", "I3", "-gen", "6", "-ascii", "-no-mouse", sample)
 	if r.code != 0 || r.tui == nil {
 		t.Fatalf("exit %d, tui %v, stderr %s", r.code, r.tui, r.stderr)
 	}
-	want := tui.Options{Title: "family.ged", StartPerson: "I3", Generations: 6, ASCII: true}
+	want := tui.Options{Title: "family.ged", StartPerson: "I3", Generations: 6, ASCII: true, NoMouse: true}
 	if *r.tui != want || r.stdin {
 		t.Errorf("options = %+v, want %+v", *r.tui, want)
 	}

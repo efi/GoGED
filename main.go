@@ -40,6 +40,9 @@ type tuiRunner func(doc *gedcom.Document, opts tui.Options, fromStdin bool) erro
 
 func runTUI(doc *gedcom.Document, opts tui.Options, fromStdin bool) error {
 	progOpts := []tea.ProgramOption{tea.WithAltScreen()}
+	if !opts.NoMouse {
+		progOpts = append(progOpts, tea.WithMouseCellMotion())
+	}
 	if fromStdin {
 		// The file came through stdin, so read keys from the terminal.
 		progOpts = append(progOpts, tea.WithInputTTY())
@@ -76,6 +79,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, startTUI tuiR
 		stats    = fs.Bool("stats", false, "print statistics and warnings about the file")
 		gens     = fs.Int("gen", 4, "number of `generations` shown in trees")
 		ascii    = fs.Bool("ascii", false, "draw trees with ASCII characters only")
+		noMouse  = fs.Bool("no-mouse", false, "leave the mouse to the terminal, to select text as usual")
 		person   = fs.String("person", "", "open the browser at the person with `ID`")
 		showRes  = fs.Bool("show-restricted", false, "show data marked confidential or private (RESN), which is hidden by default")
 		showVer  = fs.Bool("version", false, "print the version and exit")
@@ -204,7 +208,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, startTUI tuiR
 		return 0
 	}
 
-	opts := tui.Options{Title: filepath.Base(path), StartPerson: *person, Generations: *gens, ASCII: *ascii}
+	opts := tui.Options{Title: filepath.Base(path), StartPerson: *person, Generations: *gens, ASCII: *ascii, NoMouse: *noMouse}
 	if path == "-" {
 		opts.Title = "stdin"
 	}

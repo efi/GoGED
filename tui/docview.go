@@ -269,10 +269,13 @@ func (d *docView) scroll(delta, height int) {
 // visible reports whether a line is inside the viewport.
 func (d *docView) visible(i, height int) bool { return i >= d.offset && i < d.offset+height }
 
-// page scrolls by a page. If the selected link leaves the screen, the
-// nearest visible link is selected instead.
-func (d *docView) page(dir, height int) {
-	d.scroll(dir*max(1, height-1), height)
+// page scrolls by a page.
+func (d *docView) page(dir, height int) { d.scrollBy(dir*max(1, height-1), height) }
+
+// scrollBy scrolls by delta lines. If the selected link leaves the
+// screen, the nearest visible link is selected instead.
+func (d *docView) scrollBy(delta, height int) {
+	d.scroll(delta, height)
 	if len(d.links) == 0 || d.visible(d.selectedLine(), height) {
 		return
 	}
@@ -280,7 +283,7 @@ func (d *docView) page(dir, height int) {
 	for i, l := range d.links {
 		if d.visible(l, height) {
 			pick = i
-			if dir > 0 {
+			if delta > 0 {
 				break
 			}
 		}
@@ -288,6 +291,24 @@ func (d *docView) page(dir, height int) {
 	if pick >= 0 {
 		d.cursor = pick
 	}
+}
+
+// linkAt returns the link shown in row y of the view (by any of its rows),
+// or -1.
+func (d *docView) linkAt(y int) int {
+	i := d.offset + y
+	if y < 0 || i >= len(d.lines) {
+		return -1
+	}
+	for i > 0 && d.lines[i].cont {
+		i--
+	}
+	for k, l := range d.links {
+		if l == i {
+			return k
+		}
+	}
+	return -1
 }
 
 func (d *docView) home(height int) {

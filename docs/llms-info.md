@@ -32,7 +32,7 @@ Main features, by TUI tab (keys 1–9, or alt+1–9 while typing):
 
 The batch flags are `-q`, `-tree`, `-desc`, `-timeline`, `-relate ID1,ID2`,
 `-events FILTER` (plus `-all`), `-places`, `-stats`, `-gen`, `-ascii`,
-`-person`, `-show-restricted`, `-version` and `-licenses`, and
+`-person`, `-no-mouse`, `-show-restricted`, `-version` and `-licenses`, and
 `-export FORMAT` with `-pivot ID` and `-o FILE` (default: the input's path
 with the format's extension; `-` is standard output, and required with
 stdin input). Passing `-` as the file reads from stdin. The batch export
@@ -379,8 +379,19 @@ packages.
   constants, and switching charts clamps to the new chart's limit should
   they differ again. Horizontal scrolling cuts lines with `ansi.Cut`; see
   section 7 for why not `CutWc`.
-- **Options:** `Title`, `StartPerson`, `Generations`, `ASCII`, and `Today`
-  (for tests of "On this day").
+- **Options:** `Title`, `StartPerson`, `Generations`, `ASCII`, `NoMouse`
+  (read by `runTUI` in main.go), and `Today` (for tests of "On this day").
+- **Mouse** (`mouse.go`): the program asks for cell motion events. A click
+  selects and a click on the selection presses enter (`Model.press`
+  replays keys, so the views keep one place for what enter does); a click
+  outside a text input ends its editing as enter would. The click
+  positions repeat the layout of the views' render functions (body rows
+  start after `headerRows`; `exportRowY` mirrors `viewExport`); `tabs`
+  and `renderTab` are shared by the tab bar and its clicks. The wheel
+  scrolls by `wheelLines` and keeps the selection on screen
+  (`scrollList`, `docView.scrollBy`); on the map it zooms around the
+  pointer (`mapPoint`), and dragging pans it. The tests in
+  `mouse_test.go` click on text found on the screen (`clickOn`).
 
 ## 5. GEDCOM knowledge worth keeping
 

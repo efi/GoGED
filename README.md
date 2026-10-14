@@ -3,7 +3,7 @@
 A fast terminal browser for [GEDCOM](https://gedcom.io/) genealogy files.
 Search people by name and any other property, read their life events in
 order, jump between relatives, and explore pedigree and descendant trees —
-all from the keyboard.
+from the keyboard, or with the mouse.
 
 The screenshots below use the [GEDCOM-L sample file](testdata/Muster_GEDCOM_UTF-8.ged).
 
@@ -77,6 +77,9 @@ The screenshots below use the [GEDCOM-L sample file](testdata/Muster_GEDCOM_UTF-
     wrap, every column within its own place;
   - to HTML, the same contents, people and places as one web page with links
     between them, in any script the browser can show.
+- **Mouse**: click to select and again to open, click the tabs, scroll with
+  the wheel, zoom the map around the pointer and drag it. `-no-mouse` leaves
+  the mouse to the terminal for selecting text.
 - **Privacy**: data marked confidential or private (`RESN`) is hidden unless
   you ask for it.
 - **Batch mode** for scripts: print search results, charts, timelines,
@@ -130,6 +133,7 @@ go build -o goged .
 ```sh
 goged family.ged                 # open the browser
 goged -person I42 family.ged     # open the browser at a person
+goged -no-mouse family.ged       # leave the mouse to the terminal
 cat family.ged | goged -         # read from standard input
 ```
 
@@ -206,6 +210,12 @@ Try it with the sample file in [`testdata/family.ged`](testdata/family.ged).
 |         | `m` | mark the current person as reference for relationships (again to clear) |
 |         | `W` | wrap long lines in the person view instead of cutting them (again to cut) |
 |         | `?` | help · `L` licenses · `q`, `ctrl+c` quit |
+| Mouse   | click | select a row, a relative or a person in the tree; click it again to do what `enter` does |
+|         | click a tab, the marked person (★) | switch views; open the marked person |
+|         | wheel, drag | scroll (on the map: zoom around the pointer); pan the map |
+|         | `▾` `▹`, `◂` `▸` | collapse or expand a place; change an export setting |
+|         | back and forward buttons | back / forward in history |
+|         | `shift`+drag | select text in most terminals; `-no-mouse` leaves the mouse to the terminal |
 | Search  | type, `↑` `↓` `pgup` `pgdown`, `enter`, `esc` | search, select, open, clear / return |
 | Person  | `↑` `↓` (`j` `k`), `enter` | move between relatives, go to relative |
 |         | `←` `→` (`h` `l`) | back / forward |
