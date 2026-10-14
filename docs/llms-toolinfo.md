@@ -7,8 +7,12 @@ tooling is missing, and the techniques that proved useful there: a private
 Go toolchain, probe programs outside the module, and text and image
 captures of the running interface. It was written after commit `1170a54`.
 
-`$SCRATCH` below stands for the session's scratch directory. It belongs to
-one session, so everything placed there has to be set up again in the next.
+`$SCRATCH` below stands for `/home/workhorse/claude/tmp/goged`, a
+directory on the disk that the user set aside for this work. It outlives
+the session, so check what is already there before setting anything up
+again. Do not use `/tmp` or the session's scratch directory under it for
+anything big: `/tmp` is a tmpfs of 2 GB, and the Go build cache alone
+filled it once.
 
 ## 1. The local machine
 
@@ -37,8 +41,9 @@ one session, so everything placed there has to be set up again in the next.
 ## 2. A private Go toolchain
 
 Use Go 1.24.2, the version in `go.mod` that CI uses through
-`go-version-file`. Download it into the scratch directory and check it
-against the checksum that go.dev publishes:
+`go-version-file`. If `$SCRATCH/go/bin/go version` does not print it yet,
+download it into the scratch directory and check it against the checksum
+that go.dev publishes:
 
 ```sh
 mkdir -p $SCRATCH/dl && cd $SCRATCH/dl
