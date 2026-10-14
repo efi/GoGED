@@ -259,7 +259,11 @@ Try it with the sample file in [`testdata/family.ged`](testdata/family.ged).
 
 ## Search syntax
 
-All terms must match. Text without a field matches names: every word of a
+Terms next to each other must all match; `|` (or `OR`) between them means
+either, and brackets group: `(smith | jones) born:<1850`. Terms next to
+each other bind first, so `smith born:1850 | jones` finds Smiths born in
+1850 and all Joneses. A `|` right after a value without spaces gives the
+field another value: `place:leeds|york`. Text without a field matches names: every word of a
 name is compared by prefix, so `jo smi` finds John Smith; diacritics and case
 are ignored (`muller` finds Müller), and so are apostrophes (`obrien` and
 `o'brien` both find O'Brien).
@@ -280,6 +284,9 @@ are ignored (`muller` finds Müller), and so are apostrophes (`obrien` and
 | `has:parents` | `birth death parents father mother spouse children siblings notes sources media occupation` |
 | `tag:_MILT`, `tag:BIRT.PLAC=leeds` | a tag (path) exists, optionally with a value |
 | `-term` | exclude: `smith -given:john`, `-has:parents` |
+| `smith \| jones`, `smith OR jones` | either |
+| `(smith \| jones) born:<1850`, `-(place:leeds \| place:york)` | groups, also excluded as a whole |
+| `place:leeds\|york` | another value of the same field |
 | `1850` | a bare year matches the year of birth or death |
 
 Approximate dates match generously: `ABT 1850` matches 1848–1852, `BEF 1850`
@@ -287,7 +294,8 @@ matches 1840–1850.
 
 The events filter understands `type:marr,div` (tags or names such as
 `birth`, `marriage`, `census`), year ranges (`1850..1870` or `year:`),
-`place:`, `name:`, negation and plain text.
+`place:`, `name:`, negation and plain text, combined with `|`, `OR` and
+brackets as in the search: `type:birth (place:leeds | place:york)`.
 
 ## The map (experimental)
 

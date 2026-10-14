@@ -206,26 +206,55 @@ func (ix *Index) SearchString(s string) ([]Result, error) {
 	return ix.Search(q), nil
 }
 
-// match scores an entry against all terms. It also reports which name
-// matched the first positive name term.
+// match scores an entry against a query. It also reports which name
+// matched the first positive name term (of the better alternative).
 func (ix *Index) match(e *entry, q Query) (score, name int, ok bool) {
-	nameSet := false
-	for i := range q.Terms {
-		t := &q.Terms[i]
+	if q.expr == nil {
+		return 0, 0, true
+	}
+	score, name, ok = ix.eval(e, &q, q.expr)
+	return score, max(name, 0), ok
+}
+
+// eval scores an entry against an expression: terms that must all match
+// add up, of alternatives the best counts, and negated ones count nothing.
+// The name is -1 if no name term matched.
+func (ix *Index) eval(e *entry, q *Query, x *expr) (score, name int, ok bool) {
+	name = -1
+	switch {
+	case x.kids == nil:
+		t := &q.Terms[x.term]
 		s, idx := ix.matchTerm(e, t)
 		if t.Negate {
-			if s > 0 {
-				return 0, 0, false
+			ok = s == 0
+		} else {
+			score, name, ok = s, idx, s > 0
+		}
+	case x.or:
+		for _, k := range x.kids {
+			if s, n, o := ix.eval(e, q, k); o && (!ok || s > score) {
+				score, name, ok = s, n, true
 			}
-			continue
 		}
-		if s == 0 {
-			return 0, 0, false
+	default:
+		ok = true
+		for _, k := range x.kids {
+			s, n, o := ix.eval(e, q, k)
+			if !o {
+				ok = false
+				break
+			}
+			score += s
+			if name < 0 {
+				name = n
+			}
 		}
-		if idx >= 0 && !nameSet {
-			name, nameSet = idx, true
-		}
-		score += s
+	}
+	if x.negate {
+		return 0, -1, !ok
+	}
+	if !ok {
+		return 0, -1, false
 	}
 	return score, name, true
 }

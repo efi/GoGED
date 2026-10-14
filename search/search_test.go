@@ -1,6 +1,7 @@
 package search
 
 import (
+	"fmt"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -530,6 +531,15 @@ func TestSearchMatchedName(t *testing.T) {
 	if rs[0].NameIndex != 0 {
 		t.Error("non-name queries report the primary name")
 	}
+	// Of alternatives, the matching one tells the name.
+	rs, _ = ix.SearchString("zzz | (born:1845 frederick) | qqq")
+	if len(rs) != 1 || rs[0].NameIndex != 1 {
+		t.Errorf("aka match among alternatives = %+v", rs)
+	}
+	rs, _ = ix.SearchString("-(zzz) (frederick | qqq)")
+	if len(rs) != 1 || rs[0].NameIndex != 1 {
+		t.Errorf("aka match after a negated group = %+v", rs)
+	}
 }
 
 func TestSearchApproximateDates(t *testing.T) {
@@ -664,4 +674,127 @@ func FuzzParse(f *testing.F) {
 			_ = eq
 		}
 	})
+}
+
+func TestSearchBoolean(t *testing.T) {
+	ix := NewIndex(loadSample(t))
+	set := func(q string) map[string]int {
+		t.Helper()
+		rs, err := ix.SearchString(q)
+		if err != nil {
+			t.Fatalf("%q: %v", q, err)
+		}
+		m := map[string]int{}
+		for _, r := range rs {
+			m[r.Individual.ID] = r.Score
+		}
+		return m
+	}
+	union := func(a, b map[string]int) map[string]int {
+		m := map[string]int{}
+		for id, s := range a {
+			m[id] = s
+		}
+		for id, s := range b {
+			m[id] = max(m[id], s)
+		}
+		return m
+	}
+	all := set("")
+	minus := func(a map[string]int) map[string]int {
+		m := map[string]int{}
+		for id := range all {
+			if _, ok := a[id]; !ok {
+				m[id] = 0
+			}
+		}
+		return m
+	}
+	same := func(name string, got, want map[string]int) {
+		t.Helper()
+		if fmt.Sprint(got) != fmt.Sprint(want) {
+			t.Errorf("%s:\n got %v\nwant %v", name, got, want)
+		}
+	}
+	smith, jones := set("smith"), set("jones")
+	if len(smith) == 0 || len(jones) == 0 {
+		t.Fatal("no Smiths or Joneses")
+	}
+	// Alternatives score as the better one.
+	same("smith | jones", set("smith | jones"), union(smith, jones))
+	same("OR", set("smith OR jones"), union(smith, jones))
+	same("unspaced", set("smith|jones"), union(smith, jones))
+	same("or as a word", set("smith or jones"), set("smith jones or"))
+	// "and" binds tighter than "or".
+	same("precedence", set("smith born:<1850 | jones"), union(set("smith born:<1850"), jones))
+	same("brackets", set("(smith | jones) born:<1850"), union(set("smith born:<1850"), set("jones born:<1850")))
+	same("nested", set("((smith) | (jones))"), union(smith, jones))
+	same("negated group", set("-(smith | jones)"), minus(union(smith, jones)))
+	same("negated alternatives", set("-(smith | jones) born:<1850"), set("-smith -jones born:<1850"))
+	// field:a|b gives the field more values.
+	leeds, york := set("place:leeds"), set("place:york")
+	same("field shorthand", set("place:leeds|york"), union(leeds, york))
+	same("negated shorthand", set("-place:leeds|york"), minus(union(leeds, york)))
+	same("spaced is not the shorthand", set("place:leeds | york"), union(leeds, set("york")))
+	// Quotes keep the operators as text.
+	same("quoted", set(`"smith | jones"`), map[string]int{})
+	same("quoted OR", set(`smith "OR" jones`), set("smith or jones"))
+	// The end of what is being typed is read leniently.
+	same("open bracket", set("(smith | jones"), union(smith, jones))
+	same("trailing |", set("smith |"), smith)
+	same("leading |", set("| smith"), smith)
+	same("empty group", set("() smith"), smith)
+	for _, q := range []string{"smith)", "(smith))", ")"} {
+		if _, err := Parse(q); err == nil || !strings.Contains(err.Error(), "unmatched )") {
+			t.Errorf("Parse(%q): %v", q, err)
+		}
+	}
+	if _, err := Parse("smith | foo:bar"); err == nil || !strings.Contains(err.Error(), "unknown field") {
+		t.Errorf("an error in an alternative: %v", err)
+	}
+	if _, err := Parse("place:a|sex:z"); err == nil {
+		t.Error("an error in a further value")
+	}
+
+	for in, want := range map[string]string{
+		"(smith | jones) born:<1850":  "(smith | jones) born:<1850",
+		"-(place:leeds | place:york)": "-(place:leeds | place:york)",
+		"place:leeds|york":            "place:leeds | place:york",
+		"a b | c":                     "a b | c",
+		`name:"a | b"`:                `name:"a | b"`,
+		"-(smith)":                    "-(smith)",
+		"-(-(smith | jones))":         "-(-(smith | jones))",
+	} {
+		q, err := Parse(in)
+		if err != nil || q.String() != want {
+			t.Errorf("Parse(%q).String() = %q, %v; want %q", in, q.String(), err, want)
+		}
+	}
+}
+
+func TestEventQueryBoolean(t *testing.T) {
+	ix := NewEventIndex(loadSample(t).Events())
+	count := func(q string, vital bool) int {
+		t.Helper()
+		eq, err := ParseEventQuery(q)
+		if err != nil {
+			t.Fatalf("%q: %v", q, err)
+		}
+		return len(ix.Filter(eq, vital))
+	}
+	for _, tt := range []struct{ a, b string }{
+		{"type:marr | type:div", "type:marr,div"},
+		{"-(type:birth | type:death)", "-type:birth -type:death"},
+		{"type:birth (place:leeds | place:manchester)", "type:birth place:leeds|manchester"},
+	} {
+		if a, b := count(tt.a, true), count(tt.b, true); a != b || a == 0 {
+			t.Errorf("%q: %d, %q: %d", tt.a, a, tt.b, b)
+		}
+	}
+	if n, l, m := count("type:birth (place:leeds | place:manchester)", false), count("type:birth place:leeds", false), count("type:birth place:manchester", false); n != l+m {
+		t.Errorf("births in Leeds or Manchester: %d, want %d+%d", n, l, m)
+	}
+	if _, err := ParseEventQuery("type:birth)"); err == nil {
+		t.Error("unmatched bracket")
+	}
 }

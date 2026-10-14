@@ -105,6 +105,9 @@ var helpSections = [][]string{
 	{"Search syntax"},
 	{"smith", "people with a name word starting with smith (diacritics are ignored)"},
 	{"john smith", "all terms must match"},
+	{"smith | jones", "either (also OR); terms next to each other bind first: smith born:1850 | jones"},
+	{"(smith | jones) born:<1850", "brackets group; -( … ) excludes a group"},
+	{"place:leeds|york", "a | right after a value adds another value of the field"},
 	{`"van der berg"`, "a phrase"},
 	{"~smyth", "names that sound alike (Soundex and Cologne phonetics)"},
 	{"given:john  surname:smith", "match one part of the name (also first:, last:, name:)"},
@@ -129,6 +132,7 @@ var helpSections = [][]string{
 	{"1850..1870", "events in a year range (or year:1850)"},
 	{"place:leeds  name:smith", "place / people involved"},
 	{"-type:birth", "exclude; plain words match type, names, place and details"},
+	{"type:birth (place:leeds | york)", "| or OR and brackets work as in the search"},
 }
 
 func (m *Model) buildHelp() {

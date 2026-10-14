@@ -9,7 +9,8 @@ import (
 )
 
 // EventQuery filters events. Terms are separated by spaces and must all
-// match:
+// match, unless | or OR stands between them; brackets group (see
+// expr.go):
 //
 //	1850, 1850..1900, <1900   event year
 //	type:birth,death          event type (tag or label prefix, comma list)
@@ -21,6 +22,7 @@ import (
 type EventQuery struct {
 	Raw   string
 	terms []eventTerm
+	expr  *expr
 }
 
 type eventTerm struct {
@@ -34,62 +36,77 @@ type eventTerm struct {
 // ParseEventQuery parses an event filter.
 func ParseEventQuery(s string) (EventQuery, error) {
 	q := EventQuery{Raw: s}
-	toks, err := tokenize(s)
+	toks, err := lex(s)
 	if err != nil {
 		return q, err
 	}
-	for _, tok := range toks {
-		var t eventTerm
-		if strings.HasPrefix(tok, "-") && len(tok) > 1 {
-			t.negate = true
-			tok = tok[1:]
+	x, err := parseExpr(toks, func(tok string) (int, error) {
+		t, err := parseEventTerm(tok)
+		if err != nil || t == nil {
+			return -1, err
 		}
-		if name, value, ok := strings.Cut(tok, ":"); ok && name != "" {
-			f, known := fieldAliases[strings.ToLower(name)]
-			switch {
-			case !known:
-				return EventQuery{Raw: s}, &ParseError{fmt.Sprintf("unknown field %q", name)}
-			case f != FieldType && f != FieldPlace && f != FieldName && f != FieldYear:
-				return EventQuery{Raw: s}, &ParseError{fmt.Sprintf("%s: is not available for events (use type:, place:, name: or year:)", name)}
-			}
-			t.field = f
-			tok = value
+		q.terms = append(q.terms, *t)
+		return len(q.terms) - 1, nil
+	})
+	if err != nil {
+		return EventQuery{Raw: s}, err
+	}
+	q.expr = x
+	return q, nil
+}
+
+// parseEventTerm parses one term of an event filter; nil for one without
+// a value.
+func parseEventTerm(tok string) (*eventTerm, error) {
+	var t eventTerm
+	if strings.HasPrefix(tok, "-") && len(tok) > 1 {
+		t.negate = true
+		tok = tok[1:]
+	}
+	if name, value, ok := strings.Cut(tok, ":"); ok && name != "" {
+		f, known := fieldAliases[strings.ToLower(name)]
+		switch {
+		case !known:
+			return nil, &ParseError{fmt.Sprintf("unknown field %q", name)}
+		case f != FieldType && f != FieldPlace && f != FieldName && f != FieldYear:
+			return nil, &ParseError{fmt.Sprintf("%s: is not available for events (use type:, place:, name: or year:)", name)}
 		}
-		tok = strings.TrimSpace(tok)
-		if tok == "" {
-			if t.field == FieldText {
+		t.field = f
+		tok = value
+	}
+	tok = strings.TrimSpace(tok)
+	if tok == "" {
+		if t.field == FieldText {
+			return nil, nil
+		}
+		return nil, &ParseError{fmt.Sprintf("missing value for %s:", t.field)}
+	}
+	t.folded = Fold(tok)
+	switch t.field {
+	case FieldText:
+		if looksLikeYear(tok) {
+			t.field = FieldYear
+			t.years, _ = parseYearRange(tok)
+		}
+	case FieldYear:
+		var ok bool
+		if t.years, ok = parseYearRange(tok); !ok {
+			return nil, &ParseError{"year: expects a year or range such as 1850 or 1800..1850"}
+		}
+	case FieldType:
+		t.tags = map[string]bool{}
+		for _, part := range strings.Split(tok, ",") {
+			part = strings.TrimSpace(part)
+			if part == "" {
 				continue
 			}
-			return EventQuery{Raw: s}, &ParseError{fmt.Sprintf("missing value for %s:", t.field)}
+			for _, tag := range gedcom.EventTagsByLabel(part) {
+				t.tags[tag] = true
+			}
+			t.tags[strings.ToUpper(part)] = true
 		}
-		t.folded = Fold(tok)
-		switch t.field {
-		case FieldText:
-			if looksLikeYear(tok) {
-				t.field = FieldYear
-				t.years, _ = parseYearRange(tok)
-			}
-		case FieldYear:
-			var ok bool
-			if t.years, ok = parseYearRange(tok); !ok {
-				return EventQuery{Raw: s}, &ParseError{"year: expects a year or range such as 1850 or 1800..1850"}
-			}
-		case FieldType:
-			t.tags = map[string]bool{}
-			for _, part := range strings.Split(tok, ",") {
-				part = strings.TrimSpace(part)
-				if part == "" {
-					continue
-				}
-				for _, tag := range gedcom.EventTagsByLabel(part) {
-					t.tags[tag] = true
-				}
-				t.tags[strings.ToUpper(part)] = true
-			}
-		}
-		q.terms = append(q.terms, t)
 	}
-	return q, nil
+	return &t, nil
 }
 
 type eventItem struct {
@@ -160,7 +177,8 @@ func (ix *EventIndex) Filter(q EventQuery, vitalOnly bool) []*gedcom.Event {
 }
 
 func (q EventQuery) matches(it *eventItem) bool {
-	for _, t := range q.terms {
+	return holds(q.expr, func(i int) bool {
+		t := &q.terms[i]
 		var m bool
 		switch t.field {
 		case FieldYear:
@@ -174,9 +192,6 @@ func (q EventQuery) matches(it *eventItem) bool {
 		default:
 			m = strings.Contains(it.text, t.folded)
 		}
-		if m == t.negate {
-			return false
-		}
-	}
-	return true
+		return m != t.negate
+	})
 }

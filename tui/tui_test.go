@@ -821,6 +821,19 @@ func TestChecksView(t *testing.T) {
 	}
 }
 
+func TestSearchBooleanTyping(t *testing.T) {
+	a := newApp(t, Options{})
+	// Half typed, the query already finds the people.
+	a.typ("(smith | jones")
+	a.contains("Smith, John", "Jones, Henry")
+	a.notContains("unmatched")
+	a.typ(") born:<1816 |")
+	a.contains("Smith, William", "Jones, Robert")
+	a.notContains("Smith, John ")
+	a.typ(")")
+	a.contains("unmatched )")
+}
+
 func TestHintsView(t *testing.T) {
 	a := newApp(t, Options{Today: time.Date(2026, 10, 14, 0, 0, 0, 0, time.UTC)})
 	a.resize(110, 60)

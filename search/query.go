@@ -75,10 +75,12 @@ type Term struct {
 	cologne string
 }
 
-// Query is a parsed search query: all terms must match.
+// Query is a parsed search query: its terms, and how they combine (see
+// expr.go).
 type Query struct {
 	Raw   string
 	Terms []Term
+	expr  *expr
 }
 
 // IsEmpty reports whether the query has no terms.
@@ -172,54 +174,28 @@ func looksLikeYear(s string) bool {
 	return true
 }
 
-// tokenize splits a query into tokens, honoring double quotes.
-func tokenize(s string) ([]string, error) {
-	var toks []string
-	var cur strings.Builder
-	inQuote, have := false, false
-	for _, r := range s {
-		switch {
-		case r == '"':
-			inQuote = !inQuote
-			have = true
-		case !inQuote && (r == ' ' || r == '\t' || r == '\n'):
-			if have {
-				toks = append(toks, cur.String())
-				cur.Reset()
-				have = false
-			}
-		default:
-			cur.WriteRune(r)
-			have = true
-		}
-	}
-	if inQuote {
-		return nil, &ParseError{"unterminated quote"}
-	}
-	if have {
-		toks = append(toks, cur.String())
-	}
-	return toks, nil
-}
-
 // Parse parses a query string. Terms are separated by spaces and must all
-// match. A term is either text, matched against names, or field:value.
+// match, unless | or OR stands between them; brackets group (see
+// expr.go). A term is either text, matched against names, or field:value.
 // A leading '-' negates a term and a leading '~' matches names by sound.
 func Parse(s string) (Query, error) {
 	q := Query{Raw: s}
-	toks, err := tokenize(s)
+	toks, err := lex(s)
 	if err != nil {
 		return q, err
 	}
-	for _, tok := range toks {
-		t, err := parseTerm(tok)
-		if err != nil {
-			return Query{Raw: s}, err
+	x, err := parseExpr(toks, func(text string) (int, error) {
+		t, err := parseTerm(text)
+		if err != nil || t == nil {
+			return -1, err
 		}
-		if t != nil {
-			q.Terms = append(q.Terms, *t)
-		}
+		q.Terms = append(q.Terms, *t)
+		return len(q.Terms) - 1, nil
+	})
+	if err != nil {
+		return Query{Raw: s}, err
 	}
+	q.expr = x
 	return q, nil
 }
 
@@ -308,10 +284,10 @@ func parseTerm(tok string) (*Term, error) {
 
 // String renders the query in canonical form, mainly for debugging.
 func (q Query) String() string {
-	parts := make([]string, 0, len(q.Terms))
-	for _, t := range q.Terms {
+	return render(q.expr, func(i int) string {
+		t := q.Terms[i]
 		s := t.Value
-		if strings.ContainsAny(s, " \t") {
+		if strings.ContainsAny(s, " \t|()") {
 			s = `"` + s + `"`
 		}
 		if t.Field != FieldText {
@@ -320,9 +296,8 @@ func (q Query) String() string {
 		if t.Negate {
 			s = "-" + s
 		}
-		parts = append(parts, s)
-	}
-	return strings.Join(parts, " ")
+		return s
+	})
 }
 
 // fields returns the canonical field names usable in person queries.

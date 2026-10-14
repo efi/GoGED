@@ -293,6 +293,17 @@ packages.
   - `occupation:`, `note:`, `source:`, `any:`, `tag:PATH=value`,
     `has:WHAT`
   - year ranges such as `1850..1860`, `<1900`, `~1850` and `1850s`
+  - **Boolean structure** (`expr.go`, shared with the event filter): `lex`
+    splits words, brackets and `|` (outside quotes, noting spaces);
+    `parseExpr` builds an `expr` tree over the query's terms with "and"
+    (neighbours) binding tighter than `|`/`OR` (uppercase only; lowercase
+    "or" is a word), `-(…)` negating a group, `field:a|b` (no spaces)
+    meaning `field:a | field:b`. The end of the input is lenient (open
+    brackets close, a trailing `|` drops) for search as you type; a stray
+    `)` is an error. `Index.eval` scores: and adds, or takes the best
+    alternative, which also decides `NameIndex`; `holds` evaluates event
+    filters. `Query.Terms` stays the flat list; `String()` renders the
+    tree. Searching 100,000 people takes as long as before (≈0.11 s here).
 - **Year windows:** `eventYears(d, openEnded)` widens ABT, CAL and EST by ±2
   years. BEF and AFT are widened by 10 years only for born:, died: and
   alive: (`openEnded`); for `year:` and the events filter they count for the
