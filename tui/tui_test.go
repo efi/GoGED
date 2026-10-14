@@ -952,6 +952,7 @@ func TestEventsView(t *testing.T) {
 
 func TestStatsView(t *testing.T) {
 	a := newApp(t, Options{})
+	a.resize(100, 150)
 	a.press("alt+7")
 	a.contains("[7 Stats]", "Encoding", "UTF-8", "Individuals", "24  (10 male, 13 female, 1 other/unknown)", "Generations", "Longest lived",
 		"Mary Smith, ~80 years", "Most common surnames", "Smith")
@@ -978,6 +979,69 @@ func TestStatsView(t *testing.T) {
 	}
 }
 
+func TestStatsCharts(t *testing.T) {
+	a := newApp(t, Options{})
+	a.resize(100, 80)
+	a.press("alt+7", "end")
+	a.contains("Births per decade\n", "  1840s  7 "+strings.Repeat("━", 87)+"\n", "  1800s  0 \n", "  1850s  1 "+strings.Repeat("━", 12)+"╸\n",
+		"Age at death\n", "  60–69  4 ━━━━", "Age at marriage (each partner)\n", "  20–24  13 ━━━━",
+		"Children per family\n", "  3  1 "+strings.Repeat("━", 18)+"\n")
+	v := a.view()
+	if i := strings.Index(v, "Births per decade"); i < strings.Index(v, "Pedigree collapse") || i > strings.Index(v, "Warnings (0)") {
+		t.Errorf("the charts belong between the pedigree collapse and the warnings:\n%s", v)
+	}
+	// The bars of births link to the people born then. Selected, the bar
+	// keeps its look.
+	for range 20 {
+		if strings.Contains(a.view(), "▸ 1840s") {
+			break
+		}
+		a.press("up")
+	}
+	a.contains(a.m.st.selected.Render("▸ 1840s  7 ") + a.m.st.bar.Render(strings.Repeat("━", 87)))
+	a.press("enter")
+	if a.m.active != viewSearch || a.m.search.input.Value() != "born:1840..1849" {
+		t.Fatalf("view %d, query %q", a.m.active, a.m.search.input.Value())
+	}
+
+	// The bars fit a narrower screen.
+	a.press("alt+7")
+	a.resize(60, 80)
+	a.press("end")
+	a.contains("  1840s  7 " + strings.Repeat("━", 47) + "\n")
+	for _, l := range strings.Split(ansi.Strip(a.view()), "\n") {
+		if w := ansi.StringWidth(l); w > 60 || strings.Contains(l, "━…") {
+			t.Errorf("line of %d columns: %q", w, l)
+		}
+	}
+
+	b := newApp(t, Options{ASCII: true})
+	b.resize(100, 80)
+	b.press("alt+7", "end")
+	b.contains("  1850s  1 ============\n")
+}
+
+func TestBar(t *testing.T) {
+	for _, tt := range []struct {
+		n, most, room int
+		ascii         bool
+		want          string
+	}{
+		{1, 1, 8, false, "━━━━━━━━"},
+		{1, 16, 8, false, "╸"},
+		{1, 1000, 8, false, "╸"},
+		{3, 8, 8, false, "━━━"},
+		{1, 2, 3, false, "━╸"},
+		{0, 5, 10, false, ""},
+		{1, 1000, 8, true, "="},
+		{5, 10, 8, true, "===="},
+	} {
+		if got := bar(tt.n, tt.most, tt.room, tt.ascii); got != tt.want {
+			t.Errorf("bar(%d, %d, %d, %v) = %q, want %q", tt.n, tt.most, tt.room, tt.ascii, got, tt.want)
+		}
+	}
+}
+
 func TestStatsOnThisDay(t *testing.T) {
 	a := &app{t: t, m: New(loadSample(t), Options{Today: time.Date(2026, time.January, 4, 9, 0, 0, 0, time.Local)})}
 	a.resize(120, 80)
@@ -987,8 +1051,9 @@ func TestStatsOnThisDay(t *testing.T) {
 	if strings.Index(view, "On this day") > strings.Index(view, "Warnings (0)") || strings.Index(view, "On this day") < strings.Index(view, "Most common given names") {
 		t.Errorf("On this day belongs between the given names and the warnings:\n%s", view)
 	}
-	for i := 0; i < 50 && !strings.Contains(a.view(), "▸ 1850"); i++ {
-		a.press("down")
+	// Up from the bars of the charts, which come after it.
+	for i := 0; i < 50 && !strings.Contains(a.view(), "▸ 1850 · "); i++ {
+		a.press("up")
 	}
 	a.press("enter")
 	if a.currentID() != "I1" || a.m.active != viewPerson {

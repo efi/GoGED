@@ -643,6 +643,47 @@ func TestStats(t *testing.T) {
 	if got := s.CollapsedPeople(); got != "no one has an ancestor more than once" {
 		t.Errorf("CollapsedPeople = %q", got)
 	}
+	// Everybody has a year of birth; the ages at death are the lifespans.
+	if s.BirthYears.Total() != 24 || s.DeathAges.Total() != s.Lifespans || s.FamilySizes.Total() != s.Families {
+		t.Errorf("totals: %d births, %d deaths, %d families", s.BirthYears.Total(), s.DeathAges.Total(), s.FamilySizes.Total())
+	}
+	if got := fmt.Sprint(s.FamilySizes); got != "[{1 5} {2 3} {3 1}]" {
+		t.Errorf("family sizes = %s", got)
+	}
+	if got := fmt.Sprint(s.MarriageAges.Buckets(5, 50)); got != "[{15 19 false 1} {20 24 false 13} {25 29 false 3} {30 34 false 1}]" {
+		t.Errorf("ages at marriage = %s", got)
+	}
+	if got := fmt.Sprint(s.DeathAges.Buckets(10, 100)[:2]); got != "[{0 9 false 2} {10 19 false 0}]" {
+		t.Errorf("ages at death = %s", got)
+	}
+}
+
+func TestDistributionBuckets(t *testing.T) {
+	d := distribution(map[int]int{-11: 1, -5: 2, 3: 1, 27: 4})
+	for _, tt := range []struct {
+		width, last int
+		want        string
+	}{
+		{10, math.MaxInt, "[{-20 -11 false 1} {-10 -1 false 2} {0 9 false 1} {10 19 false 0} {20 29 false 4}]"},
+		{10, 20, "[{-20 -11 false 1} {-10 -1 false 2} {0 9 false 1} {10 19 false 0} {20 27 true 4}]"},
+		{5, 15, "[{-15 -11 false 1} {-10 -6 false 0} {-5 -1 false 2} {0 4 false 1} {5 9 false 0} {10 14 false 0} {15 27 true 4}]"},
+		// Everything in the open bucket.
+		{10, -20, "[{-20 27 true 8}]"},
+	} {
+		if got := fmt.Sprint(d.Buckets(tt.width, tt.last)); got != tt.want {
+			t.Errorf("Buckets(%d, %d) = %s\nwant %s", tt.width, tt.last, got, tt.want)
+		}
+	}
+	if d.Buckets(0, 10) != nil || Distribution(nil).Buckets(10, 10) != nil {
+		t.Error("buckets without width or values")
+	}
+
+	// The middle year of a range; open-ended dates give none.
+	doc := mustParse(t, "0 HEAD\n0 @A@ INDI\n1 BIRT\n2 DATE BET 1840 AND 1846\n0 @B@ INDI\n1 BIRT\n2 DATE BEF 1850\n"+
+		"0 @C@ INDI\n1 CHR\n2 DATE ABT 1700\n0 TRLR\n")
+	if got := fmt.Sprint(Compute(doc).BirthYears); got != "[{1700 1} {1843 1}]" {
+		t.Errorf("birth years = %s", got)
+	}
 }
 
 func TestPedigreeCollapse(t *testing.T) {

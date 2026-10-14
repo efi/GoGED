@@ -67,8 +67,9 @@ The screenshots below use the [GEDCOM-L sample file](testdata/Muster_GEDCOM_UTF-
 - **Statistics and validation**: counts, time span, generations, lifespans,
   most common names, the events that happened on this day in earlier years,
   the pedigree collapse (the share of places in everybody's pedigree taken
-  by an ancestor who is there more than once, as with married cousins), and
-  all warnings found while reading the file.
+  by an ancestor who is there more than once, as with married cousins), bar
+  charts of births over time, ages at death and at marriage and children per
+  family, and all warnings found while reading the file.
 - **Export** of everybody or only the people connected to the marked person:
   - to [GEXF](https://gexf.net/) (Graph Exchange XML Format) for Gephi,
     networkx and sigma.js: people are nodes with their sex, birth and death;
@@ -237,7 +238,7 @@ Try it with the sample file in [`testdata/family.ged`](testdata/family.ged).
 | Map     | arrows (`h` `j` `k` `l`), `+` `-` | pan, zoom |
 |         | `n` / `N`, `enter` | next/previous place (most events first), list the events at the place |
 |         | `0`, `w`, `c` | fit all places, whole world, center on the selected place |
-| Stats   | `enter` | list everybody with the selected surname |
+| Stats   | `enter` | list everybody with the selected surname, or born in the selected period |
 | Checks  | `←` `→`, `space` | lower or raise the threshold of a check (the findings change at once), switch it off or on |
 |         | `enter`, `o`, `r` | fold a check or open the person of a finding, open the other person, reset all thresholds |
 | Export  | `↑` `↓`, `←` `→` | choose a setting, change it: the format, everybody or the people connected to the marked person |

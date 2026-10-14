@@ -233,6 +233,20 @@ packages.
   doubted. family.ged and the GEDCOM-L sample have no collapse (0.0%);
   a child of first cousins has 2 repeats in 10 positions. The Stats view
   shows it before the warnings, `-stats` too.
+- **Distributions** (`Stats.BirthYears`, `DeathAges`, `MarriageAges`,
+  `FamilySizes`, each a sorted `Distribution` of value counts) feed the
+  bar charts of the Stats view; `Distribution.Buckets(width, last)` groups
+  them in aligned ranges, keeps empty ranges between, and gathers values
+  from `last` on in an open bucket. Birth years skip open-ended dates
+  and take the middle of ranges; ages use `AgeBetween`, as the lifespans
+  do. The view picks the period of the births so that at most 25 bars
+  show, and links each bar of births to a `born:` search. Bars are
+  lines, `━` in half columns with `╸` (`=` with `-ascii`): the user chose
+  them over solid blocks, whose large areas were an eye-sore, and over
+  `▄`, which is not centered in the row. A selected bar shows only its
+  label and count in reverse (`line.colsOnly`), so that the bar keeps its
+  look. The view lays the statistics out again on resize (`buildStats`),
+  without computing them again.
 - **`Compute`** (`stats.go`) for statistics, and **`OnThisDay`**
   (`onthisday.go`): exact dates only, compared in the Gregorian calendar,
   with 29 February shown on 28 February in common years.

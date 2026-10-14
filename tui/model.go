@@ -176,6 +176,9 @@ func (m *Model) layout() {
 	m.rebuildPerson()
 	m.ensureTreeVisible()
 	m.rebuildOverlay()
+	if m.stats.computed {
+		m.buildStats()
+	}
 }
 
 func (m *Model) setStatus(s string) { m.status, m.statusErr = s, false }
@@ -588,7 +591,7 @@ func (m Model) viewFooter() string {
 	case m.active == viewPlaces:
 		hints = [][2]string{{"↑↓", "select"}, {"←→", "collapse/expand"}, {"enter", "events here"}, {"f", "filter"}, {"M", "map"}, {"?", "help"}}
 	case m.active == viewStats:
-		hints = [][2]string{{"↑↓", "surnames"}, {"enter", "search surname"}, {"?", "help"}}
+		hints = [][2]string{{"↑↓", "surnames, births"}, {"enter", "list those people"}, {"?", "help"}}
 	case m.active == viewChecks:
 		hints = [][2]string{{"↑↓", "select"}, {"←→", "threshold"}, {"space", "on/off"}, {"enter", "fold/open"}, {"o", "other person"}, {"r", "reset"}, {"?", "help"}}
 	case m.active == viewExport && m.export.editing:

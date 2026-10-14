@@ -50,6 +50,88 @@ type Stats struct {
 	AncestorPositions float64
 	DistinctAncestors int
 	Collapsed         int
+
+	// Distributions for charts: years of birth (baptism if there is no
+	// birth; open-ended dates are left out), ages at death (as for
+	// Lifespans), the partners' ages at their marriages, and the number
+	// of children in each family.
+	BirthYears   Distribution
+	DeathAges    Distribution
+	MarriageAges Distribution
+	FamilySizes  Distribution
+}
+
+// ValueCount is a value with the number of times it occurs.
+type ValueCount struct {
+	Value int
+	Count int
+}
+
+// Distribution lists how often values occur, the smallest value first.
+type Distribution []ValueCount
+
+func distribution(m map[int]int) Distribution {
+	d := make(Distribution, 0, len(m))
+	for v, n := range m {
+		d = append(d, ValueCount{v, n})
+	}
+	sort.Slice(d, func(i, j int) bool { return d[i].Value < d[j].Value })
+	return d
+}
+
+// Total returns the number of values counted.
+func (d Distribution) Total() int {
+	n := 0
+	for _, vc := range d {
+		n += vc.Count
+	}
+	return n
+}
+
+// Bucket is a range of values, from Lo to Hi, with the number of times
+// they occur. The open last bucket of Buckets has no upper limit.
+type Bucket struct {
+	Lo, Hi int
+	Open   bool
+	Count  int
+}
+
+// Buckets groups the values in ranges width wide, aligned to multiples of
+// width, from the range of the smallest value to that of the largest;
+// ranges without values in between are kept. Values from last on share
+// one open bucket, which starts at last; the ranges then go up to it.
+func (d Distribution) Buckets(width, last int) []Bucket {
+	if len(d) == 0 || width < 1 {
+		return nil
+	}
+	floor := func(v int) int {
+		if v < 0 {
+			return -((-v + width - 1) / width) * width
+		}
+		return v / width * width
+	}
+	var out []Bucket
+	lo := floor(d[0].Value)
+	if d[0].Value < last {
+		top := last - 1
+		if d[len(d)-1].Value < last {
+			top = d[len(d)-1].Value
+		}
+		for b := lo; b <= floor(top); b += width {
+			out = append(out, Bucket{Lo: b, Hi: min(b+width, last) - 1})
+		}
+	}
+	if d[len(d)-1].Value >= last {
+		out = append(out, Bucket{Lo: last, Hi: d[len(d)-1].Value, Open: true})
+	}
+	for _, vc := range d {
+		i := len(out) - 1
+		if vc.Value < last {
+			i = (floor(vc.Value) - lo) / width
+		}
+		out[i].Count += vc.Count
+	}
+	return out
 }
 
 // PedigreeCollapse returns the file's pedigree collapse: the share of the
@@ -72,6 +154,7 @@ func Compute(doc *gedcom.Document) Stats {
 	surnames := map[string]int{}
 	given := map[string]int{}
 	places := map[string]bool{}
+	births, deaths, marriages, sizes := map[int]int{}, map[int]int{}, map[int]int{}, map[int]int{}
 	totalAge := 0
 
 	for _, ind := range doc.Individuals {
@@ -90,7 +173,11 @@ func Compute(doc *gedcom.Document) Stats {
 		if f := strings.Fields(n.Given); len(f) > 0 {
 			given[f[0]]++
 		}
+		if y, ok := birthYear(ind); ok {
+			births[y]++
+		}
 		if age, ok := gedcom.AgeBetween(ind.BirthDate(), ind.DeathDate()); ok {
+			deaths[age.Years]++
 			s.Lifespans++
 			totalAge += age.Years
 			if s.LongestLived == nil || age.Years > s.LongestAge.Years {
@@ -120,9 +207,35 @@ func Compute(doc *gedcom.Document) Stats {
 	}
 	s.Surnames = sortCounts(surnames)
 	s.GivenNames = sortCounts(given)
+	for _, f := range doc.Families {
+		sizes[len(f.Children)]++
+		m := f.Marriage()
+		if m == nil {
+			continue
+		}
+		for _, p := range f.Partners() {
+			if age, ok := gedcom.AgeBetween(p.BirthDate(), m.Date); ok {
+				marriages[age.Years]++
+			}
+		}
+	}
+	s.BirthYears, s.DeathAges = distribution(births), distribution(deaths)
+	s.MarriageAges, s.FamilySizes = distribution(marriages), distribution(sizes)
 	s.Generations = generations(doc)
 	pedigreeCollapse(doc, &s)
 	return s
+}
+
+// birthYear returns the year of birth (or baptism), the middle one of a
+// range; open-ended dates and periods give none.
+func birthYear(ind *gedcom.Individual) (int, bool) {
+	d := ind.BirthDate()
+	switch d.Modifier {
+	case gedcom.DateBefore, gedcom.DateAfter, gedcom.DateFrom, gedcom.DateTo, gedcom.DateFromTo:
+		return 0, false
+	}
+	lo, hi, ok := d.YearRange()
+	return lo + (hi-lo)/2, ok
 }
 
 // CollapsedPeople says how many people have an ancestor more than once.

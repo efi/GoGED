@@ -2,16 +2,19 @@ package tui
 
 import (
 	"fmt"
+	"math"
 	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/efi/goged/genealogy"
 )
 
 type statsState struct {
 	doc      docView
 	computed bool
+	stats    genealogy.Stats
 }
 
 const maxListedWarnings = 200
@@ -22,7 +25,13 @@ func (m *Model) ensureStats() {
 		return
 	}
 	m.stats.computed = true
-	s := genealogy.Compute(m.doc)
+	m.stats.stats = genealogy.Compute(m.doc)
+	m.buildStats()
+}
+
+// buildStats lays out the statistics for the width of the screen.
+func (m *Model) buildStats() {
+	s := m.stats.stats
 	var ls []line
 	row := func(label, value string) line {
 		return textLine(span{text: pad(label, 22), style: m.st.label}, span{text: value, style: m.st.name.UnsetBold()})
@@ -91,6 +100,7 @@ func (m *Model) ensureStats() {
 			row("Repeated ancestors", fmt.Sprintf("%.1f%% of all ancestor positions · %s", s.PedigreeCollapse(), s.CollapsedPeople())),
 			dimLine(m, "every place in someone's pedigree is a position; it repeats when an ancestor is there more than once, as with married cousins"))
 	}
+	ls = append(ls, m.statsCharts(s)...)
 
 	ls = append(ls, blank, m.sectionLine(fmt.Sprintf("Warnings (%d)", len(m.doc.Warnings))))
 	if len(m.doc.Warnings) == 0 {
@@ -104,6 +114,96 @@ func (m *Model) ensureStats() {
 		ls = append(ls, dimLine(m, w.String()))
 	}
 	m.stats.doc.set(ls)
+}
+
+// birthPeriods are the widths of the ranges of birth years, with their
+// names; the first that needs no more than maxBars bars is used.
+var birthPeriods = []struct {
+	years int
+	name  string
+}{{10, "decade"}, {20, "20 years"}, {25, "25 years"}, {50, "50 years"}, {100, "century"}, {500, "500 years"}, {1000, "millennium"}}
+
+const maxBars = 25
+
+// statsCharts draws the distributions as bar charts. A bar of births
+// links to a search for the people born then.
+func (m *Model) statsCharts(s genealogy.Stats) []line {
+	var ls []line
+	if len(s.BirthYears) > 0 {
+		var buckets []genealogy.Bucket
+		var name string
+		for _, p := range birthPeriods {
+			if buckets, name = s.BirthYears.Buckets(p.years, math.MaxInt), p.name; len(buckets) <= maxBars {
+				break
+			}
+		}
+		ls = append(ls, m.barChart("Births per "+name, buckets, func(b genealogy.Bucket) (string, string) {
+			if b.Hi-b.Lo == 9 && b.Lo%10 == 0 && b.Lo >= 0 {
+				return fmt.Sprintf("%ds", b.Lo), fmt.Sprintf("born:%d..%d", b.Lo, b.Hi)
+			}
+			return fmt.Sprintf("%d–%d", b.Lo, b.Hi), fmt.Sprintf("born:%d..%d", b.Lo, b.Hi)
+		})...)
+	}
+	ages := func(b genealogy.Bucket) (string, string) {
+		if b.Open {
+			return fmt.Sprintf("%d+", b.Lo), ""
+		}
+		if b.Lo == b.Hi {
+			return fmt.Sprint(b.Lo), ""
+		}
+		return fmt.Sprintf("%d–%d", b.Lo, b.Hi), ""
+	}
+	if len(s.DeathAges) > 0 {
+		ls = append(ls, m.barChart("Age at death", s.DeathAges.Buckets(10, 100), ages)...)
+	}
+	if len(s.MarriageAges) > 0 {
+		ls = append(ls, m.barChart("Age at marriage (each partner)", s.MarriageAges.Buckets(5, 50), ages)...)
+	}
+	if len(s.FamilySizes) > 0 {
+		ls = append(ls, m.barChart("Children per family", s.FamilySizes.Buckets(1, 12), ages)...)
+	}
+	return ls
+}
+
+// barChart draws a heading and a bar for every bucket, as long as the
+// screen allows for the largest. label names a bucket and gives the query
+// its line links to, if any.
+func (m *Model) barChart(title string, buckets []genealogy.Bucket, label func(genealogy.Bucket) (string, string)) []line {
+	most, labelW := 0, 0
+	for _, b := range buckets {
+		most = max(most, b.Count)
+		l, _ := label(b)
+		labelW = max(labelW, ansi.StringWidth(l))
+	}
+	countW := len(fmt.Sprint(most))
+	room := max(4, m.width-4-labelW-2-countW-1)
+	ls := []line{textLine(), m.sectionLine(title)}
+	for _, b := range buckets {
+		l, query := label(b)
+		row := textLine(
+			span{text: l, style: m.st.label, width: labelW + 2},
+			span{text: fmt.Sprintf("%*d", countW, b.Count), style: m.st.dim, width: countW + 1},
+			span{text: bar(b.Count, most, room, m.opts.ASCII), style: m.st.bar})
+		row.query, row.colsOnly = query, true
+		if b.Count == 0 {
+			row.query = ""
+		}
+		ls = append(ls, row)
+	}
+	return ls
+}
+
+// bar draws n of most as a line up to room columns long, in half columns;
+// any count shows. Lines rather than blocks keep the charts light.
+func bar(n, most, room int, ascii bool) string {
+	if n == 0 || most == 0 {
+		return ""
+	}
+	if ascii {
+		return strings.Repeat("=", max(1, (n*room+most/2)/most))
+	}
+	halves := max(1, (n*room*2+most/2)/most)
+	return strings.Repeat("━", halves/2) + []string{"", "╸"}[halves%2]
 }
 
 // onThisDay lists the events that happened on today's day and month in

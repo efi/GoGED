@@ -21,13 +21,16 @@ type span struct {
 // line is one row of a scrollable document. Lines with a target person or
 // a query are selectable links. A heading starts a section; printed pages
 // keep it together with what follows. A continuation (cont) is a further
-// row of the line before it, made by wrapping.
+// row of the line before it, made by wrapping. Selected, a line is shown
+// in reverse; with colsOnly, only its columns are, and the text after
+// them keeps its style, so that a bar keeps its look.
 type line struct {
-	spans   []span
-	target  *gedcom.Individual
-	query   string
-	heading bool
-	cont    bool
+	spans    []span
+	target   *gedcom.Individual
+	query    string
+	heading  bool
+	cont     bool
+	colsOnly bool
 }
 
 func (l line) isLink() bool { return l.target != nil || l.query != "" }
@@ -368,13 +371,22 @@ func (d *docView) render(width, height int, st styles) string {
 			selected = i == sel
 		}
 		var s string
-		if selected {
+		switch {
+		case selected && l.colsOnly:
+			cols := line{spans: l.spans[:l.tail()]}
+			var b strings.Builder
+			b.WriteString(st.selected.Render("▸ " + cols.plain()))
+			for _, sp := range l.spans[l.tail():] {
+				b.WriteString(sp.style.Render(sp.text))
+			}
+			s = b.String()
+		case selected:
 			marker := "▸ "
 			if l.cont {
 				marker = "  "
 			}
 			s = st.selected.Render(marker + l.plain())
-		} else {
+		default:
 			var b strings.Builder
 			b.WriteString("  ")
 			for _, sp := range l.layout(width-2, false)[0] {
