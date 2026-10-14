@@ -22,11 +22,12 @@ const (
 	viewPlaces
 	viewMap
 	viewStats
+	viewChecks
 	viewExport
 	viewCount
 )
 
-var viewNames = [viewCount]string{"Search", "Person", "Tree", "Events", "Places", "Map", "Stats", "Export"}
+var viewNames = [viewCount]string{"Search", "Person", "Tree", "Events", "Places", "Map", "Stats", "Checks", "Export"}
 
 // Options configure the interface.
 type Options struct {
@@ -75,6 +76,7 @@ type Model struct {
 	places placesState
 	mapv   mapState
 	stats  statsState
+	checks checksState
 	export exportState
 }
 
@@ -233,6 +235,9 @@ func (m *Model) switchTo(v view) {
 	if v == viewMap {
 		m.ensureMap()
 	}
+	if v == viewChecks {
+		m.ensureChecks()
+	}
 	if v == viewExport {
 		m.ensureExport()
 	}
@@ -327,6 +332,8 @@ func (m *Model) handleKey(msg tea.KeyMsg) tea.Cmd {
 		handled, cmd = m.updateMap(msg)
 	case viewStats:
 		handled, cmd = m.updateStats(msg)
+	case viewChecks:
+		handled, cmd = m.updateChecks(msg)
 	case viewExport:
 		handled, cmd = m.updateExport(msg)
 	}
@@ -348,9 +355,9 @@ func (m *Model) handleKey(msg tea.KeyMsg) tea.Cmd {
 		m.cycle(1)
 	case "shift+tab":
 		m.cycle(-1)
-	case "1", "2", "3", "4", "5", "6", "7", "8":
+	case "1", "2", "3", "4", "5", "6", "7", "8", "9":
 		m.switchTo(view(key[0] - '1'))
-	case "alt+1", "alt+2", "alt+3", "alt+4", "alt+5", "alt+6", "alt+7", "alt+8":
+	case "alt+1", "alt+2", "alt+3", "alt+4", "alt+5", "alt+6", "alt+7", "alt+8", "alt+9":
 		m.switchTo(view(key[4] - '1'))
 	case "backspace", "b", "[", "alt+left":
 		m.back()
@@ -402,7 +409,7 @@ func (m *Model) typing() bool {
 // keys through.
 func isViewKey(key string) bool {
 	switch key {
-	case "tab", "shift+tab", "alt+1", "alt+2", "alt+3", "alt+4", "alt+5", "alt+6", "alt+7", "alt+8":
+	case "tab", "shift+tab", "alt+1", "alt+2", "alt+3", "alt+4", "alt+5", "alt+6", "alt+7", "alt+8", "alt+9":
 		return true
 	}
 	return false
@@ -444,6 +451,8 @@ func (m Model) View() string {
 		body = m.viewMap(h)
 	case m.active == viewStats:
 		body = m.viewStats(h)
+	case m.active == viewChecks:
+		body = m.viewChecks(h)
 	case m.active == viewExport:
 		body = m.viewExport(h)
 	}
@@ -484,8 +493,10 @@ func (m Model) viewHeader() string {
 			tabs = append(tabs, m.st.tabInactive.Render(" "+label+" "))
 		}
 	}
+	// An open overlay comes first, so that it shows however narrow the
+	// screen is.
 	if m.showHelp {
-		tabs = append(tabs, m.st.tabActive.Render("["+m.overlay+"]"))
+		tabs = append([]string{m.st.tabActive.Render("[" + m.overlay + "]")}, tabs...)
 	}
 	return fit(title, m.width) + "\n" + fit(strings.Join(tabs, " "), m.width)
 }
@@ -502,7 +513,7 @@ func (m Model) viewFooter() string {
 	case m.showHelp:
 		hints = [][2]string{{"↑↓", "scroll"}, {"any key", "close"}}
 	case m.active == viewSearch:
-		hints = [][2]string{{"type", "search"}, {"↑↓", "select"}, {"enter", "open"}, {"esc", "clear/back"}, {"tab/alt+1-8", "views"}, {"?", "help"}}
+		hints = [][2]string{{"type", "search"}, {"↑↓", "select"}, {"enter", "open"}, {"esc", "clear/back"}, {"tab/alt+1-9", "views"}, {"?", "help"}}
 	case m.active == viewPerson:
 		hints = [][2]string{{"↑↓", "relatives"}, {"enter", "go"}, {"←→", "history"}, {"t/d", "trees"}, {"c", "context"}, {"m", "mark"}, {"/", "search"}, {"?", "help"}}
 	case m.active == viewTree:
@@ -521,6 +532,8 @@ func (m Model) viewFooter() string {
 		hints = [][2]string{{"↑↓", "select"}, {"←→", "collapse/expand"}, {"enter", "events here"}, {"f", "filter"}, {"M", "map"}, {"?", "help"}}
 	case m.active == viewStats:
 		hints = [][2]string{{"↑↓", "surnames"}, {"enter", "search surname"}, {"?", "help"}}
+	case m.active == viewChecks:
+		hints = [][2]string{{"↑↓", "select"}, {"←→", "threshold"}, {"space", "on/off"}, {"enter", "fold/open"}, {"o", "other person"}, {"r", "reset"}, {"?", "help"}}
 	case m.active == viewExport && m.export.editing:
 		hints = [][2]string{{"type", "file name"}, {"enter", "done"}, {"esc", "cancel"}}
 	case m.active == viewExport:

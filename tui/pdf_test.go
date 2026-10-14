@@ -208,7 +208,7 @@ func TestExportViewPDF(t *testing.T) {
 	a := newApp(t, Options{})
 	dir := t.TempDir()
 	t.Chdir(dir)
-	a.press("alt+8", "right")
+	a.press("alt+9", "right")
 	a.contains("◂ PDF ▸", "pages to print or read", "family.pdf", "Nobody is marked")
 	a.press("down", "down", "down", "enter")
 	a.contains("as PDF to family.pdf")

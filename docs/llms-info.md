@@ -14,7 +14,7 @@ important events listed, jump to relatives, render tree views. Extensive test
 suite to go alongside." Everything since grew from that brief and from
 feedback on the GEDCOM-L sample file (`testdata/Muster_GEDCOM_UTF-8.ged`).
 
-Main features, by TUI tab (keys 1–8, or alt+1–8 while typing):
+Main features, by TUI tab (keys 1–9, or alt+1–9 while typing):
 
 1. **Search**: query language with fields, ranges, negation, phonetic matching.
 2. **Person**: parents, siblings, families, associations, timeline, notes,
@@ -25,7 +25,9 @@ Main features, by TUI tab (keys 1–8, or alt+1–8 while typing):
 6. **Map** (experimental): Braille world map with markers, using embedded
    Natural Earth data.
 7. **Stats**: counts, time span, names, "On this day", warnings.
-8. **Export**: everybody or the people connected to the marked person, as a
+8. **Checks**: plausibility checks with thresholds that can be changed
+   while looking at the findings.
+9. **Export**: everybody or the people connected to the marked person, as a
    GEXF graph or as PDF pages.
 
 The batch flags are `-q`, `-tree`, `-desc`, `-timeline`, `-relate ID1,ID2`,
@@ -204,6 +206,20 @@ packages.
   jurisdictions. Events sharing a `_LOC` record are grouped under the place
   as written for the most recent dated event (`canonicalPlaces`); the other
   spellings become `Aliases`.
+- **Plausibility checks** (`checks.go`): `Checks` is a data-driven list of
+  `Check`s (ID, title with `%d` for the threshold, default `Param`, `Min`,
+  `Max`, unit, run function) returning `Finding`s (person, other person,
+  message). Imprecise dates are handled conservatively by `bounds`: BEF and
+  AFT are open on one side, ABT/CAL/EST widened by two years, so only
+  certain problems are reported. Ages are completed years from calendar
+  dates (`ages`/`completed`), not days divided by 365.25, which gave
+  off-by-one errors on birthdays. Parental age checks follow birth links
+  only. Duplicates are bucketed by Soundex+Cologne of the first given
+  name and the surname; namesake siblings only count if they may share a
+  birthday. The TUI (`tui/checks.go`) keeps a threshold, an on/off switch
+  and the findings per check and reruns only the changed check. The
+  GEDCOM-L sample yields three findings: Wilhelm Schüchter's two birth
+  dates, and two siblings born 81 and 189 days apart.
 - **`Compute`** (`stats.go`) for statistics, and **`OnThisDay`**
   (`onthisday.go`): exact dates only, compared in the Gregorian calendar,
   with 29 February shown on 28 February in common years.

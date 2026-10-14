@@ -13,6 +13,7 @@ import (
 	"github.com/efi/goged/chart"
 	"github.com/efi/goged/export"
 	"github.com/efi/goged/gedcom"
+	"github.com/efi/goged/genealogy"
 	"github.com/efi/goged/worldmap"
 	"github.com/muesli/termenv"
 )
@@ -703,12 +704,82 @@ func TestTreeDuplicates(t *testing.T) {
 	}
 }
 
+func TestChecksView(t *testing.T) {
+	a := newMusterApp(t)
+	a.press("alt+8")
+	a.contains("[8 Checks]", "3 findings in 3 people", "Born less than 9 months after a sibling (twins excepted)",
+		"Wilhelm Schüchter (1936–1964)  birth 17 Nov 1936 and birth 18 Nov 1936", "at most 189 days after Hans Mustermann")
+	row := func(id string) int {
+		for r, cr := range a.m.checks.rows {
+			if genealogy.Checks[cr.check].ID == id && cr.finding < 0 {
+				return r
+			}
+		}
+		t.Fatalf("no row for %s", id)
+		return 0
+	}
+
+	// A check without a threshold says so.
+	a.press("left")
+	a.contains("this check has no threshold")
+
+	// Lower the threshold: the findings change at once.
+	for range row("siblings-close") {
+		a.press("down")
+	}
+	a.press("left", "left", "left")
+	a.contains("Born less than 6 months after a sibling (twins excepted): 1 finding", "2 findings in 2 people")
+	a.notContains("189 days")
+	a.press("right", "right", "right")
+	a.contains("189 days", "3 findings in 3 people")
+
+	// Switched off, a check finds nothing.
+	a.press(" ")
+	a.contains("1 finding in 1 person")
+	a.notContains("189 days")
+	a.press(" ")
+	a.contains("3 findings")
+
+	// enter folds and unfolds the check, and opens the person of a
+	// finding; o opens the other person.
+	a.press("enter")
+	a.notContains("189 days")
+	a.press("enter", "down", "down")
+	a.press("enter")
+	if a.m.active != viewPerson || a.currentID() != "I1" {
+		t.Fatalf("enter opened %v %s", a.m.active, a.currentID())
+	}
+	a.press("alt+8", "o")
+	if a.currentID() != "I9" {
+		t.Errorf("o opened %s, want Hans (I9)", a.currentID())
+	}
+
+	// Thresholds stay within their range; r resets them.
+	a.press("alt+8")
+	a.m.checks.cursor = row("old-age")
+	for range 50 {
+		a.press("right")
+	}
+	a.contains("Lived longer than 150 years")
+	a.press("r")
+	a.contains("all checks are on, with the usual thresholds", "Lived longer than 110 years")
+	a.press("-")
+	a.notContains("Wilhelm Schüchter")
+	a.press("+")
+	a.contains("Wilhelm Schüchter")
+	for _, l := range strings.Split(a.view(), "\n") {
+		if w := lipgloss.Width(l); w > 110 {
+			t.Errorf("line too wide (%d): %q", w, l)
+		}
+	}
+}
+
 func TestExportView(t *testing.T) {
 	a := newApp(t, Options{})
 	dir := t.TempDir()
 	t.Chdir(dir) // default file names are relative to the current directory
-	a.press("alt+8")
-	a.contains("[8 Export]", "Format", "GEXF", "Graph Exchange XML Format", "◂ all ▸", "24 people · 37 relationships",
+	a.press("alt+9")
+	a.contains("[9 Export]", "Format", "GEXF", "Graph Exchange XML Format", "◂ all ▸", "24 people · 37 relationships",
 		"family.gexf", "mark a person with m to export only the people connected to them", "↑↓ choose")
 
 	// The connected people need a marked person.
@@ -746,7 +817,7 @@ func TestExportView(t *testing.T) {
 
 	// Mark Harold: his connected people get a file name of their own.
 	a.openPerson("I20")
-	a.press("m", "alt+8", "up", "up", "right")
+	a.press("m", "alt+9", "up", "up", "right")
 	a.contains("◂ connected to ★ Harold Smith ▸", "24 people · 37 relationships", "family-I20.gexf")
 	a.notContains("mark a person with m to export")
 	a.press("down", "down", "enter")
@@ -985,6 +1056,10 @@ func TestViewSwitching(t *testing.T) {
 		t.Errorf("active = %v", a.m.active)
 	}
 	a.press("tab")
+	if a.m.active != viewChecks {
+		t.Errorf("active = %v", a.m.active)
+	}
+	a.press("tab")
 	if a.m.active != viewExport {
 		t.Errorf("active = %v", a.m.active)
 	}
@@ -1004,11 +1079,11 @@ func TestViewSwitching(t *testing.T) {
 	}
 	a.openPerson("I3")
 	var seq []view
-	for range 8 {
+	for range 9 {
 		a.press("tab")
 		seq = append(seq, a.m.active)
 	}
-	want := []view{viewTree, viewEvents, viewPlaces, viewMap, viewStats, viewExport, viewSearch, viewPerson}
+	want := []view{viewTree, viewEvents, viewPlaces, viewMap, viewStats, viewChecks, viewExport, viewSearch, viewPerson}
 	for i := range want {
 		if seq[i] != want[i] {
 			t.Fatalf("tab sequence = %v, want %v", seq, want)

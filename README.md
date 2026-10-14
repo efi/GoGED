@@ -57,6 +57,13 @@ The screenshots below use the [GEDCOM-L sample file](testdata/Muster_GEDCOM_UTF-
   "brother-in-law", "husband's aunt", "co-father-in-law", "adoptive father"),
   including the closest common ancestors. Blood relationships follow birth
   links only; adoptive, foster and step links are named as such.
+- **Plausibility checks** with adjustable thresholds: born after death, born
+  or died twice on different days, events before birth or after death,
+  implausible ages (very old, parents too young or old, married too young),
+  children born after a parent's death or too soon after a sibling, and
+  people who may have been entered twice (names that sound alike, born
+  close together). Imprecise dates only count where the problem is
+  certain; every finding links to the people concerned.
 - **Statistics and validation**: counts, time span, generations, lifespans,
   most common names, the events that happened on this day in earlier years,
   and all warnings found while reading the file.
@@ -194,7 +201,7 @@ Try it with the sample file in [`testdata/family.ged`](testdata/family.ged).
 | Where   | Keys | Action |
 |---------|------|--------|
 | Global  | `/` | search |
-|         | `tab` / `shift+tab`, `1`…`8` (`alt+1`…`alt+8` while typing) | switch view: search, person, tree, events, places, map, stats, export |
+|         | `tab` / `shift+tab`, `1`…`9` (`alt+1`…`alt+9` while typing) | switch view: search, person, tree, events, places, map, stats, checks, export |
 |         | `b`, `backspace`, `[` / `]` | back / forward in history |
 |         | `m` | mark the current person as reference for relationships (again to clear) |
 |         | `W` | wrap long lines in the person view instead of cutting them (again to cut) |
@@ -215,6 +222,8 @@ Try it with the sample file in [`testdata/family.ged`](testdata/family.ged).
 |         | `n` / `N`, `enter` | next/previous place (most events first), list the events at the place |
 |         | `0`, `w`, `c` | fit all places, whole world, center on the selected place |
 | Stats   | `enter` | list everybody with the selected surname |
+| Checks  | `←` `→`, `space` | lower or raise the threshold of a check (the findings change at once), switch it off or on |
+|         | `enter`, `o`, `r` | fold a check or open the person of a finding, open the other person, reset all thresholds |
 | Export  | `↑` `↓`, `←` `→` | choose a setting, change it: the format, everybody or the people connected to the marked person |
 |         | `enter` | edit the file name, or export (an existing file is replaced after `enter` again) |
 
