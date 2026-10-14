@@ -48,7 +48,9 @@ func (m *Model) ensureMap() {
 		return
 	}
 	s.ready = true
-	s.world, s.err = worldmap.Load()
+	if s.world == nil && s.err == nil {
+		s.world, s.err = worldmap.Load()
+	}
 	m.ensurePlaces()
 	located := m.places.root.Located()
 	sort.SliceStable(located, func(i, j int) bool {

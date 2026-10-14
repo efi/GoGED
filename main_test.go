@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -307,7 +308,7 @@ func TestStdin(t *testing.T) {
 		t.Errorf("stdin query: %d %q %q", r.code, r.stdout, r.stderr)
 	}
 	r = runCLI(t, string(data), "-")
-	if r.tui == nil || !r.stdin || r.tui.Title != "stdin" {
+	if r.tui == nil || !r.stdin || r.tui.Title != "stdin" || r.tui.Path != "" || r.tui.Load != nil {
 		t.Errorf("TUI from stdin: %+v %v", r.tui, r.stdin)
 	}
 }
@@ -317,9 +318,30 @@ func TestStartsTUI(t *testing.T) {
 	if r.code != 0 || r.tui == nil {
 		t.Fatalf("exit %d, tui %v, stderr %s", r.code, r.tui, r.stderr)
 	}
-	want := tui.Options{Title: "family.ged", StartPerson: "I3", Generations: 6, ASCII: true, NoMouse: true}
-	if *r.tui != want || r.stdin {
-		t.Errorf("options = %+v, want %+v", *r.tui, want)
+	// The browser can load the file again.
+	got := *r.tui
+	if got.Load == nil {
+		t.Fatal("no Load")
+	}
+	if doc, err := got.Load(); err != nil || len(doc.Individuals) != 24 {
+		t.Errorf("Load: %v", err)
+	}
+	got.Load = nil
+	want := tui.Options{Title: "family.ged", StartPerson: "I3", Generations: 6, ASCII: true, NoMouse: true, Path: sample}
+	if !reflect.DeepEqual(got, want) || r.stdin {
+		t.Errorf("options = %+v, want %+v", got, want)
+	}
+	// What is restricted stays hidden when the file is loaded again,
+	// unless it was shown.
+	for _, show := range []bool{false, true} {
+		args := []string{filepath.Join("testdata", "Muster_GEDCOM_UTF-8.ged")}
+		if show {
+			args = append(args, "-show-restricted")
+		}
+		doc, err := runCLI(t, "", args...).tui.Load()
+		if err != nil || (doc.Redactions > 0) == show {
+			t.Errorf("show %v: %v, %d redactions", show, err, doc.Redactions)
+		}
 	}
 
 	var errOut bytes.Buffer

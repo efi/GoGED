@@ -77,6 +77,9 @@ The screenshots below use the [GEDCOM-L sample file](testdata/Muster_GEDCOM_UTF-
     wrap, every column within its own place;
   - to HTML, the same contents, people and places as one web page with links
     between them, in any script the browser can show.
+- **Watches the file**: when another program, such as a genealogy editor,
+  has changed it, goged asks whether to load it again, and keeps the
+  person, history, search, filters and settings where it can.
 - **Mouse**: click to select and again to open, click the tabs, scroll with
   the wheel, zoom the map around the pointer and drag it. `-no-mouse` leaves
   the mouse to the terminal for selecting text.
@@ -209,6 +212,7 @@ Try it with the sample file in [`testdata/family.ged`](testdata/family.ged).
 |         | `b`, `backspace`, `[` / `]` | back / forward in history |
 |         | `m` | mark the current person as reference for relationships (again to clear) |
 |         | `W` | wrap long lines in the person view instead of cutting them (again to cut) |
+|         | `y` / `n` / `N` | when another program has changed the file: load it again, not this time, never this session |
 |         | `?` | help · `L` licenses · `q`, `ctrl+c` quit |
 | Mouse   | click | select a row, a relative or a person in the tree; click it again to do what `enter` does |
 |         | click a tab, the marked person (★) | switch views; open the marked person |

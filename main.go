@@ -130,21 +130,32 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, startTUI tuiR
 	}
 
 	path := positional[0]
+	// load reads the file; the browser uses it again to reload the file.
+	load := func() (*gedcom.Document, error) {
+		doc, err := gedcom.ParseFile(path)
+		if err != nil {
+			return nil, err
+		}
+		if !*showRes {
+			doc = doc.Redacted()
+		}
+		return doc, nil
+	}
 	var (
 		doc *gedcom.Document
 		err error
 	)
 	if path == "-" {
 		doc, err = gedcom.Parse(stdin)
+		if err == nil && !*showRes {
+			doc = doc.Redacted()
+		}
 	} else {
-		doc, err = gedcom.ParseFile(path)
+		doc, err = load()
 	}
 	if err != nil {
 		fmt.Fprintf(stderr, "goged: %s: %v\n", path, err)
 		return 1
-	}
-	if !*showRes {
-		doc = doc.Redacted()
 	}
 
 	chartOpts := chart.Options{Generations: *gens, ASCII: *ascii}
@@ -211,6 +222,8 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, startTUI tuiR
 	opts := tui.Options{Title: filepath.Base(path), StartPerson: *person, Generations: *gens, ASCII: *ascii, NoMouse: *noMouse}
 	if path == "-" {
 		opts.Title = "stdin"
+	} else {
+		opts.Path, opts.Load = path, load
 	}
 	if err := startTUI(doc, opts, path == "-"); err != nil {
 		fmt.Fprintf(stderr, "goged: %v\n", err)

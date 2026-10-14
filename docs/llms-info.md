@@ -380,7 +380,8 @@ packages.
   they differ again. Horizontal scrolling cuts lines with `ansi.Cut`; see
   section 7 for why not `CutWc`.
 - **Options:** `Title`, `StartPerson`, `Generations`, `ASCII`, `NoMouse`
-  (read by `runTUI` in main.go), and `Today` (for tests of "On this day").
+  (read by `runTUI` in main.go), `Path` and `Load` (for reloading; not
+  set for stdin), and `Today` (for tests of "On this day").
 - **Mouse** (`mouse.go`): the program asks for cell motion events. A click
   selects and a click on the selection presses enter (`Model.press`
   replays keys, so the views keep one place for what enter does); a click
@@ -392,6 +393,21 @@ packages.
   (`scrollList`, `docView.scrollBy`); on the map it zooms around the
   pointer (`mapPoint`), and dragging pans it. The tests in
   `mouse_test.go` click on text found on the screen (`clickOn`).
+- **Reloading** (`reload.go`): with `Options.Path` and `Load` (main.go
+  passes the loader it used, so `-show-restricted` holds), a `tea.Tick`
+  stats the file every second (`statFile` runs in the command, not in
+  `Update`). A new size or modification time must stay the same for one
+  more tick before the dialog asks: "Yes, reload", "Not this time" (asks
+  again at the next version), "Never this session" (stops the ticks).
+  Keys within `dialogGrace` (0.5 s) after it appears are ignored, as they
+  were typed for the view (`n` or `N` in a search). The dialog is drawn
+  over the body by `overlay`; `reloadDialog` lays it out for both drawing
+  and clicks. Loading runs in a command; `replaceDoc` builds a new
+  `Model` with `New` and carries over what still exists by ID or place
+  name: history, marked person, query, filters, folded places, the map's
+  view and selection, check thresholds, export settings, the view. The
+  tests change a copy of family.ged (`rewrite`) and call `statFile`
+  themselves (`poll`).
 
 ## 5. GEDCOM knowledge worth keeping
 

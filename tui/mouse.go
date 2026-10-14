@@ -40,6 +40,13 @@ func (m *Model) handleMouse(msg tea.MouseMsg) tea.Cmd {
 		return nil
 	}
 	m.status, m.statusErr = "", false
+	if m.watch.asking {
+		// The dialog only answers its buttons.
+		if msg.Button == tea.MouseButtonLeft {
+			return m.clickDialog(x, y)
+		}
+		return nil
+	}
 	switch msg.Button {
 	case tea.MouseButtonWheelUp:
 		m.wheel(0, -wheelLines, x, y)

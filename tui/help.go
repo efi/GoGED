@@ -20,6 +20,7 @@ var helpSections = [][]string{
 	{"i", "show the current person"},
 	{"m", "mark the current person as reference (relationships are shown relative to them); again to clear"},
 	{"W", "wrap long lines in the person view instead of cutting them; again to cut"},
+	{"y / n / N", "when another program has changed the file: load it again, not this time, never this session"},
 	{"?", "this help"},
 	{"L", "licenses of the map data and the software goged is built with"},
 	{"q, ctrl+c", "quit"},

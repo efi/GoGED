@@ -42,6 +42,10 @@ type Options struct {
 	// NoMouse leaves the mouse to the terminal, which can then select
 	// text as usual.
 	NoMouse bool
+	// Path is the file shown. With Load, which reads it again, the browser
+	// watches it and offers to reload it when another program changes it.
+	Path string
+	Load func() (*gedcom.Document, error)
 	// Today is the date used for "On this day"; zero means the current date.
 	Today time.Time
 }
@@ -81,6 +85,8 @@ type Model struct {
 	stats  statsState
 	checks checksState
 	export exportState
+
+	watch watchState
 }
 
 // New creates the model for a document.
@@ -102,6 +108,9 @@ func New(doc *gedcom.Document, opts Options) Model {
 	m.places = newPlacesState()
 	m.export = newExportState()
 	m.tree.gens = opts.Generations
+	if opts.Path != "" {
+		m.watch.loaded = statFile(opts.Path).state
+	}
 	m.runSearch()
 	m.active = viewSearch
 	if opts.StartPerson != "" {
@@ -120,6 +129,9 @@ func (m Model) Init() tea.Cmd {
 	title := "goged"
 	if m.opts.Title != "" {
 		title += " — " + m.opts.Title
+	}
+	if m.watching() {
+		return tea.Batch(tea.SetWindowTitle(title), m.watchTick())
 	}
 	return tea.SetWindowTitle(title)
 }
@@ -140,6 +152,10 @@ func (m *Model) update(msg tea.Msg) tea.Cmd {
 		return m.handleKey(msg)
 	case tea.MouseMsg:
 		return m.handleMouse(msg)
+	case statMsg:
+		return m.fileStat(msg)
+	case reloadedMsg:
+		m.reloaded(msg)
 	}
 	return nil
 }
@@ -283,6 +299,9 @@ func (m *Model) handleKey(msg tea.KeyMsg) tea.Cmd {
 	}
 	m.status, m.statusErr = "", false
 
+	if m.watch.asking {
+		return m.updateDialog(msg)
+	}
 	if m.showHelp {
 		switch key {
 		case "up", "k":
@@ -462,6 +481,10 @@ func (m Model) View() string {
 		body = m.viewExport(h)
 	}
 	body = fixHeight(body, h)
+	if m.watch.asking {
+		d := (&m).reloadDialog()
+		body = overlay(body, d.lines, d.x, d.y)
+	}
 	return header + "\n" + body + "\n" + m.viewFooter()
 }
 
@@ -542,6 +565,8 @@ func (m Model) viewFooter() string {
 	}
 	var hints [][2]string
 	switch {
+	case m.watch.asking:
+		hints = [][2]string{{"←→", "choose"}, {"enter", "confirm"}, {"y", "reload"}, {"n", "not this time"}, {"N", "never this session"}}
 	case m.showHelp:
 		hints = [][2]string{{"↑↓", "scroll"}, {"any key", "close"}}
 	case m.active == viewSearch:
