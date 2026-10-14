@@ -1,7 +1,7 @@
 // Package chart renders family trees as text: a horizontal pedigree chart
-// of ancestors and an indented tree of descendants. Charts record the
-// position of every person so that a user interface can highlight and
-// navigate between them.
+// of ancestors, an indented tree of descendants, and an hourglass of both.
+// Charts record the position of every person so that a user interface can
+// highlight and navigate between them.
 package chart
 
 import (
@@ -80,6 +80,9 @@ type Node struct {
 	// is the father's mother. A duplicate placeholder has the path of its
 	// person. Descendant charts leave it empty.
 	Path string
+	// Left marks the descendants and their partners in an hourglass
+	// chart, which are drawn to the left of the root.
+	Left bool
 }
 
 // Segment is a run of text on a line. Node is the index of the node the
@@ -98,6 +101,9 @@ type Chart struct {
 	// byGeneration keeps Next within a generation. It is set for pedigree
 	// charts, which show every generation as a column.
 	byGeneration bool
+	// columns keeps Next within a column of an hourglass chart, one per
+	// node: the generation for ancestors, negative to the left.
+	columns []int
 }
 
 // String returns the chart as plain text.
@@ -162,7 +168,7 @@ func (c *Chart) Next(i, dir int) int {
 	best := i
 	bestLine := 0
 	for j, n := range c.Nodes {
-		if c.byGeneration && n.Gen != gen {
+		if (c.columns != nil && c.columns[j] != c.columns[i]) || (c.columns == nil && c.byGeneration && n.Gen != gen) {
 			continue
 		}
 		if dir > 0 && n.Line > line && (best == i || n.Line < bestLine) {
@@ -217,19 +223,41 @@ func truncate(s string, width int) string {
 type glyphs struct {
 	horiz, vert, top, bottom, teeBoth, teeUp, teeDown string
 	branch, lastBranch, pipe, blank, marriage         string
-	moreUp, moreDown                                  string
+	moreUp, moreDown, moreLeft                        string
+	ascii                                             bool
 }
 
 var unicodeGlyphs = glyphs{
 	horiz: "─", vert: "│", top: "┌", bottom: "└", teeBoth: "┤", teeUp: "┘", teeDown: "┐",
 	branch: "├── ", lastBranch: "└── ", pipe: "│   ", blank: "    ", marriage: "⚭ ",
-	moreUp: " ▸", moreDown: " ▾",
+	moreUp: " ▸", moreDown: " ▾", moreLeft: "◂ ",
 }
 
 var asciiGlyphs = glyphs{
 	horiz: "-", vert: "|", top: "+", bottom: "+", teeBoth: "+", teeUp: "+", teeDown: "+",
 	branch: "|-- ", lastBranch: "`-- ", pipe: "|   ", blank: "    ", marriage: "= ",
-	moreUp: " >", moreDown: " +",
+	moreUp: " >", moreDown: " +", moreLeft: "< ", ascii: true,
+}
+
+// box returns the line drawing character that joins lines going north,
+// east, south and west.
+func (g glyphs) box(n, e, s, w bool) string {
+	switch {
+	case g.ascii && (n || s) && (e || w):
+		return "+"
+	case g.ascii && (n || s):
+		return "|"
+	case g.ascii:
+		return "-"
+	}
+	k := 0
+	for _, b := range []bool{n, e, s, w} {
+		k <<= 1
+		if b {
+			k |= 1
+		}
+	}
+	return [16]string{" ", "─", "│", "┐", "─", "─", "┌", "┬", "│", "┘", "│", "┤", "└", "┴", "├", "┼"}[k]
 }
 
 func (o Options) glyphs() glyphs {
@@ -293,10 +321,27 @@ func assemble(ps []placement) ([]Segment, int) {
 //	         └─ Mother
 func Pedigree(root *gedcom.Individual, opts Options) *Chart {
 	opts = opts.normalized()
+	c, lines := pedigree(root, opts)
+	c.assemble(lines)
+	return c
+}
+
+// assemble makes the lines of the chart from placements.
+func (c *Chart) assemble(lines [][]placement) {
+	for _, ps := range lines {
+		segs, w := assemble(ps)
+		c.Lines = append(c.Lines, segs)
+		c.Width = max(c.Width, w)
+	}
+}
+
+// pedigree lays out the pedigree chart of root: the nodes, the root first,
+// and the placements of every line, with the root's label at column 0.
+func pedigree(root *gedcom.Individual, opts Options) (*Chart, [][]placement) {
 	g := opts.glyphs()
 	c := &Chart{byGeneration: true}
 	if root == nil {
-		return c
+		return c, nil
 	}
 	expandAt := expandedOccurrences(root, opts.Generations, opts.Expanded)
 
@@ -423,12 +468,7 @@ func Pedigree(root *gedcom.Individual, opts Options) *Chart {
 			lines[r] = append(lines[r], placement{x, ch, -1})
 		}
 	}
-	for _, ps := range lines {
-		segs, w := assemble(ps)
-		c.Lines = append(c.Lines, segs)
-		c.Width = max(c.Width, w)
-	}
-	return c
+	return c, lines
 }
 
 // duplicateWords make up a duplicate placeholder, one word per line.

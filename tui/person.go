@@ -408,7 +408,7 @@ func (m *Model) updatePerson(msg tea.KeyMsg) (bool, tea.Cmd) {
 		if sel := d.selected(); sel != nil && d.visible(d.selectedLine(), h) {
 			m.visit(sel.target)
 		}
-	case "left", "h":
+	case "left":
 		m.back()
 	case "right", "l":
 		m.forward()
@@ -418,6 +418,10 @@ func (m *Model) updatePerson(msg tea.KeyMsg) (bool, tea.Cmd) {
 		m.switchTo(viewTree)
 	case "d":
 		m.tree.mode = modeDescendants
+		m.rebuildTree()
+		m.switchTo(viewTree)
+	case "h":
+		m.tree.mode = modeHourglass
 		m.rebuildTree()
 		m.switchTo(viewTree)
 	case "c":

@@ -19,7 +19,8 @@ Main features, by TUI tab (keys 1–9, or alt+1–9 while typing):
 1. **Search**: query language with fields, ranges, negation, phonetic matching.
 2. **Person**: parents, siblings, families, associations, timeline, notes,
    sources; every relative is a link; browser-like back and forward.
-3. **Tree**: horizontal pedigree chart or indented descendant chart.
+3. **Tree**: horizontal pedigree chart, indented descendant chart, or an
+   hourglass (bowtie) of both.
 4. **Events**: all or the vital events, chronological, with a filter.
 5. **Places**: jurisdiction hierarchy, events per place.
 6. **Map** (experimental): Braille world map with markers, using embedded
@@ -30,7 +31,7 @@ Main features, by TUI tab (keys 1–9, or alt+1–9 while typing):
 9. **Export**: everybody or the people connected to the marked person, as a
    GEXF graph or as PDF pages.
 
-The batch flags are `-q`, `-tree`, `-desc`, `-timeline`, `-relate ID1,ID2`,
+The batch flags are `-q`, `-tree`, `-desc`, `-hourglass`, `-timeline`, `-relate ID1,ID2`,
 `-events FILTER` (plus `-all`), `-places`, `-stats`, `-gen`, `-ascii`,
 `-person`, `-no-mouse`, `-show-restricted`, `-version` and `-licenses`, and
 `-export FORMAT` with `-pivot ID` and `-o FILE` (default: the input's path
@@ -323,9 +324,24 @@ packages.
 - **`Descendants`:** an indented tree with spouse lines. It marks
   non-birth children "(adopted)", and does not expand a person a second time
   ("(see above)").
-- **Nodes** carry `Line`, `Col`, `Width`, `Up`, `Down`, `More`, `Kind` and,
-  in pedigrees, `Path` (`FindPath` looks it up), so the TUI can select and
-  navigate them.
+- **`Hourglass`** (`hourglass.go`): the user chose a bowtie over stacking
+  the pedigree above the descendant tree. The right side is the pedigree
+  (`pedigree` returns its layout before `assemble`, so placeholders and
+  `Expanded` work as there); the left is laid out by `descendantsLeft`:
+  levels alternate between families ("⚭ partner", or "(unknown)" without
+  a node) and children, names right-aligned towards the root, connectors
+  joined with `glyphs.box`. A node with one child or an odd number shares
+  the middle child's line, otherwise it sits between the halves. Both
+  sides are shifted so that the root's line matches and the left starts
+  at column 0. The root is node 0; left nodes have `Left` set, and
+  `Chart.columns` keeps `Next` in a column on both sides. "◂ " marks
+  descendants beyond the generations, "(see above)" a repeated one. In
+  the TUI the arrows follow the drawing (`hourglassStep`), the root
+  starts centered, and `h` (no longer vim-left in the person and tree
+  views) opens it; `v` cycles through the three charts.
+- **Nodes** carry `Line`, `Col`, `Width`, `Up`, `Down`, `More`, `Kind`,
+  `Left` and, in pedigrees and hourglasses, `Path` (`FindPath` looks it
+  up), so the TUI can select and navigate them.
 - **Label widths:** `fitLabel` shortens the name, not the life dates. The TUI
   passes an unreachable limit for descendant charts (full labels) and 36 for
   pedigrees. main does the same for `-desc`.

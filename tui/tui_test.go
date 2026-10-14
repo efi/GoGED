@@ -599,11 +599,59 @@ func TestTreeView(t *testing.T) {
 	a.press("b")
 	a.contains("Descendants of Arthur Smith")
 	a.press("v")
+	if a.m.tree.mode != modeHourglass {
+		t.Error("v goes on to the hourglass")
+	}
+	a.press("v")
 	if a.m.tree.mode != modePedigree {
-		t.Error("v toggles the tree mode")
+		t.Error("v goes round to the pedigree")
 	}
 	a.press("p")
 	a.contains("Pedigree of Arthur Smith")
+}
+
+func TestTreeHourglass(t *testing.T) {
+	a := newApp(t, Options{})
+	a.openPerson("I1")
+	a.openPerson("I3")
+	a.press("h") // the hourglass, not back in the history
+	if a.m.active != viewTree || a.m.tree.mode != modeHourglass || a.currentID() != "I3" {
+		t.Fatalf("active=%v mode=%v current=%s", a.m.active, a.m.tree.mode, a.currentID())
+	}
+	a.contains("Hourglass of John Smith · 4 generations · selected: John Smith (1817–1880)", "John Smith (1817–1880) ─┤")
+	// The root starts in the middle of the screen.
+	tr := a.m.tree
+	if root := tr.chart.Nodes[0]; tr.left == 0 || root.Col-tr.left < 20 || root.Col+root.Width-tr.left > 80 {
+		t.Errorf("root at columns %d–%d, view from %d", root.Col, root.Col+root.Width, tr.left)
+	}
+
+	// The arrows move as the chart is drawn: descendants to the left.
+	for _, step := range []struct{ key, want string }{
+		{"left", "Ann Taylor (1820–1845)"},
+		{"left", "Thomas Smith (1842–1910)"},
+		{"down", "Emma Smith (1848–)"},
+		{"up", "Thomas Smith (1842–1910)"},
+		{"right", "Ann Taylor (1820–1845)"},
+		{"right", "John Smith (1817–1880)"},
+		{"right", "William Smith (1790–1850)"},
+		{"right", "William Smith (1790–1850)"}, // no parents recorded
+		{"left", "John Smith (1817–1880)"},
+	} {
+		a.press(step.key)
+		a.contains("selected: " + step.want)
+	}
+	a.press("left", "left", "+")
+	a.contains("5 generations · selected: Thomas Smith (1842–1910)")
+	a.press("enter")
+	if a.m.active != viewPerson || a.currentID() != "I7" {
+		t.Errorf("enter opened %s", a.currentID())
+	}
+	a.press("t", "h")
+	a.contains("Hourglass of Thomas Smith")
+	a.press("v")
+	if a.m.tree.mode != modePedigree {
+		t.Error("v goes round from the hourglass to the pedigree")
+	}
 }
 
 func TestTreeGenerations(t *testing.T) {

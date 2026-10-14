@@ -35,9 +35,10 @@ The screenshots below use the [GEDCOM-L sample file](testdata/Muster_GEDCOM_UTF-
 - **Life timeline** of important events in chronological order, with the
   person's age at each event, optionally interleaved with the births,
   marriages and deaths of close relatives during their lifetime.
-- **Tree views**: a horizontal pedigree chart of ancestors and an indented
-  descendant chart with spouses, both navigable with the arrow keys,
-  re-rootable, and adjustable from 2 to 20 generations. Ancestors who
+- **Tree views**: a horizontal pedigree chart of ancestors, an indented
+  descendant chart with spouses, and an hourglass of both like a bowtie
+  (descendants to the left, ancestors to the right), all navigable with the
+  arrow keys, re-rootable, and adjustable from 2 to 20 generations. Ancestors who
   appear more than once in a pedigree, as after a marriage between cousins,
   have their own ancestors drawn only once; elsewhere these read "truncated
   as duplicate", and enter or space there moves them to that place.
@@ -160,6 +161,7 @@ Batch mode prints to standard output and exits:
 goged -q 'surname:jones born:<1850' family.ged
 goged -tree I20 -gen 5 family.ged          # pedigree chart (ancestors)
 goged -desc I1 -ascii family.ged           # descendant chart, ASCII lines
+goged -hourglass I3 -gen 3 family.ged      # descendants left, ancestors right
 goged -timeline I14 family.ged             # life events incl. relatives
 goged -relate I20,I23 family.ged           # how is I23 related to I20?
 goged -events 'type:marr place:leeds' family.ged
@@ -231,12 +233,12 @@ Try it with the sample file in [`testdata/family.ged`](testdata/family.ged).
 |         | `shift`+drag | select text in most terminals; `-no-mouse` leaves the mouse to the terminal |
 | Search  | type, `↑` `↓` `pgup` `pgdown`, `enter`, `esc` | search, select, open, clear / return |
 | Person  | `↑` `↓` (`j` `k`), `enter` | move between relatives, go to relative |
-|         | `←` `→` (`h` `l`) | back / forward |
-|         | `t` / `d` | pedigree / descendant tree of this person |
+|         | `←` `→` (`l`) | back / forward |
+|         | `t` / `d` / `h` | pedigree / descendant / hourglass tree of this person |
 |         | `c` | show or hide relatives' events in the timeline |
-| Tree    | arrows (`h` `j` `k` `l`) | move: `←` towards the root, `→` away from it, `↑` `↓` to the previous or next person (in a pedigree: of the same generation) |
+| Tree    | arrows (`j` `k` `l`) | move: `←` towards the root, `→` away from it (in the hourglass: left and right as drawn), `↑` `↓` to the previous or next person (in a pedigree or hourglass: of the same column) |
 |         | `enter` / `space` | open person / make them the root; on "truncated as duplicate": show those ancestors here instead |
-|         | `p` `d` `v`, `+` `-` | pedigree, descendants, toggle; more or fewer generations |
+|         | `p` `d` `h` `v`, `+` `-` | pedigree, descendants, hourglass, the next of these; more or fewer generations |
 | Events  | `f`, `a`, `x`, `enter` | edit filter, all/important events, clear filter, open person |
 | Places  | `←` `→` (`h` `l`), `-` / `+` | collapse/expand a place (or go to the enclosing/first contained place); collapse/expand all |
 |         | `enter`, `esc` | list the events at a place and within it (enter again opens the person); back to the places |

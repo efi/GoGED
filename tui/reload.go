@@ -295,7 +295,7 @@ func (m *Model) replaceDoc(doc *gedcom.Document) {
 		if t := m.tree.chart; t != nil && n.tree.chart != nil && n.tree.mode == m.tree.mode {
 			old := t.Nodes[m.tree.sel]
 			i := -1
-			if n.tree.mode == modePedigree {
+			if n.tree.mode != modeDescendants && !old.Left {
 				i = n.tree.chart.FindPath(old.Path)
 			}
 			if i < 0 {

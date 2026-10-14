@@ -74,6 +74,11 @@ func TestTreeFlags(t *testing.T) {
 	if r.code != 0 || !strings.Contains(r.stdout, "`-- = Lucy King (1868–)  m. 1890") || !strings.Contains(r.stdout, "|-- Harold Smith (1891–)") {
 		t.Errorf("descendants:\n%s", r.stdout)
 	}
+	r = runCLI(t, "", "-hourglass", "I3", "-gen", "2", sample)
+	if r.code != 0 || !strings.Contains(r.stdout, "\n                                                          ├─ John Smith (1817–1880) ─┤\n") ||
+		!strings.HasPrefix(r.stdout, "◂ Thomas Smith (1842–1910) ──── ⚭ Ann Taylor (1820–1845) ─┐") {
+		t.Errorf("hourglass:\n%s", r.stdout)
+	}
 }
 
 func TestTimelineFlag(t *testing.T) {
@@ -363,6 +368,7 @@ func TestErrors(t *testing.T) {
 		{[]string{"-bogus", sample}, 2, "flag provided but not defined"},
 		{[]string{filepath.Join("testdata", "missing.ged")}, 1, "missing.ged"},
 		{[]string{"-tree", "I99", sample}, 1, `no individual with ID "I99"`},
+		{[]string{"-hourglass", "I99", sample}, 1, `no individual with ID "I99"`},
 		{[]string{"-desc", "I99", sample}, 1, `no individual with ID "I99"`},
 		{[]string{"-timeline", "I99", sample}, 1, `no individual with ID "I99"`},
 		{[]string{"-relate", "I1", sample}, 2, "two IDs separated by a comma"},

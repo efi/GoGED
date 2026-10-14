@@ -576,9 +576,9 @@ func (m Model) viewFooter() string {
 	case m.active == viewSearch:
 		hints = [][2]string{{"type", "search"}, {"↑↓", "select"}, {"enter", "open"}, {"esc", "clear/back"}, {"tab/alt+1-9", "views"}, {"?", "help"}}
 	case m.active == viewPerson:
-		hints = [][2]string{{"↑↓", "relatives"}, {"enter", "go"}, {"←→", "history"}, {"t/d", "trees"}, {"c", "context"}, {"m", "mark"}, {"/", "search"}, {"?", "help"}}
+		hints = [][2]string{{"↑↓", "relatives"}, {"enter", "go"}, {"←→", "history"}, {"t/d/h", "trees"}, {"c", "context"}, {"m", "mark"}, {"/", "search"}, {"?", "help"}}
 	case m.active == viewTree:
-		hints = [][2]string{{"arrows", "move"}, {"enter", "open"}, {"space", "re-root"}, {"p/d", "pedigree/descendants"}, {"+/-", "generations"}, {"?", "help"}}
+		hints = [][2]string{{"arrows", "move"}, {"enter", "open"}, {"space", "re-root"}, {"p/d/h", "pedigree/descendants/hourglass"}, {"+/-", "generations"}, {"?", "help"}}
 	case m.active == viewEvents && m.ev.editing:
 		hints = [][2]string{{"type", "filter"}, {"enter", "done"}, {"esc", "clear"}}
 	case m.active == viewEvents:

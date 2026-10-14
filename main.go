@@ -71,6 +71,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, startTUI tuiR
 		query    = fs.String("q", "", "print the people matching `QUERY` (see the help screen for the syntax)")
 		pedigree = fs.String("tree", "", "print the pedigree chart of the person with `ID`")
 		desc     = fs.String("desc", "", "print the descendant chart of the person with `ID`")
+		hourglas = fs.String("hourglass", "", "print the hourglass chart of the person with `ID`: descendants left, ancestors right")
 		timeline = fs.String("timeline", "", "print the timeline of the person with `ID`")
 		relate   = fs.String("relate", "", "print how two people are related, e.g. -relate I1,I20 (`ID1,ID2`)")
 		events   = fs.String("events", "", "print events matching `FILTER`, e.g. \"type:marr 1850..1870\"")
@@ -186,6 +187,13 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, startTUI tuiR
 		descOpts := chartOpts
 		descOpts.MaxLabel = 1 << 16 // one person per line: no need to shorten labels
 		fmt.Fprint(stdout, chart.Descendants(ind, descOpts).String())
+		return 0
+	case set["hourglass"]:
+		ind, ok := lookup(*hourglas)
+		if !ok {
+			return 1
+		}
+		fmt.Fprint(stdout, chart.Hourglass(ind, chartOpts).String())
 		return 0
 	case set["timeline"]:
 		ind, ok := lookup(*timeline)

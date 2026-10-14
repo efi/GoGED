@@ -16,6 +16,8 @@ type treeMode int
 const (
 	modePedigree treeMode = iota
 	modeDescendants
+	modeHourglass
+	treeModes
 )
 
 const (
@@ -58,21 +60,55 @@ func (m *Model) rebuildTree() {
 		return
 	}
 	opts := chart.Options{Generations: t.gens, MaxLabel: 36, ASCII: m.opts.ASCII}
-	if t.mode == modePedigree {
+	switch t.mode {
+	case modeDescendants:
+		// Every person has a line of their own and the view scrolls
+		// sideways, so labels are shown in full.
+		opts.MaxLabel = fullLabels
+		t.chart = chart.Descendants(ind, opts)
+	default:
 		// The choices are paths from the root, so a new root starts afresh.
 		if t.expandedFor != ind {
 			t.expanded, t.expandedFor = nil, ind
 		}
 		opts.Expanded = t.expanded
-		t.chart = chart.Pedigree(ind, opts)
-	} else {
-		// Every person has a line of their own and the view scrolls
-		// sideways, so labels are shown in full.
-		opts.MaxLabel = fullLabels
-		t.chart = chart.Descendants(ind, opts)
+		if t.mode == modeHourglass {
+			t.chart = chart.Hourglass(ind, opts)
+		} else {
+			t.chart = chart.Pedigree(ind, opts)
+		}
 	}
 	t.sel, t.top, t.left = 0, 0, 0
+	if t.mode == modeHourglass {
+		// The root is in the middle of the hourglass.
+		root := t.chart.Nodes[0]
+		t.left = max(0, root.Col+root.Width/2-m.width/2)
+		t.top = max(0, root.Line-m.treeHeight()/2)
+	}
 	m.ensureTreeVisible()
+}
+
+// hourglassStep returns the node to the left (dir < 0) or to the right of
+// the selected one in an hourglass chart, where the descendants are on the
+// left: arrows move as the chart is drawn.
+func (m *Model) hourglassStep(dir int) int {
+	t := &m.tree
+	node := t.chart.Nodes[t.sel]
+	away := func(left bool) int {
+		for _, d := range node.Down {
+			if t.chart.Nodes[d].Left == left {
+				return d
+			}
+		}
+		return t.sel
+	}
+	switch {
+	case t.sel == 0:
+		return away(dir < 0)
+	case node.Left == (dir < 0):
+		return away(node.Left)
+	}
+	return node.Up
 }
 
 func (m *Model) treeHeight() int { return max(1, m.bodyHeight()-1) }
@@ -125,10 +161,17 @@ func (m *Model) updateTree(msg tea.KeyMsg) (bool, tea.Cmd) {
 		m.selectTreeNode(t.chart.Next(t.sel, -1))
 	case "down", "j":
 		m.selectTreeNode(t.chart.Next(t.sel, 1))
-	case "left", "h":
-		m.selectTreeNode(node.Up)
-	case "right", "l":
-		if len(node.Down) > 0 {
+	case "left", "right", "l":
+		dir := 1
+		if msg.String() == "left" {
+			dir = -1
+		}
+		switch {
+		case t.mode == modeHourglass:
+			m.selectTreeNode(m.hourglassStep(dir))
+		case dir < 0:
+			m.selectTreeNode(node.Up)
+		case len(node.Down) > 0:
 			m.selectTreeNode(node.Down[0])
 		}
 	case "pgup", "pgdown":
@@ -167,8 +210,10 @@ func (m *Model) updateTree(msg tea.KeyMsg) (bool, tea.Cmd) {
 		m.setTreeMode(modePedigree)
 	case "d":
 		m.setTreeMode(modeDescendants)
+	case "h":
+		m.setTreeMode(modeHourglass)
 	case "v":
-		m.setTreeMode(1 - t.mode)
+		m.setTreeMode((t.mode + 1) % treeModes)
 	case "+", "=":
 		m.setGenerations(t.gens + 1)
 	case "-", "_":
@@ -234,7 +279,7 @@ func (m *Model) setGenerations(n int) {
 	// Keep the selection on the same person if they are still shown, in a
 	// pedigree at the same place (or the person of a placeholder).
 	i := -1
-	if m.tree.mode == modePedigree {
+	if m.tree.mode != modeDescendants && !sel.Left {
 		i = m.tree.chart.FindPath(sel.Path)
 	}
 	if i < 0 {
@@ -250,10 +295,7 @@ func (m Model) viewTree(h int) string {
 	if t.chart == nil || m.current() == nil {
 		return m.st.dim.Render("  No person selected. Press / to search.")
 	}
-	kind := "Pedigree"
-	if t.mode == modeDescendants {
-		kind = "Descendants"
-	}
+	kind := [treeModes]string{"Pedigree", "Descendants", "Hourglass"}[t.mode]
 	sel := t.chart.Nodes[t.sel]
 	// The selected person comes last; if the line is too long, the root's
 	// name and then the number of generations are left out so that the
