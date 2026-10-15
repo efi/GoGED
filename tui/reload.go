@@ -8,7 +8,6 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/x/ansi"
 	"github.com/efi/goged/diff"
 	"github.com/efi/goged/gedcom"
 	"github.com/efi/goged/genealogy"
@@ -18,12 +17,7 @@ import (
 // the file stays the same for a moment, a dialog asks whether to load it
 // again; the browser then keeps what it can of what is shown.
 
-const (
-	watchInterval = time.Second
-	// dialogGrace is how long the dialog ignores keys after it appears:
-	// they were meant for the view, as the dialog came unasked.
-	dialogGrace = 500 * time.Millisecond
-)
+const watchInterval = time.Second
 
 // fileState tells versions of the file apart.
 type fileState struct {
@@ -49,8 +43,6 @@ type watchState struct {
 	loaded  fileState // the version shown, or the one not loaded this time
 	seen    fileState // a newer version, asked about when it stays the same
 	asking  bool
-	since   time.Time // when the dialog appeared
-	choice  int
 	loading bool
 }
 
@@ -91,7 +83,17 @@ func (m *Model) fileStat(msg statMsg) tea.Cmd {
 		// Still being written, perhaps: wait until it stays the same.
 		w.seen = msg.state
 	default:
-		w.asking, w.choice, w.since = true, choiceReload, time.Now()
+		w.asking = true
+		m.ask(&dialog{
+			title:   m.opts.Title + " changed",
+			text:    []string{"Another program has changed " + m.opts.Title + ".", "Load it again? The views keep what they can."},
+			choices: reloadChoices,
+			keys:    map[string]int{"y": choiceReload, "n": choiceNotNow, "N": choiceNever},
+			cancel:  choiceNotNow,
+			hints:   [][2]string{{"y", "reload"}, {"n", "not this time"}, {"N", "never this session"}},
+			since:   time.Now(),
+			answer:  func(m *Model, choice int) tea.Cmd { return m.answer(choice) },
+		})
 	}
 	return m.watchTick()
 }
@@ -201,122 +203,6 @@ func (m *Model) buildChanges() {
 	m.help.set(ls)
 }
 
-func (m *Model) updateDialog(msg tea.KeyMsg) tea.Cmd {
-	w := &m.watch
-	if time.Since(w.since) < dialogGrace {
-		return nil
-	}
-	switch msg.String() {
-	case "left", "h", "shift+tab", "up", "k":
-		w.choice = max(0, w.choice-1)
-	case "right", "l", "tab", "down", "j":
-		w.choice = min(len(reloadChoices)-1, w.choice+1)
-	case "enter", " ":
-		return m.answer(w.choice)
-	case "y":
-		return m.answer(choiceReload)
-	case "n", "esc":
-		return m.answer(choiceNotNow)
-	case "N":
-		return m.answer(choiceNever)
-	}
-	return nil
-}
-
-// dialog is the question, laid out in the body.
-type dialog struct {
-	lines   []string
-	x, y    int      // the top left corner in the body
-	row     int      // the line of the buttons
-	buttons [][2]int // the columns of each button, from the left edge
-}
-
-func (m *Model) reloadDialog() dialog {
-	name := m.opts.Title
-	var buttons []string
-	var plain strings.Builder
-	var cols [][2]int
-	for i, c := range reloadChoices {
-		if i > 0 {
-			plain.WriteString("  ")
-		}
-		b := "[ " + c + " ]"
-		at := ansi.StringWidth(plain.String())
-		cols = append(cols, [2]int{at, at + ansi.StringWidth(b)})
-		plain.WriteString(b)
-		if i == m.watch.choice {
-			b = m.st.selected.Render(b)
-		} else {
-			b = m.st.name.Render(b)
-		}
-		buttons = append(buttons, b)
-	}
-	content := []string{
-		"",
-		m.st.name.Render("Another program has changed " + name + "."),
-		m.st.name.Render("Load it again? The views keep what they can."),
-		"",
-		strings.Join(buttons, "  "),
-		"",
-	}
-	const buttonLine = 4
-
-	inner := 0
-	for _, c := range content {
-		inner = max(inner, ansi.StringWidth(c))
-	}
-	inner = min(inner+2, max(10, m.width-2)) // a space on each side
-	h, v, corners := "─", "│", [4]string{"╭", "╮", "╰", "╯"}
-	if m.opts.ASCII {
-		h, v, corners = "-", "|", [4]string{"+", "+", "+", "+"}
-	}
-	title := " " + name + " changed "
-	top := corners[0] + h + fit(title, inner-1)
-	top += strings.Repeat(h, max(0, inner+1-ansi.StringWidth(top))) + corners[1]
-	d := dialog{lines: []string{m.st.section.Render(top)}, row: 1 + buttonLine}
-	for _, c := range content {
-		d.lines = append(d.lines, m.st.section.Render(v)+" "+pad(fit(c, inner-2), inner-2)+" "+m.st.section.Render(v))
-	}
-	d.lines = append(d.lines, m.st.section.Render(corners[2]+strings.Repeat(h, inner)+corners[3]))
-	for _, c := range cols {
-		d.buttons = append(d.buttons, [2]int{2 + c[0], 2 + c[1]})
-	}
-	d.x = max(0, (m.width-inner-2)/2)
-	d.y = max(0, (m.bodyHeight()-len(d.lines))/2)
-	return d
-}
-
-// clickDialog answers the dialog if a button is at column x of body row y.
-func (m *Model) clickDialog(x, y int) tea.Cmd {
-	d := m.reloadDialog()
-	if y != d.y+d.row {
-		return nil
-	}
-	for i, b := range d.buttons {
-		if x >= d.x+b[0] && x < d.x+b[1] {
-			return m.answer(i)
-		}
-	}
-	return nil
-}
-
-// overlay draws the lines of a box over a block of lines, at column x of
-// line y.
-func overlay(block string, box []string, x, y int) string {
-	lines := strings.Split(block, "\n")
-	for i, b := range box {
-		if y+i >= len(lines) {
-			break
-		}
-		l := lines[y+i]
-		left := ansi.Truncate(l, x, "")
-		left += strings.Repeat(" ", max(0, x-ansi.StringWidth(left)))
-		right := ansi.TruncateLeft(l, x+ansi.StringWidth(b), "")
-		lines[y+i] = left + ansi.ResetStyle + b + ansi.ResetStyle + right
-	}
-	return strings.Join(lines, "\n")
-}
-
 // replaceDoc shows a document loaded again. It keeps the view, the people
 // in the history and the marked person, the query and the filters, the
 // settings of the views, and the selections where they can still be.
@@ -420,6 +306,16 @@ func (m *Model) replaceDoc(doc *gedcom.Document) {
 			for i, p := range n.mapv.places {
 				if p.Full == sel {
 					n.mapv.sel = i
+				}
+			}
+		}
+		// The surname view stays on the surname, if anyone still has it.
+		if sn := m.mapv.sn; sn.on {
+			n.ensureSurnames()
+			for i, e := range n.mapv.sn.names {
+				if e.name == sn.names[sn.name].name {
+					n.mapv.sn.on, n.mapv.sn.name, n.mapv.sn.kind = true, i, sn.kind
+					n.computeSurname()
 				}
 			}
 		}

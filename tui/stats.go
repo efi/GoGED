@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"math"
+	"strconv"
 	"strings"
 	"time"
 
@@ -74,7 +75,7 @@ func (m *Model) buildStats() {
 	}
 
 	if len(s.Surnames) > 0 {
-		ls = append(ls, blank, m.sectionLine("Most common surnames"), dimLine(m, "press enter to list everybody with that surname"))
+		ls = append(ls, blank, m.sectionLine("Most common surnames"), dimLine(m, "enter: the people with that surname, or the surname on the map"))
 		for _, nc := range s.Surnames[:min(30, len(s.Surnames))] {
 			l := textLine(span{text: pad(nc.Name, 22), style: m.st.name}, span{text: fmt.Sprint(nc.Count), style: m.st.dim})
 			l.query = fmt.Sprintf("surname:%q", nc.Name)
@@ -114,6 +115,28 @@ func (m *Model) buildStats() {
 		ls = append(ls, dimLine(m, w.String()))
 	}
 	m.stats.doc.set(ls)
+}
+
+// askSurname asks what to show of a surname: the people with it (query
+// finds them), or its places on the map.
+func (m *Model) askSurname(name, query string) {
+	m.ask(&dialog{
+		title:   name,
+		text:    []string{"What would you like to see of " + name + "?"},
+		choices: []string{"People with that surname", "Surname on the map"},
+		keys:    map[string]int{"p": 0, "m": 1},
+		cancel:  -1,
+		hints:   [][2]string{{"p", "people"}, {"m", "map"}, {"esc", "cancel"}},
+		answer: func(m *Model, choice int) tea.Cmd {
+			if choice == 0 {
+				m.switchTo(viewSearch)
+				m.setQuery(query)
+			} else {
+				m.showSurnameOnMap(name)
+			}
+			return nil
+		},
+	})
 }
 
 // birthPeriods are the widths of the ranges of birth years, with their
@@ -272,6 +295,13 @@ func (m *Model) updateStats(msg tea.KeyMsg) (bool, tea.Cmd) {
 		}
 		if sel.target != nil {
 			m.open(sel.target)
+			return true, nil
+		}
+		if name, ok := strings.CutPrefix(sel.query, "surname:"); ok {
+			if unquoted, err := strconv.Unquote(name); err == nil {
+				name = unquoted
+			}
+			m.askSurname(name, sel.query)
 			return true, nil
 		}
 		m.switchTo(viewSearch)

@@ -30,6 +30,8 @@ type mapState struct {
 	dragging     bool
 	dragX, dragY int
 	opening      bool
+
+	sn surnameMap
 }
 
 const (
@@ -86,11 +88,11 @@ func (m *Model) fitMap() {
 		minX, maxX = math.Min(minX, mk.X), math.Max(maxX, mk.X)
 		minY, maxY = math.Min(minY, mk.Y), math.Max(maxY, mk.Y)
 	}
-	s.view = worldmap.Fit(minX, minY, maxX, maxY, m.width, m.mapRows())
+	s.view = worldmap.Fit(minX, minY, maxX, maxY, m.mapCols(), m.mapRows())
 }
 
 func (m *Model) showWorld() {
-	m.mapv.view = worldmap.Fit(0, 0.1, 1, 0.9, m.width, m.mapRows())
+	m.mapv.view = worldmap.Fit(0, 0.1, 1, 0.9, m.mapCols(), m.mapRows())
 }
 
 // selectMarker selects a place and centers the map on it.
@@ -125,7 +127,7 @@ func (m *Model) selectMapPlace(n *genealogy.PlaceNode) {
 		minX, maxX = math.Min(minX, x), math.Max(maxX, x)
 		minY, maxY = math.Min(minY, y), math.Max(maxY, y)
 	}
-	s.view = worldmap.Fit(minX, minY, maxX, maxY, m.width, m.mapRows())
+	s.view = worldmap.Fit(minX, minY, maxX, maxY, m.mapCols(), m.mapRows())
 	for i, p := range s.places {
 		if p == inside[0] {
 			s.sel = i
@@ -135,8 +137,36 @@ func (m *Model) selectMapPlace(n *genealogy.PlaceNode) {
 
 func (m *Model) updateMap(msg tea.KeyMsg) (bool, tea.Cmd) {
 	s := &m.mapv
-	spanX, spanY := s.view.Span(m.width, m.mapRows())
-	switch msg.String() {
+	spanX, spanY := s.view.Span(m.mapCols(), m.mapRows())
+	key := msg.String()
+	if key == "s" {
+		m.toggleSurnames()
+		return true, nil
+	}
+	if s.sn.on {
+		switch key {
+		case "pgdown", "pgup":
+			dir := 1
+			if key == "pgup" {
+				dir = -1
+			}
+			m.setSurname(s.sn.name + dir)
+			return true, nil
+		case "e":
+			m.cycleKind()
+			return true, nil
+		case "n", " ":
+			m.stepSurnamePlace(1)
+			return true, nil
+		case "N", "p":
+			m.stepSurnamePlace(-1)
+			return true, nil
+		case "0", "home":
+			m.fitSurname()
+			return true, nil
+		}
+	}
+	switch key {
 	case "left", "h":
 		s.view.X -= spanX * panFraction
 	case "right", "l":
@@ -197,6 +227,7 @@ func (m Model) mapStyles() map[worldmap.Class]lipgloss.Style {
 		worldmap.ClassCoast:      m.st.mapCoast,
 		worldmap.ClassLake:       m.st.mapWater,
 		worldmap.ClassRiver:      m.st.mapWater,
+		worldmap.ClassFaint:      m.st.dim,
 		worldmap.ClassLabel:      m.st.name,
 		worldmap.ClassMinorLabel: m.st.mapLabel,
 		worldmap.ClassMarker:     m.st.mapMarker,
@@ -217,19 +248,39 @@ func (m Model) viewMap(h int) string {
 		info += m.st.dim.Render(fmt.Sprintf(", %d without", s.unknown))
 	}
 	var selLine string
-	if len(s.places) == 0 {
+	byName := s.sn.on
+	switch {
+	case len(s.places) == 0:
 		selLine = m.st.dim.Render("  no place in this file has coordinates — they are read from PLAC.MAP.LATI and LONG")
-	} else {
+	case byName:
+		selLine = m.st.mapSelected.Render("◉") + " " + m.st.name.Render(s.places[s.sel].Full) + (&m).surnameInfo()
+	default:
 		p := s.places[s.sel]
 		selLine = m.st.mapSelected.Render("◉") + " " + m.st.name.Render(p.Full) +
 			m.st.dim.Render(fmt.Sprintf(" · %s · %s · %s", formatLatLon(p.Lat, p.Lon),
 				plural(p.Count(), "event", "events"), plural(p.People(), "person", "people")))
 	}
+	if byName {
+		sn := &s.sn
+		info = m.st.section.Render("Map") + m.st.dim.Render(" · surname ") + m.st.mapMarker.Render(sn.names[sn.name].name) +
+			m.st.dim.Render(fmt.Sprintf(" · %s born with it · %s at %s · ", plural(sn.names[sn.name].people, "person", "people"),
+				eventKindNames[sn.kind], plural(sn.places[sn.names[sn.name].name], "place", "places"))) +
+			m.st.key.Render("e") + m.st.dim.Render(" events · ") + m.st.key.Render("s") + m.st.dim.Render(" all places")
+	}
 	sel := s.sel
 	if len(s.places) == 0 {
 		sel = -1
 	}
-	frame := s.world.Render(s.view, m.width, rows, s.markers, sel)
+	markers := s.markers
+	if byName {
+		markers = (&m).surnameMarkers()
+	}
+	cols := (&m).mapCols()
+	frame := s.world.Render(s.view, cols, rows, markers, sel)
+	var panel []string
+	if cols < m.width {
+		panel = (&m).panelLines(rows, m.width-cols-3)
+	}
 
 	out := []string{fit(info, m.width), fit(selLine, m.width)}
 	styles := m.mapStyles()
@@ -258,6 +309,13 @@ func (m Model) viewMap(h int) string {
 			}
 		}
 		flush()
+		if cols < m.width {
+			side := ""
+			if r := len(out) - 2; r < len(panel) {
+				side = panel[r]
+			}
+			b.WriteString(m.st.dim.Render(" │ ") + side)
+		}
 		out = append(out, b.String())
 	}
 	out = append(out, fit(m.st.dim.Render("  Map data: "+worldmap.Attribution+" (public domain) · press L for licenses"), m.width))

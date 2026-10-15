@@ -53,6 +53,11 @@ The screenshots below use the [GEDCOM-L sample file](testdata/Muster_GEDCOM_UTF-
   place that has coordinates (`PLAC` → `MAP` → `LATI`/`LONG`, or the place
   record the place refers to). The map data is
   compiled into the executable, so goged stays a single file.
+  The surname view (`s`) shows only the places where people born with one
+  surname had events, with their number, and a panel with the surnames,
+  the selected place and the surname's events per decade; `e` narrows the
+  events to births, deaths or the others. From the statistics, a surname
+  opens there, too.
 - **Relationship calculator**: mark a reference person and every person view
   tells how they are related ("Harold Smith's third cousin", "half-great-aunt",
   "brother-in-law", "husband's aunt", "co-father-in-law", "adoptive father"),
@@ -255,9 +260,10 @@ Try it with the sample file in [`testdata/family.ged`](testdata/family.ged).
 |         | `enter`, `esc` | list the events at a place and within it (enter again opens the person); back to the places |
 |         | `f`, `x`, `M` | filter places by name, clear the filter, show the place on the map |
 | Map     | arrows (`h` `j` `k` `l`), `+` `-` | pan, zoom |
+|         | `s`, `PgUp` `PgDn`, `e` | surname view on/off: the places of the people born with a surname; another surname; all events, births, deaths or other events |
 |         | `n` / `N`, `enter` | next/previous place (most events first), list the events at the place |
 |         | `0`, `w`, `c` | fit all places, whole world, center on the selected place |
-| Stats   | `enter` | list everybody with the selected surname, or born in the selected period |
+| Stats   | `enter` | for the selected surname: the people with it, or the surname on the map; for a period: the people born then |
 | Checks  | `←` `→`, `space` | lower or raise the threshold of a check (the findings change at once), switch it off or on |
 |         | `enter`, `o`, `r` | fold a check or open the person (or first place) of a finding, open the other person (or next place), reset all thresholds |
 | Export  | `↑` `↓`, `←` `→` | choose a setting, change it: the format, everybody or the people connected to the marked person |

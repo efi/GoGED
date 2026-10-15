@@ -40,7 +40,7 @@ func (m *Model) handleMouse(msg tea.MouseMsg) tea.Cmd {
 		return nil
 	}
 	m.status, m.statusErr = "", false
-	if m.watch.asking {
+	if m.dlg != nil {
 		// The dialog only answers its buttons.
 		if msg.Button == tea.MouseButtonLeft {
 			return m.clickDialog(x, y)
@@ -256,10 +256,18 @@ func (m *Model) clickMap(x, y int) {
 	if row < 0 || row >= m.mapRows() {
 		return
 	}
+	if x >= m.mapCols() {
+		m.clickPanel(y)
+		return
+	}
 	s.dragging, s.dragX, s.dragY = true, x, y
 	best, dist := -1, 2
 	for i, mk := range s.markers {
-		col, r, ok := s.view.Locate(mk.X, mk.Y, m.width, m.mapRows())
+		col, r, ok := s.view.Locate(mk.X, mk.Y, m.mapCols(), m.mapRows())
+		// In the surname view only the surname's places can be chosen.
+		if s.sn.on && len(s.sn.events[i]) == 0 {
+			continue
+		}
 		if d := max(col-x, x-col, r-row, row-r); ok && d < dist {
 			best, dist = i, d
 		}
@@ -276,8 +284,8 @@ func (m *Model) clickMap(x, y int) {
 // dragMap moves the map with the mouse.
 func (m *Model) dragMap(x, y int) {
 	s := &m.mapv
-	w, h := s.view.Span(m.width, m.mapRows())
-	s.view.X -= float64(x-s.dragX) * w / float64(m.width)
+	w, h := s.view.Span(m.mapCols(), m.mapRows())
+	s.view.X -= float64(x-s.dragX) * w / float64(m.mapCols())
 	s.view.Y -= float64(y-s.dragY) * h / float64(m.mapRows())
 	s.dragX, s.dragY = x, y
 	m.clampMap()
@@ -291,7 +299,7 @@ func (m *Model) clampMap() {
 
 // mapPoint returns the Web Mercator point in the middle of a map cell.
 func (m *Model) mapPoint(col, row int) (x, y float64) {
-	v, cols, rows := m.mapv.view, m.width, m.mapRows()
+	v, cols, rows := m.mapv.view, m.mapCols(), m.mapRows()
 	w, h := v.Span(cols, rows)
 	return v.X + (float64(col)+0.5-float64(cols)/2)*w/float64(cols),
 		v.Y + (float64(row)+0.5-float64(rows)/2)*h/float64(rows)
@@ -412,11 +420,11 @@ func (m *Model) zoomMap(dx, dy, col, row int) {
 	if s.world == nil {
 		return
 	}
-	w, _ := s.view.Span(m.width, m.mapRows())
-	s.view.X += float64(dx) * w / float64(m.width)
+	w, _ := s.view.Span(m.mapCols(), m.mapRows())
+	s.view.X += float64(dx) * w / float64(m.mapCols())
 	if dy != 0 {
-		if row < 0 || row >= m.mapRows() {
-			col, row = m.width/2, m.mapRows()/2
+		if row < 0 || row >= m.mapRows() || col >= m.mapCols() {
+			col, row = m.mapCols()/2, m.mapRows()/2
 		}
 		x0, y0 := m.mapPoint(col, row)
 		zoom := s.view.Zoom - math.Copysign(zoomStep, float64(dy))

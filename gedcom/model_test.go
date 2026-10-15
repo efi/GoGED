@@ -680,3 +680,31 @@ func TestEventWording(t *testing.T) {
 		t.Errorf("marriage = %q / %q", m.Label(), m.Detail())
 	}
 }
+
+func TestBirthName(t *testing.T) {
+	doc, err := ParseString(`0 HEAD
+0 @A@ INDI
+1 NAME Jane /Smith/
+2 TYPE married
+1 NAME Jane /Doe/
+0 @B@ INDI
+1 NAME Anna /Wolf/
+2 TYPE aka
+1 NAME Anna /Berg/
+2 TYPE MAIDEN
+1 NAME Anna /Kohl/
+0 @C@ INDI
+1 NAME Carl /Lang/
+2 TYPE married
+0 @D@ INDI
+0 TRLR
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for id, want := range map[string]string{"A": "Doe", "B": "Berg", "C": "Lang", "D": ""} {
+		if got := doc.Individual(id).BirthName().Surname; got != want {
+			t.Errorf("%s: birth surname %q, want %q", id, got, want)
+		}
+	}
+}

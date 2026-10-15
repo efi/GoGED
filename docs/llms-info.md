@@ -371,6 +371,24 @@ packages.
   Bresenham lines on a Braille canvas (2×4 dots per cell). Borders are drawn
   dotted. Labels are placed right of a marker, else left. A rune value of
   −1 marks the second cell of a wide character.
+- **Faint markers** (`Marker.Faint`): small dots of `ClassFaint`, beneath
+  labels, without labels, not counted in the digits of shared cells.
+- **Surname view** (`tui/surnamemap.go`, the user's sketch "A"): `s` in
+  the Map tab; birth surnames only (`Individual.BirthName`: TYPE birth or
+  maiden, else the first name that is not married/aka/immigrant). Each
+  event counts at its nearest located place (`placeOf`, so St Peter's
+  counts for Leeds unless it has coordinates of its own); `computeSurname`
+  works out per marker the events and people of the surname for the kind
+  (`e`: all, births, deaths, other), and the places of every surname for
+  the list. The map loses `surnamePanel` columns to the panel when the
+  screen is at least `surnamePanelMin` wide (`mapCols`, used by all map
+  arithmetic and the mouse); fitting a surname caps the zoom at
+  `surnameZoom` so that coasts stay in view. Stats opens it through a
+  dialog ("People with that surname" / "Surname on the map").
+- **Dialogs** (`tui/dialog.go`): the reload question became a general
+  `dialog` (title, text, choices, shortcut keys, esc's choice, hints, an
+  answer function); unasked ones (`since` set) ignore keys for
+  `dialogGrace`.
 - Natural Earth data is public domain; it is still credited ("Made with
   Natural Earth"). The `L` key in the TUI and the `-licenses` flag show all
   licenses.

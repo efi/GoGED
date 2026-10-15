@@ -68,6 +68,7 @@ const (
 	ClassCoast
 	ClassLake
 	ClassRiver
+	ClassFaint
 	ClassMinorLabel
 	ClassLabel
 	ClassMarker
@@ -86,6 +87,9 @@ type Cell struct {
 type Marker struct {
 	X, Y  float64 // Web Mercator coordinates
 	Label string  // name shown next to the marker if there is room
+	// Faint markers are small dots without labels, beneath the others:
+	// places shown for orientation only.
+	Faint bool
 }
 
 // maxMinorLabels limits labeling of unselected markers to views that do not
@@ -267,6 +271,7 @@ func (w *World) Render(v View, cols, rows int, markers []Marker, selected int) F
 	}
 
 	// Markers: one dot per place, a digit where several share a cell.
+	// Faint ones are small dots where no other marker is.
 	count := map[[2]int]int{}
 	f.MarkerCells = make([][2]int, len(markers))
 	for i, m := range markers {
@@ -276,6 +281,10 @@ func (w *World) Render(v View, cols, rows int, markers []Marker, selected int) F
 			continue
 		}
 		f.MarkerCells[i] = [2]int{col, row}
+		if m.Faint {
+			f.Cells[row][col] = Cell{Rune: '·', Class: ClassFaint}
+			continue
+		}
 		count[[2]int{col, row}]++
 	}
 	for pos, n := range count {
@@ -296,7 +305,7 @@ func (w *World) Render(v View, cols, rows int, markers []Marker, selected int) F
 	if len(count) <= maxMinorLabels {
 		for i, m := range markers {
 			pos := f.MarkerCells[i]
-			if i == selected || pos[0] < 0 || m.Label == "" || count[pos] > 1 {
+			if i == selected || pos[0] < 0 || m.Label == "" || m.Faint || count[pos] > 1 {
 				continue
 			}
 			f.label(pos[0], pos[1], m.Label, ClassMinorLabel)

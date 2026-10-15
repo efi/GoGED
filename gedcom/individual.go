@@ -166,6 +166,25 @@ func (ind *Individual) Name() Name {
 	return ind.Names[0]
 }
 
+// BirthName returns the name the person was born with: a name of TYPE
+// birth (or maiden), else the first name that is not a married name, an
+// alias or an immigrant name, else the primary name.
+func (ind *Individual) BirthName() Name {
+	for _, n := range ind.Names {
+		if strings.EqualFold(n.Type, "birth") || strings.EqualFold(n.Type, "maiden") {
+			return n
+		}
+	}
+	for _, n := range ind.Names {
+		switch strings.ToLower(n.Type) {
+		case "married", "aka", "immigrant":
+		default:
+			return n
+		}
+	}
+	return ind.Name()
+}
+
 // DisplayName returns the primary name in natural order, or a placeholder.
 func (ind *Individual) DisplayName() string {
 	if s := ind.Name().String(); s != "" {

@@ -224,7 +224,7 @@ func TestRenderMarkersAndLabel(t *testing.T) {
 	x2, y2 := Project(-0.06, 0.06) // same cell at zoom 2
 	x3, y3 := Project(5, 5)
 	far, farY := Project(80, 170)
-	markers := []Marker{{x, y, "A"}, {x2, y2, "B"}, {x3, y3, "Leeds"}, {far, farY, "Far"}}
+	markers := []Marker{{X: x, Y: y, Label: "A"}, {X: x2, Y: y2, Label: "B"}, {X: x3, Y: y3, Label: "Leeds"}, {X: far, Y: farY, Label: "Far"}}
 	v := View{X: 0.5, Y: 0.5, Zoom: 2}
 	f := New(nil).Render(v, 40, 12, markers, 2)
 	if f.MarkerCells[3] != [2]int{-1, -1} {
@@ -243,7 +243,7 @@ func TestRenderMarkersAndLabel(t *testing.T) {
 		t.Errorf("label missing: %q", line)
 	}
 	// Near the right edge the label goes to the left of the marker.
-	edge := New(nil).Render(View{X: x - 0.033, Y: y, Zoom: 2}, 40, 12, []Marker{{x, y, "Leeds"}}, 0)
+	edge := New(nil).Render(View{X: x - 0.033, Y: y, Zoom: 2}, 40, 12, []Marker{{X: x, Y: y, Label: "Leeds"}}, 0)
 	ec, er := edge.MarkerCells[0][0], edge.MarkerCells[0][1]
 	if ec < 30 {
 		t.Fatalf("marker not near the edge: %d", ec)
@@ -253,7 +253,7 @@ func TestRenderMarkersAndLabel(t *testing.T) {
 	}
 	many := make([]Marker, 12)
 	for i := range many {
-		many[i] = Marker{x, y, "Same"}
+		many[i] = Marker{X: x, Y: y, Label: "Same"}
 	}
 	f = New(nil).Render(v, 40, 12, many, -1)
 	if f.Cells[f.MarkerCells[0][1]][f.MarkerCells[0][0]].Rune != '+' {
@@ -286,7 +286,7 @@ func TestMinorLabels(t *testing.T) {
 	x3, y3 := Project(-0.5, 4)  // right next to east, so east's label moves left
 	x4, y4 := Project(-0.5, 5)  // leaves no room for crowded's label on either side
 	v := View{X: 0.5, Y: 0.5, Zoom: 2}
-	f := New(nil).Render(v, 40, 12, []Marker{{x1, y1, "West"}, {x2, y2, "East"}, {x3, y3, "Crowded"}, {x4, y4, "Hidden"}}, 0)
+	f := New(nil).Render(v, 40, 12, []Marker{{X: x1, Y: y1, Label: "West"}, {X: x2, Y: y2, Label: "East"}, {X: x3, Y: y3, Label: "Crowded"}, {X: x4, Y: y4, Label: "Hidden"}}, 0)
 	row := f.MarkerCells[0][1]
 	line := strings.Split(f.String(), "\n")[row]
 	if !strings.Contains(line, "◉ West") || !strings.Contains(line, " East ●") || strings.Contains(line, "Crowded") || !strings.Contains(line, "● Hidden") {
@@ -300,7 +300,7 @@ func TestMinorLabels(t *testing.T) {
 	for r := range 5 {
 		for c := range 9 {
 			mx, my := Project(-0.5-float64(r)*1.5, -12+float64(c)*3)
-			many = append(many, Marker{mx, my, "P"})
+			many = append(many, Marker{X: mx, Y: my, Label: "P"})
 		}
 	}
 	f = New(nil).Render(v, 40, 12, many, -1)
@@ -337,7 +337,7 @@ func TestLoadEmbedded(t *testing.T) {
 	}
 	// Leeds lies on land in England: the British coastline passes nearby.
 	x, y := Project(53.8, -1.55)
-	f := w.Render(View{X: x, Y: y, Zoom: 5}, 60, 20, []Marker{{x, y, "Leeds"}}, 0)
+	f := w.Render(View{X: x, Y: y, Zoom: 5}, 60, 20, []Marker{{X: x, Y: y, Label: "Leeds"}}, 0)
 	coast := 0
 	for _, row := range f.Cells {
 		for _, c := range row {
@@ -374,5 +374,22 @@ func BenchmarkRenderRegion(b *testing.B) {
 	x, y := Project(53.8, -1.55)
 	for i := 0; i < b.N; i++ {
 		w.Render(View{X: x, Y: y, Zoom: 7}, 160, 48, nil, -1)
+	}
+}
+
+func TestRenderFaintMarkers(t *testing.T) {
+	x, y := Project(-0.05, 0.05)
+	x2, y2 := Project(-5, -5)
+	v := View{X: 0.5, Y: 0.5, Zoom: 2}
+	// A faint marker alone, and one in the cell of another marker.
+	markers := []Marker{{X: x2, Y: y2, Label: "Faint", Faint: true}, {X: x, Y: y, Label: "A"}, {X: x, Y: y, Label: "Under", Faint: true}}
+	f := New(nil).Render(v, 40, 12, markers, -1)
+	c, r := f.MarkerCells[0][0], f.MarkerCells[0][1]
+	if f.Cells[r][c] != (Cell{Rune: '·', Class: ClassFaint}) || strings.Contains(f.String(), "Faint") {
+		t.Errorf("faint marker %q:\n%s", f.Cells[r][c].Rune, f)
+	}
+	c, r = f.MarkerCells[1][0], f.MarkerCells[1][1]
+	if f.Cells[r][c].Rune != '●' || !strings.Contains(f.String(), "A") || strings.Contains(f.String(), "Under") {
+		t.Errorf("a marker over a faint one:\n%s", f)
 	}
 }

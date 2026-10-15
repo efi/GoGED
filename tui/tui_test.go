@@ -1110,6 +1110,8 @@ func TestStatsView(t *testing.T) {
 		t.Errorf("longest lived link should open Mary, got %s", a.currentID())
 	}
 	a.press("7", "home", "down", "enter")
+	a.contains("What would you like to see of Smith?", "[ People with that surname ]  [ Surname on the map ]", "p people")
+	a.press("p")
 	if a.m.active != viewSearch || a.m.search.input.Value() != `surname:"Smith"` {
 		t.Fatalf("active=%v query=%q", a.m.active, a.m.search.input.Value())
 	}

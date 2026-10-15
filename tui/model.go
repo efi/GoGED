@@ -92,6 +92,8 @@ type Model struct {
 	export exportState
 
 	watch watchState
+	// dlg is the dialog shown, if any.
+	dlg *dialog
 }
 
 // New creates the model for a document.
@@ -308,7 +310,7 @@ func (m *Model) handleKey(msg tea.KeyMsg) tea.Cmd {
 	}
 	m.status, m.statusErr = "", false
 
-	if m.watch.asking {
+	if m.dlg != nil {
 		return m.updateDialog(msg)
 	}
 	if m.showHelp {
@@ -506,8 +508,8 @@ func (m Model) View() string {
 		body = m.viewExport(h)
 	}
 	body = fixHeight(body, h)
-	if m.watch.asking {
-		d := (&m).reloadDialog()
+	if m.dlg != nil {
+		d := (&m).layoutDialog()
 		body = overlay(body, d.lines, d.x, d.y)
 	}
 	return header + "\n" + body + "\n" + m.viewFooter()
@@ -590,8 +592,8 @@ func (m Model) viewFooter() string {
 	}
 	var hints [][2]string
 	switch {
-	case m.watch.asking:
-		hints = [][2]string{{"←→", "choose"}, {"enter", "confirm"}, {"y", "reload"}, {"n", "not this time"}, {"N", "never this session"}}
+	case m.dlg != nil:
+		hints = append([][2]string{{"←→", "choose"}, {"enter", "confirm"}}, m.dlg.hints...)
 	case m.showHelp && m.overlay == "Changes":
 		hints = [][2]string{{"↑↓", "select"}, {"enter", "open"}, {"any other key", "close"}}
 	case m.showHelp:
@@ -611,7 +613,10 @@ func (m Model) viewFooter() string {
 	case m.active == viewPlaces && m.places.detail != nil:
 		hints = [][2]string{{"↑↓", "select"}, {"enter", "open person"}, {"esc", "back to places"}, {"?", "help"}}
 	case m.active == viewMap:
-		hints = [][2]string{{"arrows", "pan"}, {"+/-", "zoom"}, {"n/N", "next/previous place"}, {"enter", "events here"}, {"0/w", "fit places/world"}, {"L", "licenses"}, {"?", "help"}}
+		hints = [][2]string{{"arrows", "pan"}, {"+/-", "zoom"}, {"n/N", "next/previous place"}, {"enter", "events here"}, {"s", "surnames"}, {"0/w", "fit places/world"}, {"L", "licenses"}, {"?", "help"}}
+		if m.mapv.sn.on {
+			hints = [][2]string{{"s", "all places"}, {"PgUp/PgDn", "surname"}, {"e", "events"}, {"n/N", "places"}, {"enter", "events here"}, {"arrows +/-", "pan, zoom"}, {"?", "help"}}
+		}
 	case m.active == viewPlaces:
 		hints = [][2]string{{"↑↓", "select"}, {"←→", "collapse/expand"}, {"enter", "events here"}, {"f", "filter"}, {"M", "map"}, {"?", "help"}}
 	case m.active == viewStats:

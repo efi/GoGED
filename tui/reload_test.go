@@ -63,7 +63,7 @@ func rewrite(t *testing.T, path, re, with string) {
 func (a *app) poll(path string) bool { return a.send(statFile(path)) != nil }
 
 // answerable lets the dialog take keys at once.
-func (a *app) answerable() { a.m.watch.since = time.Time{} }
+func (a *app) answerable() { a.m.dlg.since = time.Time{} }
 
 // finish delivers what a command brings, such as the file loaded again.
 func (a *app) finish(cmd tea.Cmd) {
@@ -101,8 +101,8 @@ func TestReloadAsks(t *testing.T) {
 	}
 	a.answerable()
 	a.press("right", "right", "right", "left", "left")
-	if a.m.watch.choice != choiceReload {
-		t.Errorf("choice %d", a.m.watch.choice)
+	if a.m.dlg.choice != choiceReload {
+		t.Errorf("choice %d", a.m.dlg.choice)
 	}
 	cmd := a.press("enter")
 	a.contains("loading family.ged again")
