@@ -240,7 +240,7 @@ func (m *Model) replaceDoc(doc *gedcom.Document) {
 	}
 	n.reference = same(m.reference)
 	n.person.hideRelatives = m.person.hideRelatives
-	n.tree.mode, n.tree.gens = m.tree.mode, m.tree.gens
+	n.tree.mode, n.tree.gens, n.tree.lifeGens = m.tree.mode, m.tree.gens, m.tree.lifeGens
 	n.currentChanged()
 	if n.current() != nil && m.current() != nil && n.current().ID == m.current().ID {
 		n.person.doc.cursor, n.person.doc.offset = m.person.doc.cursor, m.person.doc.offset
@@ -249,7 +249,7 @@ func (m *Model) replaceDoc(doc *gedcom.Document) {
 		if t := m.tree.chart; t != nil && n.tree.chart != nil && n.tree.mode == m.tree.mode {
 			old := t.Nodes[m.tree.sel]
 			i := -1
-			if n.tree.mode != modeDescendants && !old.Left {
+			if n.tree.mode != modeDescendants && n.tree.mode != modeLifespans && !old.Left {
 				i = n.tree.chart.FindPath(old.Path)
 			}
 			if i < 0 {

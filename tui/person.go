@@ -424,6 +424,10 @@ func (m *Model) updatePerson(msg tea.KeyMsg) (bool, tea.Cmd) {
 		m.tree.mode = modeHourglass
 		m.rebuildTree()
 		m.switchTo(viewTree)
+	case "s":
+		m.tree.mode = modeLifespans
+		m.rebuildTree()
+		m.switchTo(viewTree)
 	case "c":
 		m.person.hideRelatives = !m.person.hideRelatives
 		m.rebuildPerson()

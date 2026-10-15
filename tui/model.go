@@ -28,7 +28,7 @@ const (
 	viewCount
 )
 
-var viewNames = [viewCount]string{"Search", "Person", "Tree", "Events", "Places", "Map", "Stats", "Checks", "Export"}
+var viewNames = [viewCount]string{"Search", "Person", "Charts", "Events", "Places", "Map", "Stats", "Checks", "Export"}
 
 // Options configure the interface.
 type Options struct {
@@ -114,7 +114,7 @@ func New(doc *gedcom.Document, opts Options) Model {
 	m.ev = newEventsState()
 	m.places = newPlacesState()
 	m.export = newExportState()
-	m.tree.gens = opts.Generations
+	m.tree.gens, m.tree.lifeGens = opts.Generations, 1
 	if opts.Path != "" {
 		m.watch.loaded = statFile(opts.Path).state
 	}
@@ -181,6 +181,12 @@ func (m *Model) layout() {
 	m.movePlaces(0)
 	m.movePlaceEvents(0)
 	m.rebuildPerson()
+	if t := &m.tree; t.mode == modeLifespans && t.chart != nil {
+		// The lifespans fit the width.
+		sel := t.chart.Nodes[t.sel].Ind
+		m.rebuildTree()
+		m.selectTreeNode(t.chart.Find(sel))
+	}
 	m.ensureTreeVisible()
 	m.rebuildOverlay()
 	if m.stats.computed {
@@ -601,9 +607,13 @@ func (m Model) viewFooter() string {
 	case m.active == viewSearch:
 		hints = [][2]string{{"type", "search"}, {"↑↓", "select"}, {"enter", "open"}, {"esc", "clear/back"}, {"tab/alt+1-9", "views"}, {"?", "help"}}
 	case m.active == viewPerson:
-		hints = [][2]string{{"↑↓", "relatives"}, {"enter", "go"}, {"←→", "history"}, {"t/d/h", "trees"}, {"c", "context"}, {"m", "mark"}, {"/", "search"}, {"?", "help"}}
+		hints = [][2]string{{"↑↓", "relatives"}, {"enter", "go"}, {"←→", "history"}, {"t/d/h/s", "charts"}, {"c", "context"}, {"m", "mark"}, {"/", "search"}, {"?", "help"}}
 	case m.active == viewTree:
-		hints = [][2]string{{"arrows", "move"}, {"enter", "open"}, {"space", "re-root"}, {"p/d/h", "pedigree/descendants/hourglass"}, {"+/-", "generations"}, {"?", "help"}}
+		charts := "pedigree/descendants/hourglass/lifespans"
+		if m.width < 120 {
+			charts = "charts"
+		}
+		hints = [][2]string{{"arrows", "move"}, {"enter", "open"}, {"space", "re-root"}, {"p/d/h/s", charts}, {"+/-", "generations"}, {"?", "help"}}
 	case m.active == viewEvents && m.ev.editing:
 		hints = [][2]string{{"type", "filter"}, {"enter", "done"}, {"esc", "clear"}}
 	case m.active == viewEvents:

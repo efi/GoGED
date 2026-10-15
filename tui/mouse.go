@@ -189,11 +189,26 @@ func (m *Model) clickLink(d *docView, y int) tea.Cmd {
 // treeNodeAt returns the chart node shown at column x of body row y, or -1.
 func (m *Model) treeNodeAt(x, y int) int {
 	t := &m.tree
-	if t.chart == nil || y < 1 || t.top+y-1 >= len(t.chart.Lines) {
+	if t.chart == nil || y < 1 {
 		return -1
 	}
+	rows, first, end := m.treeRows()
+	line := y - 1 - m.treeGap()
+	if line < 0 {
+		return -1
+	}
+	if line >= first {
+		line += t.top - first
+	}
+	if line >= end || line >= t.top+rows {
+		return -1
+	}
+	if t.mode == modeLifespans {
+		// A row is one person.
+		return t.chart.NodeAt(line)
+	}
 	col, at := 0, t.left+x
-	for _, seg := range t.chart.Lines[t.top+y-1] {
+	for _, seg := range t.chart.Lines[line] {
 		w := runewidth.StringWidth(seg.Text)
 		if at >= col && at < col+w {
 			return seg.Node
@@ -393,7 +408,8 @@ func (m *Model) wheel(dx, dy, x, y int) {
 		if t.chart == nil {
 			return
 		}
-		t.top = clamp(t.top+dy, 0, max(0, len(t.chart.Lines)-m.treeHeight()))
+		rows, first, end := m.treeRows()
+		t.top = clamp(t.top+dy, first, max(first, end-rows))
 		t.left = clamp(t.left+dx, 0, max(0, t.chart.Width-m.width+2))
 	case viewEvents:
 		e := &m.ev

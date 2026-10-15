@@ -78,13 +78,14 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, startTUI tuiR
 		pedigree = fs.String("tree", "", "print the pedigree chart of the person with `ID`")
 		desc     = fs.String("desc", "", "print the descendant chart of the person with `ID`")
 		hourglas = fs.String("hourglass", "", "print the hourglass chart of the person with `ID`: descendants left, ancestors right")
+		lifespan = fs.String("lifespans", "", "print the lifespans of the family of the person with `ID` on a time axis: parents, siblings, partners and children (more with -gen)")
 		timeline = fs.String("timeline", "", "print the timeline of the person with `ID`")
 		relate   = fs.String("relate", "", "print how two people are related, e.g. -relate I1,I20 (`ID1,ID2`)")
 		events   = fs.String("events", "", "print events matching `FILTER`, e.g. \"type:marr 1850..1870\"")
 		allEv    = fs.Bool("all", false, "with -events: include all events, not only births, marriages and deaths")
 		places   = fs.Bool("places", false, "print all places as a hierarchy with the number of events and people")
 		stats    = fs.Bool("stats", false, "print statistics and warnings about the file")
-		gens     = fs.Int("gen", 4, "number of `generations` shown in trees")
+		gens     = fs.Int("gen", 4, "number of `generations` shown in trees; with -lifespans, how many each way (default 1)")
 		ascii    = fs.Bool("ascii", false, "draw trees with ASCII characters only")
 		noMouse  = fs.Bool("no-mouse", false, "leave the mouse to the terminal, to select text as usual")
 		person   = fs.String("person", "", "open the browser at the person with `ID`; with -checks, mark them for the hint on unknown parents")
@@ -96,7 +97,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, startTUI tuiR
 		output   = fs.String("o", "", "with -export: write to `FILE` (- for standard output); default: the input file with the format's extension")
 		diffWith = fs.String("diff", "", "print what changed from the older version in `OLD.ged` to the file given, records paired by their IDs")
 		checks   = fs.String("checks", "", "print the findings of the plausibility checks and hints: all, checks, hints, or `IDs` with thresholds, e.g. old-age=100,similar-places=somewhat-resembling")
-		asJSON   = fs.Bool("json", false, "with -q, -tree, -desc, -hourglass, -timeline, -relate, -events, -places, -stats, -checks or -diff: print JSON")
+		asJSON   = fs.Bool("json", false, "with -q, -tree, -desc, -hourglass, -lifespans, -timeline, -relate, -events, -places, -stats, -checks or -diff: print JSON")
 	)
 	fs.Usage = func() {
 		fmt.Fprint(stderr, usageText)
@@ -221,6 +222,17 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, startTUI tuiR
 		return chartOf(*desc, func(ind *gedcom.Individual) *chart.Chart { return chart.Descendants(ind, descOpts) }, false, true)
 	case set["hourglass"]:
 		return chartOf(*hourglas, func(ind *gedcom.Individual) *chart.Chart { return chart.Hourglass(ind, chartOpts) }, true, true)
+	case set["lifespans"]:
+		ind, ok := lookup(*lifespan)
+		if !ok {
+			return 1
+		}
+		opts := chart.LifespanOptions{Generations: 1, ASCII: *ascii}
+		if set["gen"] {
+			opts.Generations = *gens
+		}
+		c := chart.Lifespans(ind, opts)
+		return show(func() { fmt.Fprint(stdout, c.String()) }, func() any { return lifespansJSON(c, opts.Generations) })
 	case set["timeline"]:
 		ind, ok := lookup(*timeline)
 		if !ok {
@@ -355,7 +367,7 @@ func absPath(p string) string {
 }
 
 // jsonFlags are the flags whose output -json gives as data.
-var jsonFlags = []string{"q", "tree", "desc", "hourglass", "timeline", "relate", "events", "places", "stats", "checks", "diff"}
+var jsonFlags = []string{"q", "tree", "desc", "hourglass", "lifespans", "timeline", "relate", "events", "places", "stats", "checks", "diff"}
 
 func printResults(results []search.Result, stdout io.Writer) {
 	for _, r := range results {

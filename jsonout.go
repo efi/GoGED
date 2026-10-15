@@ -413,6 +413,70 @@ func treeJSON(root *gedcom.Individual, opts chart.Options, ancestors, descendant
 	return t
 }
 
+// -lifespans
+
+type jsonLifespans struct {
+	Person      *jsonRef   `json:"person"`
+	Generations int        `json:"generations"`
+	People      []jsonLife `json:"people"`
+}
+
+// jsonLife is a row of the lifespans. The years are those drawn: an
+// approximate date spans several (about 1795 is 1793 to 1797), and the
+// first and last record stand in for a birth or death not recorded.
+type jsonLife struct {
+	jsonPerson
+	Relation    string        `json:"relation,omitempty"`
+	Generation  int           `json:"generation"` // above the person, negative below
+	Partner     bool          `json:"partner,omitempty"`
+	BornYears   *jsonYears    `json:"born_years,omitempty"`
+	DiedYears   *jsonYears    `json:"died_years,omitempty"`
+	FirstRecord int           `json:"first_record,omitempty"`
+	LastRecord  int           `json:"last_record,omitempty"`
+	Marriages   []int         `json:"marriages,omitempty"`
+	Together    *jsonTogether `json:"together,omitempty"`
+}
+
+type jsonYears struct {
+	From int `json:"from"`
+	To   int `json:"to"`
+}
+
+// jsonTogether is how long somebody lived at the same time as the person,
+// for a partner how long they were married, and for the person the age
+// they reached.
+type jsonTogether struct {
+	Years       int  `json:"years"`
+	Married     bool `json:"married,omitempty"`
+	Approximate bool `json:"approximate,omitempty"`
+	AtLeast     bool `json:"at_least,omitempty"`
+}
+
+func lifespansJSON(c *chart.Chart, gens int) jsonLifespans {
+	j := jsonLifespans{Person: refJSON(c.Nodes[0].Ind), Generations: max(1, gens), People: []jsonLife{}}
+	years := func(y chart.Years) *jsonYears {
+		if !y.OK {
+			return nil
+		}
+		return &jsonYears{y.From, y.To}
+	}
+	for _, l := range c.Lives {
+		jl := jsonLife{jsonPerson: personJSON(l.Ind), Relation: l.Relation, Generation: l.Gen, Partner: l.Partner,
+			BornYears: years(l.Born), DiedYears: years(l.Died), Marriages: l.Marriages}
+		if !l.Born.OK && l.Records.OK {
+			jl.FirstRecord = l.Records.From
+		}
+		if !l.Died.OK && l.Records.OK {
+			jl.LastRecord = l.Records.To
+		}
+		if t := l.Together; t.OK && !(t.AtLeast && t.Years == 0) {
+			jl.Together = &jsonTogether{t.Years, t.Married, t.Approx, t.AtLeast}
+		}
+		j.People = append(j.People, jl)
+	}
+	return j
+}
+
 // -diff
 
 type jsonDiff struct {

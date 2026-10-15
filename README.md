@@ -2,8 +2,8 @@
 
 A fast terminal browser for [GEDCOM](https://gedcom.io/) genealogy files.
 Search people by name and any other property, read their life events in
-order, jump between relatives, and explore pedigree and descendant trees —
-from the keyboard, or with the mouse.
+order, jump between relatives, and explore pedigree and descendant trees and
+the lifespans of a family — from the keyboard, or with the mouse.
 
 The screenshots below use the [GEDCOM-L sample file](testdata/Muster_GEDCOM_UTF-8.ged).
 
@@ -35,13 +35,19 @@ The screenshots below use the [GEDCOM-L sample file](testdata/Muster_GEDCOM_UTF-
 - **Life timeline** of important events in chronological order, with the
   person's age at each event, optionally interleaved with the births,
   marriages and deaths of close relatives during their lifetime.
-- **Tree views**: a horizontal pedigree chart of ancestors, an indented
+- **Charts**: a horizontal pedigree chart of ancestors, an indented
   descendant chart with spouses, and an hourglass of both like a bowtie
   (descendants to the left, ancestors to the right), all navigable with the
   arrow keys, re-rootable, and adjustable from 2 to 20 generations. Ancestors who
   appear more than once in a pedigree, as after a marriage between cousins,
   have their own ancestors drawn only once; elsewhere these read "truncated
   as duplicate", and enter or space there moves them to that place.
+  The **lifespans** draw the lives of a person's parents, siblings,
+  partners and children as lines on a time axis, coloured while the person
+  lived, with marriages, approximate dates and lives whose end (or
+  beginning) is not recorded; on the right how long each lived at the same
+  time as the person, or was married to them. Each generation more adds
+  grandparents, aunts and uncles, and grandchildren.
 - **Events browser** listing all (or only the vital) events of the file in
   chronological order, with a filter for type, year range, place and names.
 - **Places browser**: every place in the file arranged by jurisdiction
@@ -174,6 +180,7 @@ goged -q 'ancestor:I20 born:leeds' family.ged
 goged -tree I20 -gen 5 family.ged          # pedigree chart (ancestors)
 goged -desc I1 -ascii family.ged           # descendant chart, ASCII lines
 goged -hourglass I3 -gen 3 family.ged      # descendants left, ancestors right
+goged -lifespans I3 family.ged             # the lives of John Smith's family
 goged -timeline I14 family.ged             # life events incl. relatives
 goged -relate I20,I23 family.ged           # how is I23 related to I20?
 goged -events 'type:marr place:leeds' family.ged
@@ -235,14 +242,14 @@ Try it with the sample file in [`testdata/family.ged`](testdata/family.ged).
 | Where   | Keys | Action |
 |---------|------|--------|
 | Global  | `/` | search |
-|         | `tab` / `shift+tab`, `1`…`9` (`alt+1`…`alt+9` while typing) | switch view: search, person, tree, events, places, map, stats, checks, export |
+|         | `tab` / `shift+tab`, `1`…`9` (`alt+1`…`alt+9` while typing) | switch view: search, person, charts, events, places, map, stats, checks, export |
 |         | `b`, `backspace`, `[` / `]` | back / forward in history |
 |         | `m` | mark the current person as reference for relationships (again to clear) |
 |         | `W` | wrap long lines in the person view instead of cutting them (again to cut) |
 |         | `y` / `n` / `N` | when another program has changed the file: load it again, not this time, never this session |
 |         | `?` | help · `L` licenses · `q`, `ctrl+c` quit |
 |         | `D` | what changed when the file was loaded again (`enter` opens a person) |
-| Mouse   | click | select a row, a relative or a person in the tree; click it again to do what `enter` does |
+| Mouse   | click | select a row, a relative or a person in a chart; click it again to do what `enter` does |
 |         | click a tab, the marked person (★) | switch views; open the marked person |
 |         | wheel, drag | scroll (on the map: zoom around the pointer); pan the map |
 |         | `▾` `▹`, `◂` `▸` | collapse or expand a place; change an export setting |
@@ -251,11 +258,11 @@ Try it with the sample file in [`testdata/family.ged`](testdata/family.ged).
 | Search  | type, `↑` `↓` `pgup` `pgdown`, `enter`, `esc` | search, select, open, clear / return |
 | Person  | `↑` `↓` (`j` `k`), `enter` | move between relatives, go to relative |
 |         | `←` `→` (`l`) | back / forward |
-|         | `t` / `d` / `h` | pedigree / descendant / hourglass tree of this person |
+|         | `t` / `d` / `h` / `s` | pedigree / descendant / hourglass chart / lifespans of this person |
 |         | `c` | show or hide relatives' events in the timeline |
-| Tree    | arrows (`j` `k` `l`) | move: `←` towards the root, `→` away from it (in the hourglass: left and right as drawn), `↑` `↓` to the previous or next person (in a pedigree or hourglass: of the same column) |
+| Charts  | arrows (`j` `k` `l`) | move: `←` towards the root, `→` away from it (in the hourglass: left and right as drawn), `↑` `↓` to the previous or next person (in a pedigree or hourglass: of the same column) |
 |         | `enter` / `space` | open person / make them the root; on "truncated as duplicate": show those ancestors here instead |
-|         | `p` `d` `h` `v`, `+` `-` | pedigree, descendants, hourglass, the next of these; more or fewer generations |
+|         | `p` `d` `h` `s` `v`, `+` `-` | pedigree, descendants, hourglass, lifespans, the next of these; more or fewer generations (in the lifespans one more each way) |
 | Events  | `f`, `a`, `x`, `enter` | edit filter, all/important events, clear filter, open person |
 | Places  | `←` `→` (`h` `l`), `-` / `+` | collapse/expand a place (or go to the enclosing/first contained place); collapse/expand all |
 |         | `enter`, `esc` | list the events at a place and within it (enter again opens the person); back to the places |
@@ -375,7 +382,7 @@ build date; a second run on the same day replaces that day's release.
 | [`gedcom`](gedcom) | line parser, character set detection and ANSEL decoding, node tree, typed model (individuals, families, events, names, places, sources, notes), dates and calendars |
 | [`genealogy`](genealogy) | relationship calculator, life timelines, place hierarchy, statistics |
 | [`search`](search) | query language, diacritic folding, Soundex and Cologne phonetics, person index, event filter |
-| [`chart`](chart) | pedigree and descendant charts with node positions for navigation |
+| [`chart`](chart) | pedigree, descendant, hourglass and lifespan charts with node positions for navigation |
 | [`worldmap`](worldmap) | embedded Natural Earth map data, Web Mercator projection and Braille renderer; [`mkworld`](worldmap/mkworld) converts GeoJSON |
 | [`export`](export) | selection of the people to export (everybody, or a connected component) and the GEXF writer |
 | [`diff`](diff) | what changed between two versions of a file, records paired by their identifiers |

@@ -49,7 +49,7 @@ func (a *app) clickOn(text string) tea.Cmd {
 
 func TestMouseTabsAndOverlay(t *testing.T) {
 	a := newApp(t, Options{})
-	a.clickOn("3 Tree")
+	a.clickOn("3 Charts")
 	if a.m.active != viewSearch {
 		t.Error("the tree opened without a person")
 	}

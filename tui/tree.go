@@ -17,6 +17,7 @@ const (
 	modePedigree treeMode = iota
 	modeDescendants
 	modeHourglass
+	modeLifespans
 	treeModes
 )
 
@@ -26,25 +27,53 @@ const (
 	// with the number of people, not exponentially with the generations.
 	maxPedigreeGenerations   = 20
 	maxDescendantGenerations = 20
-	fullLabels               = 1 << 16 // a label width limit that is never reached
+	// Lifespans count the generations each way, and show every relative.
+	maxLifespanGenerations = 10
+	fullLabels             = 1 << 16 // a label width limit that is never reached
 )
 
-// maxGenerations is the largest number of generations shown in the
-// current tree mode.
-func (t *treeState) maxGenerations() int {
-	if t.mode == modeDescendants {
-		return maxDescendantGenerations
+// generationLimits returns the fewest and the most generations shown in
+// the current chart.
+func (t *treeState) generationLimits() (lo, hi int) {
+	switch t.mode {
+	case modeDescendants:
+		return minGenerations, maxDescendantGenerations
+	case modeLifespans:
+		return 1, maxLifespanGenerations
 	}
-	return maxPedigreeGenerations
+	return minGenerations, maxPedigreeGenerations
+}
+
+// generations returns the generations of the current chart. Lifespans
+// have their own, as they count each way.
+func (t *treeState) generations() *int {
+	if t.mode == modeLifespans {
+		return &t.lifeGens
+	}
+	return &t.gens
+}
+
+// lifespanReach says how far a lifespan chart reaches.
+func lifespanReach(n int) string {
+	switch n {
+	case 1:
+		return "parents to children"
+	case 2:
+		return "grandparents to grandchildren"
+	case 3:
+		return "great-grandparents to great-grandchildren"
+	}
+	return fmt.Sprintf("%d generations up and down", n)
 }
 
 type treeState struct {
-	mode  treeMode
-	gens  int
-	chart *chart.Chart
-	sel   int
-	top   int // first visible chart line
-	left  int // first visible display column
+	mode     treeMode
+	gens     int
+	lifeGens int // of the lifespans
+	chart    *chart.Chart
+	sel      int
+	top      int // first visible chart line
+	left     int // first visible display column
 	// expanded holds where the pedigree of expandedFor shows the
 	// ancestors of people who appear more than once (chart.Options).
 	expanded    map[*gedcom.Individual]string
@@ -61,6 +90,9 @@ func (m *Model) rebuildTree() {
 	}
 	opts := chart.Options{Generations: t.gens, MaxLabel: 36, ASCII: m.opts.ASCII}
 	switch t.mode {
+	case modeLifespans:
+		// The chart fits the width, so it is drawn again on a resize.
+		t.chart = chart.Lifespans(ind, chart.LifespanOptions{Generations: t.lifeGens, Width: m.width, ASCII: m.opts.ASCII})
 	case modeDescendants:
 		// Every person has a line of their own and the view scrolls
 		// sideways, so labels are shown in full.
@@ -113,6 +145,30 @@ func (m *Model) hourglassStep(dir int) int {
 
 func (m *Model) treeHeight() int { return max(1, m.bodyHeight()-1) }
 
+// treeGap returns the blank lines between the header and the chart: one
+// for the lifespans if there is room.
+func (m *Model) treeGap() int {
+	if c := m.tree.chart; m.tree.mode == modeLifespans && c != nil && len(c.Lines)+2 <= m.treeHeight() {
+		return 1
+	}
+	return 0
+}
+
+// treeRows returns the screen rows for the lines of the chart that
+// scroll, between those of its head and foot (and the line on the person
+// selected in the lifespans), and the first and last of these lines.
+func (m *Model) treeRows() (rows, first, end int) {
+	c := m.tree.chart
+	if c == nil {
+		return m.treeHeight(), 0, 0
+	}
+	rows = m.treeHeight() - c.Head - c.Foot
+	if m.tree.mode == modeLifespans {
+		rows--
+	}
+	return max(1, rows), c.Head, len(c.Lines) - c.Foot
+}
+
 // ensureTreeVisible scrolls the chart so the selected node is on screen.
 // For pedigree charts the root starts vertically centered.
 func (m *Model) ensureTreeVisible() {
@@ -120,7 +176,8 @@ func (m *Model) ensureTreeVisible() {
 	if t.chart == nil || len(t.chart.Nodes) == 0 {
 		return
 	}
-	h, w := m.treeHeight(), m.width
+	w := m.width
+	h, first, end := m.treeRows()
 	n := t.chart.Nodes[t.sel]
 	if n.Line < t.top {
 		t.top = n.Line
@@ -128,7 +185,7 @@ func (m *Model) ensureTreeVisible() {
 	if n.Line >= t.top+h {
 		t.top = n.Line - h + 1
 	}
-	t.top = clamp(t.top, 0, max(0, len(t.chart.Lines)-h))
+	t.top = clamp(t.top, first, max(first, end-h))
 	if n.Col < t.left {
 		t.left = max(0, n.Col-4)
 	}
@@ -212,12 +269,14 @@ func (m *Model) updateTree(msg tea.KeyMsg) (bool, tea.Cmd) {
 		m.setTreeMode(modeDescendants)
 	case "h":
 		m.setTreeMode(modeHourglass)
+	case "s":
+		m.setTreeMode(modeLifespans)
 	case "v":
 		m.setTreeMode((t.mode + 1) % treeModes)
 	case "+", "=":
-		m.setGenerations(t.gens + 1)
+		m.setGenerations(*t.generations() + 1)
 	case "-", "_":
-		m.setGenerations(t.gens - 1)
+		m.setGenerations(*t.generations() - 1)
 	case "m":
 		m.mark(node.Ind)
 	default:
@@ -259,28 +318,34 @@ func (m *Model) setTreeMode(mode treeMode) {
 		return
 	}
 	m.tree.mode = mode
-	if limit := m.tree.maxGenerations(); m.tree.gens > limit {
-		m.tree.gens = limit
+	if _, limit := m.tree.generationLimits(); *m.tree.generations() > limit {
+		*m.tree.generations() = limit
 		m.setStatus(fmt.Sprintf("showing %d generations, the most for this chart", limit))
 	}
 	m.rebuildTree()
 }
 
 func (m *Model) setGenerations(n int) {
-	n = clamp(n, minGenerations, m.tree.maxGenerations())
-	if n == m.tree.gens {
-		m.setStatus(fmt.Sprintf("generations are limited to %d–%d", minGenerations, m.tree.maxGenerations()))
+	t := &m.tree
+	lo, hi := t.generationLimits()
+	n = clamp(n, lo, hi)
+	if n == *t.generations() {
+		m.setStatus(fmt.Sprintf("generations are limited to %d–%d", lo, hi))
 		return
 	}
-	m.tree.gens = n
-	m.setStatus(fmt.Sprintf("showing %d generations", n))
-	sel := m.tree.chart.Nodes[m.tree.sel]
+	*t.generations() = n
+	if t.mode == modeLifespans {
+		m.setStatus("showing " + lifespanReach(n))
+	} else {
+		m.setStatus(fmt.Sprintf("showing %d generations", n))
+	}
+	sel := t.chart.Nodes[t.sel]
 	m.rebuildTree()
 	// Keep the selection on the same person if they are still shown, in a
 	// pedigree at the same place (or the person of a placeholder).
 	i := -1
-	if m.tree.mode != modeDescendants && !sel.Left {
-		i = m.tree.chart.FindPath(sel.Path)
+	if t.mode != modeDescendants && t.mode != modeLifespans && !sel.Left {
+		i = t.chart.FindPath(sel.Path)
 	}
 	if i < 0 {
 		i = m.tree.chart.Find(sel.Ind)
@@ -295,12 +360,15 @@ func (m Model) viewTree(h int) string {
 	if t.chart == nil || m.current() == nil {
 		return m.st.dim.Render("  No person selected. Press / to search.")
 	}
-	kind := [treeModes]string{"Pedigree", "Descendants", "Hourglass"}[t.mode]
+	kind := [treeModes]string{"Pedigree", "Descendants", "Hourglass", "Lifespans"}[t.mode]
 	sel := t.chart.Nodes[t.sel]
 	// The selected person comes last; if the line is too long, the root's
 	// name and then the number of generations are left out so that the
 	// selection stays readable.
 	gens := fmt.Sprintf(" · %d generations", t.gens)
+	if t.mode == modeLifespans {
+		gens = " · " + lifespanReach(t.lifeGens)
+	}
 	selected := m.st.dim.Render(" · selected: ") + m.st.name.Render(chart.Label(sel.Ind))
 	if sel.Kind == chart.KindDuplicate {
 		selected = m.st.dim.Render(" · selected: ancestors of ") + m.st.name.Render(chart.Label(sel.Ind)) +
@@ -314,10 +382,38 @@ func (m Model) viewTree(h int) string {
 		header = m.st.section.Render(kind) + selected
 	}
 	out := []string{fit(header, m.width)}
-	for i := t.top; i < len(t.chart.Lines) && len(out) < h; i++ {
+	if m.treeGap() > 0 {
+		out = append(out, "")
+	}
+	rows, first, end := m.treeRows()
+	for i := range first {
 		out = append(out, m.renderTreeLine(i))
 	}
-	return strings.Join(out, "\n")
+	for i := t.top; i < end && i < t.top+rows; i++ {
+		out = append(out, m.renderTreeLine(i))
+	}
+	// The line on the person selected in the lifespans follows the
+	// blank line before the legend.
+	about := t.mode == modeLifespans
+	for i := end; i < len(t.chart.Lines); i++ {
+		out = append(out, m.renderTreeLine(i))
+		if about && len(t.chart.Lines[i]) == 0 {
+			out = append(out, m.lifespanAbout())
+			about = false
+		}
+	}
+	if about {
+		out = append(out, "", m.lifespanAbout())
+	}
+	return strings.Join(out[:min(len(out), h)], "\n")
+}
+
+// lifespanAbout describes the life of the person selected in the
+// lifespans: the name, then the rest dimmed.
+func (m Model) lifespanAbout() string {
+	about := m.tree.chart.About(m.tree.sel)
+	name, rest, _ := strings.Cut(about, " · ")
+	return fit(m.st.name.Render(name)+m.st.dim.Render(" · "+rest), m.width)
 }
 
 // renderTreeLine draws the visible horizontal slice of a chart line.
@@ -338,10 +434,18 @@ func (m Model) renderTreeLine(i int) string {
 			text = ansi.Cut(text, max(0, left-start), min(w, right-start))
 		}
 		switch {
-		case seg.Node < 0:
-			b.WriteString(m.st.dim.Render(text))
-		case seg.Node == t.sel:
+		case seg.Node >= 0 && seg.Node == t.sel:
 			b.WriteString(m.st.selected.Render(text))
+		case seg.Class == chart.ClassText:
+			b.WriteString(text)
+		case seg.Class == chart.ClassBar:
+			b.WriteString(m.st.bar.Render(text))
+		case seg.Class == chart.ClassRootBar:
+			b.WriteString(m.st.name.Render(text))
+		case seg.Class == chart.ClassMarker:
+			b.WriteString(m.st.mapMarker.Render(text))
+		case seg.Node < 0 || seg.Class == chart.ClassDim:
+			b.WriteString(m.st.dim.Render(text))
 		case t.chart.Nodes[seg.Node].Kind == chart.KindDuplicate:
 			b.WriteString(m.st.dim.Render(text))
 		case t.chart.Nodes[seg.Node].Ind == m.reference:

@@ -367,6 +367,15 @@ func blood(a, b *gedcom.Individual, birthOnly bool) (Relationship, bool) {
 	return Relationship{}, false
 }
 
+// Describe names how B is related to A by descent without looking for
+// the relationship: from the generations from A and from B up to their
+// closest common ancestors, B's sex, whether they share only one of them
+// (half), and the kind of parent link on the way that is not a birth
+// link, if any. Describe(2, 1, gedcom.SexFemale, false, "") is "aunt".
+func Describe(upA, upB int, sex gedcom.Sex, half bool, kind gedcom.Pedigree) string {
+	return qualify(describe(upA, upB, sex, half), kind)
+}
+
 // qualify prefixes a description with the kind of non-birth link, e.g.
 // "adoptive father", "foster sister" or "stepbrother".
 func qualify(desc string, kind gedcom.Pedigree) string {

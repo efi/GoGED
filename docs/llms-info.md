@@ -19,8 +19,9 @@ Main features, by TUI tab (keys 1–9, or alt+1–9 while typing):
 1. **Search**: query language with fields, ranges, negation, phonetic matching.
 2. **Person**: parents, siblings, families, associations, timeline, notes,
    sources; every relative is a link; browser-like back and forward.
-3. **Tree**: horizontal pedigree chart, indented descendant chart, or an
-   hourglass (bowtie) of both.
+3. **Charts** (formerly "Tree"): horizontal pedigree chart, indented
+   descendant chart, an hourglass (bowtie) of both, or the lifespans of a
+   person's family on a time axis.
 4. **Events**: all or the vital events, chronological, with a filter.
 5. **Places**: jurisdiction hierarchy, events per place.
 6. **Map** (experimental): Braille world map with markers, using embedded
@@ -31,7 +32,8 @@ Main features, by TUI tab (keys 1–9, or alt+1–9 while typing):
 9. **Export**: everybody or the people connected to the marked person, as a
    GEXF graph or as PDF pages.
 
-The batch flags are `-q`, `-tree`, `-desc`, `-hourglass`, `-diff OLD`, `-checks SPEC` (with `-person ID` as
+The batch flags are `-q`, `-tree`, `-desc`, `-hourglass`, `-lifespans`
+(with `-gen` one generation each way by default), `-diff OLD`, `-checks SPEC` (with `-person ID` as
 the marked person), `-timeline`, `-relate ID1,ID2`,
 `-events FILTER` (plus `-all`), `-places`, `-stats`, `-gen`, `-ascii`,
 `-person`, `-no-mouse`, `-show-restricted`, `-version` and `-licenses`, and
@@ -114,7 +116,7 @@ main.go            flag parsing, batch output, starts the TUI (run() is testable
 gedcom/            parsing and the typed model (no UI)
 genealogy/         analyses: relationships, timeline, places, stats, checks, hints, on-this-day
 search/            query language, folding, phonetics, person and event indexes
-chart/             text rendering of pedigree, descendant and hourglass charts
+chart/             text rendering of pedigree, descendant, hourglass and lifespan charts
 worldmap/          embedded Natural Earth data, projection, Braille renderer
 worldmap/mkworld/  converter from Natural Earth GeoJSON to world.bin
 export/            selection of people and links, GEXF writer, atomic file writing
@@ -361,7 +363,40 @@ packages.
   descendants beyond the generations, "(see above)" a repeated one. In
   the TUI the arrows follow the drawing (`hourglassStep`), the root
   starts centered, and `h` (no longer vim-left in the person and tree
-  views) opens it; `v` cycles through the three charts.
+  views) opens it; `v` cycles through the charts.
+- **`Lifespans`** (`lifespan.go`): rows are people (`Chart.Lives`), drawn
+  as bars on a year axis; the user chose the layout from a mockup.
+  - **Rows** (`lives`): ancestors by generation from the top (via
+    `Father`/`Mother`, as the pedigree), each followed by their siblings
+    while `g < gens` (so `+` adds aunts and uncles), the root with
+    siblings, then per family the partner and the children with their
+    descendants, indented by `Depth`. Everybody once; nil entries are
+    blank lines between groups. Relations come from `genealogy.Relate`,
+    partners are husband/wife/spouse (Relate would prefer a blood
+    relationship).
+  - **Years:** `yearsOf` widens approximate dates as the search does
+    (ABT ±2, BEF −10, AFT +10). Without a birth or death the first or last
+    record (own and family events) stands in, drawn solid up to it and
+    dotted (┄) beyond, at most 100 years and to the chart's edge; the
+    dots never widen the chart. A year at least is always drawn.
+  - **Columns:** half columns (`╸`/`╺`) give twice the resolution. Width 0
+    (batch) is two years per column; otherwise the fewest of 1, 2, 5, 10 …
+    that fit, after dropping the right columns (below 32 columns of
+    chart) and shortening names.
+  - **Classes:** `Segment.Class` (zero = as before) colours the bars:
+    `ClassBar` while the root lived, `ClassDim` outside and for the
+    axes, `ClassRootBar`, `ClassMarker` (⚭); the TUI maps them to styles.
+    Relation and name are node segments, so selection reverses both.
+  - **Together:** `between` uses `AgeBetween` and marks "~" only for
+    approximate dates (not for year-only ones, unlike the timeline), "≥"
+    when a record stands in for a birth or death; "≥ 0 y" is left out.
+    Partners get the marriage's length (to a death or divorce).
+  - **Head and Foot:** the axes, and the ages and the legend, stay in
+    place while the rows scroll (`treeRows` in the TUI). The TUI adds the
+    line from `About` after the blank foot line, a blank line under the
+    title if there is room (`treeGap`, also used by the mouse), rebuilds
+    on resize, and a click anywhere on a row selects it. `lifeGens` is
+    separate from `gens` (1–10, default 1).
 - **Nodes** carry `Line`, `Col`, `Width`, `Up`, `Down`, `More`, `Kind`,
   `Left` and, in pedigrees and hourglasses, `Path` (`FindPath` looks it
   up), so the TUI can select and navigate them.
@@ -457,7 +492,9 @@ packages.
   pedigree chart's nodes, so the same occurrence of a repeated ancestor is
   expanded, the others `ancestors_elsewhere`) and families with partner,
   marriage and children (as the descendant chart walks them,
-  `descendants_elsewhere` for repeats); the hourglass has both. Field names
+  `descendants_elsewhere` for repeats); the hourglass has both;
+  `-lifespans` gives the rows with the years drawn, records, marriages
+  and `together`. Field names
   are snake case, empty values omitted, lists never null; `writeJSON`
   indents and does not escape `&`. The tests decode into the same types
   with unknown fields disallowed.
@@ -526,7 +563,9 @@ packages.
   `W` key (`Model.wrap`) wraps the person view; the PDF always wraps.
   Span literals are keyed (`span{text: …, style: …}`) since `width`
   exists.
-- **Tree view:** generations range from 2 to 20 in both charts; the user
+- **Charts view** (`tree.go`, still named tree internally): generations
+  range from 2 to 20 in the tree charts (1 to 10 each way in the
+  lifespans); the user
   raised the pedigree limit from 12 in `01f4fad`. The limits are separate
   constants, and switching charts clamps to the new chart's limit should
   they differ again. Horizontal scrolling cuts lines with `ansi.Cut`; see

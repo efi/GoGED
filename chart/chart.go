@@ -1,5 +1,6 @@
 // Package chart renders family trees as text: a horizontal pedigree chart
-// of ancestors, an indented tree of descendants, and an hourglass of both.
+// of ancestors, an indented tree of descendants, an hourglass of both, and
+// the lifespans of a person's family on a time axis.
 // Charts record the position of every person so that a user interface can
 // highlight and navigate between them.
 package chart
@@ -88,15 +89,35 @@ type Node struct {
 // Segment is a run of text on a line. Node is the index of the node the
 // text belongs to, or -1 for lines and padding.
 type Segment struct {
-	Text string
-	Node int
+	Text  string
+	Node  int
+	Class Class
 }
+
+// Class says how a segment is drawn. The zero value leaves it to the
+// node: lines between people, and their names.
+type Class int
+
+// Segment classes, set by lifespan charts.
+const (
+	ClassDefault Class = iota
+	ClassDim           // axes and labels, and lives beyond the chart's person's
+	ClassText          // plain text
+	ClassBar           // a life while the chart's person lived
+	ClassRootBar       // the chart's person's life
+	ClassMarker        // a marriage
+)
 
 // Chart is a rendered tree.
 type Chart struct {
 	Lines [][]Segment
 	Nodes []Node
 	Width int // display width of the widest line
+	// Head and Foot count the lines at the start and at the end that
+	// stay in place when the rest scrolls: the axes of a lifespan chart.
+	Head, Foot int
+	// Lives are the rows of a lifespan chart.
+	Lives []Life
 
 	// byGeneration keeps Next within a generation. It is set for pedigree
 	// charts, which show every generation as a column.

@@ -569,7 +569,7 @@ func TestTreeView(t *testing.T) {
 	if a.m.active != viewTree || a.m.tree.mode != modePedigree {
 		t.Fatalf("active=%v mode=%v", a.m.active, a.m.tree.mode)
 	}
-	a.contains("[3 Tree]", "Pedigree of Harold Smith · 4 generations · selected: Harold Smith (1891–)", "┌─ Arthur Smith (1866–1940)", "└─ Lucy King")
+	a.contains("[3 Charts]", "Pedigree of Harold Smith · 4 generations · selected: Harold Smith (1891–)", "┌─ Arthur Smith (1866–1940)", "└─ Lucy King")
 	a.press("right")
 	a.contains("selected: Arthur Smith (1866–1940)")
 	a.press("right", "down")
@@ -601,6 +601,10 @@ func TestTreeView(t *testing.T) {
 	a.press("v")
 	if a.m.tree.mode != modeHourglass {
 		t.Error("v goes on to the hourglass")
+	}
+	a.press("v")
+	if a.m.tree.mode != modeLifespans {
+		t.Error("v goes on to the lifespans")
 	}
 	a.press("v")
 	if a.m.tree.mode != modePedigree {
@@ -648,9 +652,9 @@ func TestTreeHourglass(t *testing.T) {
 	}
 	a.press("t", "h")
 	a.contains("Hourglass of Thomas Smith")
-	a.press("v")
+	a.press("v", "v")
 	if a.m.tree.mode != modePedigree {
-		t.Error("v goes round from the hourglass to the pedigree")
+		t.Error("v goes round from the hourglass by the lifespans to the pedigree")
 	}
 }
 
@@ -1714,3 +1718,97 @@ func TestFormatLatLon(t *testing.T) {
 
 func worldmapMaxZoom() float64 { return worldmap.MaxZoom }
 func worldmapMinZoom() float64 { return worldmap.MinZoom }
+
+func TestLifespansView(t *testing.T) {
+	a := newApp(t, Options{StartPerson: "I3"})
+	a.resize(120, 30)
+	a.press("s")
+	if a.m.active != viewTree || a.m.tree.mode != modeLifespans {
+		t.Fatalf("view %d, mode %d", a.m.active, a.m.tree.mode)
+	}
+	a.contains("[3 Charts]", "Lifespans of John Smith · parents to children · selected: John Smith (1817–1880)",
+		"father     William Smith", "lived  with John", "1817–1880  63 y", "John's age",
+		"John Smith · born 2 Feb 1817 in Leeds · died 1880 in Manchester at ~63", "⚭ marriage",
+		"p/d/h/s pedigree/descendants/hourglass/lifespans")
+	lines := strings.Split(ansi.Strip(a.view()), "\n")
+	if lines[3] != "" || !strings.Contains(lines[4], "1800      1820") {
+		t.Errorf("a blank line, then the axis:\n%s", a.view())
+	}
+	// The details of the selected person follow the ages, before the legend.
+	_, ages := a.find("John's age")
+	_, about := a.find("John Smith · born")
+	_, legend := a.find("while John lived")
+	if about != ages+2 || legend != about+1 {
+		t.Errorf("ages %d, details %d, legend %d", ages, about, legend)
+	}
+
+	a.press("down")
+	a.contains("selected: Mary Smith (1819–1899)", "Mary Smith · born 1819 in Leeds · died 1899 at ~80")
+	a.press("up", "up")
+	a.contains("selected: Elizabeth Brown", "when John Smith was ~43")
+
+	// A click anywhere on a row selects the person, a second opens them.
+	x, y := a.find("Ann Taylor")
+	a.click(x+40, y)
+	a.contains("selected: Ann Taylor (1820–1845)", "Ann Taylor · born 1820 · married 1840 in Manchester")
+	a.click(x+40, y)
+	if a.m.active != viewPerson || a.currentID() != "I5" {
+		t.Fatalf("second click: view %d, %s", a.m.active, a.currentID())
+	}
+	a.press("b", "s")
+	a.contains("Lifespans of John Smith")
+
+	// Space makes the selected person the centre; + adds a generation each
+	// way, with the aunts and uncles.
+	a.clickOn("Thomas Smith")
+	a.press(" ")
+	a.contains("Lifespans of Thomas Smith · parents to children")
+	a.press("+")
+	a.contains("Lifespans of Thomas Smith · grandparents to grandchildren", "showing grandparents to grandchildren",
+		"\ngrandfather ", "\naunt ", "\n    grandson ", "\n    adoptive granddaughter Rose Smith")
+	a.press("-", "-")
+	a.contains("generations are limited to 1–10")
+	if a.m.tree.gens != 4 {
+		t.Errorf("the other charts' generations changed: %d", a.m.tree.gens)
+	}
+
+	// The chart fits a narrower screen.
+	a.resize(84, 30)
+	for _, l := range strings.Split(a.view(), "\n") {
+		if w := ansi.StringWidth(l); w > 84 {
+			t.Errorf("line of %d columns: %q", w, ansi.Strip(l))
+		}
+	}
+	a.press("down", "up")
+	a.contains("p/d/h/s charts", "selected: Thomas Smith")
+
+	// On a low screen the rows scroll between the axes.
+	a.resize(110, 14)
+	a.press("+")
+	for range 12 {
+		a.press("down")
+	}
+	a.contains("selected: Infant Smith", "Thomas's age", "1850", "Infant Smith · born 1895")
+	a.notContains("William Smith")
+	a.wheel(tea.MouseButtonWheelUp, 50, 6)
+	a.wheel(tea.MouseButtonWheelUp, 50, 6)
+	a.contains("Thomas's age", "1850")
+	if a.m.tree.top < a.m.tree.chart.Head {
+		t.Errorf("scrolled into the head: %d", a.m.tree.top)
+	}
+
+	// Loading the file again keeps the chart, its generations and the
+	// selection.
+	a.m.replaceDoc(loadSample(t))
+	if tr := a.m.tree; tr.mode != modeLifespans || tr.lifeGens != 2 || tr.chart.Nodes[tr.sel].Ind.ID != "I24" {
+		t.Errorf("after loading again: mode %d, %d generations, %s selected", tr.mode, tr.lifeGens, tr.chart.Nodes[tr.sel].Ind.ID)
+	}
+
+	// The person view opens the lifespans with s, and v goes on from them.
+	a.press("alt+2", "s")
+	a.contains("Lifespans of Thomas Smith")
+	a.press("v")
+	if a.m.tree.mode != modePedigree {
+		t.Errorf("v from the lifespans: %d", a.m.tree.mode)
+	}
+}

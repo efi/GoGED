@@ -81,6 +81,27 @@ func TestTreeFlags(t *testing.T) {
 	}
 }
 
+func TestLifespansFlag(t *testing.T) {
+	r := runCLI(t, "", "-lifespans", "I3", sample)
+	for _, want := range []string{"father     William Smith   ━━━━", "           John Smith ", "1817–1880  63 y", "lived  with John",
+		"John's age", "⚭ marriage"} {
+		if !strings.Contains(r.stdout, want) {
+			t.Errorf("no %q in:\n%s", want, r.stdout)
+		}
+	}
+	if r.code != 0 || strings.Contains(r.stdout, "grandfather") {
+		t.Errorf("exit %d, more than one generation:\n%s", r.code, r.stdout)
+	}
+	r = runCLI(t, "", "-lifespans", "I14", "-gen", "2", "-ascii", sample)
+	if r.code != 0 || !strings.Contains(r.stdout, "half-aunt           Emma Smith") || !strings.Contains(r.stdout, ">= 19 y") ||
+		strings.ContainsAny(r.stdout, "━┊⚭") {
+		t.Errorf("two generations in ASCII:\n%s", r.stdout)
+	}
+	if r := runCLI(t, "", "-lifespans", "I99", sample); r.code != 1 || !strings.Contains(r.stderr, `no individual with ID "I99"`) {
+		t.Errorf("unknown ID: exit %d, %s", r.code, r.stderr)
+	}
+}
+
 func TestDiffFlag(t *testing.T) {
 	// The newer version: a name changed, a person added to a family.
 	data, err := os.ReadFile(sample)

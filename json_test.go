@@ -108,6 +108,37 @@ func TestJSONCharts(t *testing.T) {
 	}
 }
 
+func TestJSONLifespans(t *testing.T) {
+	var ls jsonLifespans
+	runJSON(t, &ls, "-lifespans", "I3", sample)
+	if ls.Person == nil || ls.Person.ID != "I3" || ls.Generations != 1 || len(ls.People) != 9 {
+		t.Fatalf("lifespans %+v", ls)
+	}
+	life := map[string]jsonLife{}
+	for _, l := range ls.People {
+		life[l.ID] = l
+	}
+	if w := life["I1"]; w.Relation != "father" || w.Generation != 1 || w.Together == nil || w.Together.Years != 32 || w.Birth == nil {
+		t.Errorf("William %+v", w)
+	}
+	if e := life["I2"]; e.BornYears == nil || *e.BornYears != (jsonYears{1793, 1797}) {
+		t.Errorf("Elizabeth, born about 1795: %+v", e.BornYears)
+	}
+	if a := life["I5"]; !a.Partner || len(a.Marriages) != 1 || a.Marriages[0] != 1840 || a.Together == nil || !a.Together.Married || a.Together.Years != 5 {
+		t.Errorf("Ann %+v, %+v", a, a.Together)
+	}
+	if e := life["I8"]; e.DiedYears != nil || e.LastRecord != 1885 || e.FirstRecord != 0 || e.Generation != -1 {
+		t.Errorf("Emma %+v", e)
+	}
+	if j := life["I3"]; j.Relation != "" || j.Generation != 0 || len(j.Marriages) != 2 || j.Together.Years != 63 {
+		t.Errorf("John %+v", j)
+	}
+	runJSON(t, &ls, "-lifespans", "I14", "-gen", "2", sample)
+	if ls.Generations != 2 || ls.People[0].Relation != "grandfather" {
+		t.Errorf("two generations: %+v", ls.People[0])
+	}
+}
+
 func TestJSONPeopleAndEvents(t *testing.T) {
 	var tl jsonTimeline
 	runJSON(t, &tl, "-timeline", "I14", sample)
@@ -252,7 +283,7 @@ func TestChecksFlag(t *testing.T) {
 		{[]string{"-checks", "no-events=3"}, 2, "no-events has no threshold"},
 		{[]string{"-checks", "similar-places=very"}, 2, "similar-places: expects almost-identical, similar, somewhat-resembling"},
 		{[]string{"-checks", "all", "-person", "I99"}, 1, `no individual with ID "I99"`},
-		{[]string{"-json"}, 2, "-json goes with -q, -tree, -desc, -hourglass, -timeline, -relate, -events, -places, -stats, -checks, -diff"},
+		{[]string{"-json"}, 2, "-json goes with -q, -tree, -desc, -hourglass, -lifespans, -timeline, -relate, -events, -places, -stats, -checks, -diff"},
 		{[]string{"-json", "-export", "gexf", "-o", "-"}, 2, "-json goes with"},
 		{[]string{"-json", "-q", "foo:bar"}, 2, `unknown field "foo"`},
 		{[]string{"-json", "-events", "sex:m"}, 2, "not available for events"},
