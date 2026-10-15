@@ -20,7 +20,7 @@ The screenshots below use the [GEDCOM-L sample file](testdata/Muster_GEDCOM_UTF-
 *Descendant chart with spouses, marriage years and an adopted child.*
 
 ![Map around Brosowo with coastlines, rivers and borders](docs/screenshot-map.png)\
-*The experimental map shows places that have coordinates.*
+*The map shows places that have coordinates.*
 
 ## Features
 
@@ -54,7 +54,7 @@ The screenshots below use the [GEDCOM-L sample file](testdata/Muster_GEDCOM_UTF-
   (country → county → town) with the number of events and people, collapsible
   and filterable. Select a place to list everything that happened there and in
   the places within it, then open the people involved.
-- **Map (experimental)**: a zoomable world map drawn with Braille characters
+- **Map**: a zoomable world map drawn with Braille characters
   from 80°N to 60°S in three projections (Equirectangular, Equal Earth, Web
   Mercator), with coastlines, country borders, rivers and lakes, the
   equator, and a marker for every
@@ -322,7 +322,7 @@ The events filter understands `type:marr,div` (tags or names such as
 `place:`, `name:`, negation and plain text, combined with `|`, `OR` and
 brackets as in the search: `type:birth (place:leeds | place:york)`.
 
-## The map (experimental)
+## The map
 
 Coordinates are read from the standard GEDCOM structure below a place:
 

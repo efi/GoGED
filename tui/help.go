@@ -75,7 +75,7 @@ var helpSections = [][]string{
 	{"f", "filter places by name; enter to finish, esc to clear"},
 	{"M", "show the selected place on the map"},
 	{""},
-	{"Map (experimental)"},
+	{"Map"},
 	{"arrows  h j k l", "pan the map"},
 	{"+ / -", "zoom in / out"},
 	{"n / N", "next / previous place with coordinates (most events first)"},

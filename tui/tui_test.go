@@ -1538,7 +1538,7 @@ func TestMapView(t *testing.T) {
 	if a.m.active != viewMap {
 		t.Fatalf("alt+6 opens the map, got %v", a.m.active)
 	}
-	a.contains("[6 Map]", "Map (experimental)", "10 places with coordinates, 1 without",
+	a.contains("[6 Map]", "Map · Equirectangular · zoom", "10 places with coordinates, 1 without",
 		"◉ Leeds, Yorkshire, England · 53.80°N 1.55°W · 9 events · 6 people",
 		"Map data: Made with Natural Earth (public domain) · press L for licenses")
 	if len(a.m.mapv.places) != 10 || a.m.mapv.places[0].Name != "Leeds" || a.m.mapv.places[1].Name != "Manchester" {
@@ -1611,7 +1611,7 @@ func TestMapView(t *testing.T) {
 		t.Errorf("w shows the whole map: %+v", a.m.mapv.view)
 	}
 	// Equirectangular by default: the middle of 80°N and 60°S is 10°N.
-	a.contains("Map (experimental) · Equirectangular · ", "center 10.00°N 0.00°E")
+	a.contains("Map · Equirectangular · ", "center 10.00°N 0.00°E")
 
 	// v goes through the projections, keeping the center where it is
 	// zoomed in, and moving the markers.
@@ -1621,7 +1621,7 @@ func TestMapView(t *testing.T) {
 	lat0, lon0 := center()
 	a.press("v")
 	lat, lon := center()
-	a.contains("Map (experimental) · Equal Earth · ", "Equal Earth projection: areas true")
+	a.contains("Map · Equal Earth · ", "Equal Earth projection: areas true")
 	if a.m.mapv.view.Proj != worldmap.EqualEarth || a.m.mapv.markers[0] == leeds || math.Abs(lat-lat0) > 1e-6 || math.Abs(lon-lon0) > 1e-6 {
 		t.Errorf("Equal Earth: view %+v, Leeds %+v, center %v,%v", a.m.mapv.view, a.m.mapv.markers[0], lat, lon)
 	}
@@ -1632,7 +1632,7 @@ func TestMapView(t *testing.T) {
 	if lat2, lon2 := center(); a.m.mapv.view.Proj != worldmap.WebMercator || math.Abs(lat2-lat) > 1e-6 || math.Abs(lon2-lon) > 1e-6 {
 		t.Errorf("Web Mercator: %+v, center %v,%v", a.m.mapv.view, lat2, lon2)
 	}
-	a.contains("Map (experimental) · Web Mercator · ")
+	a.contains("Map · Web Mercator · ")
 	a.press("v")
 	if a.m.mapv.view.Proj != worldmap.Equirectangular || a.m.mapv.markers[0] != leeds {
 		t.Errorf("back to Equirectangular: %+v, Leeds %+v", a.m.mapv.view, a.m.mapv.markers[0])
@@ -1731,7 +1731,7 @@ func TestLicensesScreen(t *testing.T) {
 	}
 	a.press("?")
 	a.contains("[Help]")
-	if !strings.Contains(helpText(), "Map (experimental)") || !strings.Contains(helpText(), "PLAC.MAP.LATI") {
+	if !strings.Contains(helpText(), "Map\n") || !strings.Contains(helpText(), "PLAC.MAP.LATI") {
 		t.Error("help explains the map")
 	}
 }

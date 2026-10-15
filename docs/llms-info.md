@@ -24,7 +24,7 @@ Main features, by TUI tab (keys 1–9, or alt+1–9 while typing):
    person's family on a time axis.
 4. **Events**: all or the vital events, chronological, with a filter.
 5. **Places**: jurisdiction hierarchy, events per place.
-6. **Map** (experimental): Braille world map with markers, using embedded
+6. **Map**: Braille world map with markers, using embedded
    Natural Earth data.
 7. **Stats**: counts, time span, names, "On this day", warnings.
 8. **Checks**: plausibility checks with thresholds that can be changed

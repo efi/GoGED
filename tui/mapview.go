@@ -12,7 +12,7 @@ import (
 	"github.com/efi/goged/worldmap"
 )
 
-// mapState drives the (experimental) map view: a zoomable world map with
+// mapState drives the map view: a zoomable world map with
 // markers for every place that has coordinates.
 type mapState struct {
 	world   *worldmap.World
@@ -284,7 +284,7 @@ func (m Model) viewMap(h int) string {
 	}
 	rows := max(1, h-3)
 	lat, lon := s.view.Proj.Unproject(s.view.X, s.view.Y)
-	info := m.st.section.Render("Map") + m.st.dim.Render(fmt.Sprintf(" (experimental) · %s · zoom %.1f · center %s · %s with coordinates",
+	info := m.st.section.Render("Map") + m.st.dim.Render(fmt.Sprintf(" · %s · zoom %.1f · center %s · %s with coordinates",
 		s.view.Proj, s.view.Zoom, formatLatLon(lat, max(-180, min(180, lon))), plural(len(s.places), "place", "places")))
 	if s.unknown > 0 {
 		info += m.st.dim.Render(fmt.Sprintf(", %d without", s.unknown))
