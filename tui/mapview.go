@@ -89,10 +89,12 @@ func (m *Model) fitMap() {
 		minY, maxY = math.Min(minY, mk.Y), math.Max(maxY, mk.Y)
 	}
 	s.view = worldmap.Fit(minX, minY, maxX, maxY, m.mapCols(), m.mapRows())
+	m.clampMap()
 }
 
+// showWorld shows all of the map: the latitudes between 80°N and 60°S.
 func (m *Model) showWorld() {
-	m.mapv.view = worldmap.Fit(0, 0.1, 1, 0.9, m.mapCols(), m.mapRows())
+	m.mapv.view = worldmap.WholeWorld(m.mapCols(), m.mapRows())
 }
 
 // selectMarker selects a place and centers the map on it.
@@ -103,6 +105,7 @@ func (m *Model) selectMarker(i int) {
 	}
 	s.sel = (i + len(s.places)) % len(s.places)
 	s.view.X, s.view.Y = s.markers[s.sel].X, s.markers[s.sel].Y
+	m.clampMap()
 }
 
 // selectMapPlace selects the located place n or, if n has no coordinates,
@@ -111,8 +114,8 @@ func (m *Model) selectMapPlace(n *genealogy.PlaceNode) {
 	s := &m.mapv
 	for i, p := range s.places {
 		if p == n {
-			m.selectMarker(i)
 			s.view.Zoom = math.Max(s.view.Zoom, 7)
+			m.selectMarker(i)
 			return
 		}
 	}
@@ -128,6 +131,7 @@ func (m *Model) selectMapPlace(n *genealogy.PlaceNode) {
 		minY, maxY = math.Min(minY, y), math.Max(maxY, y)
 	}
 	s.view = worldmap.Fit(minX, minY, maxX, maxY, m.mapCols(), m.mapRows())
+	m.clampMap()
 	for i, p := range s.places {
 		if p == inside[0] {
 			s.sel = i
@@ -202,8 +206,7 @@ func (m *Model) updateMap(msg tea.KeyMsg) (bool, tea.Cmd) {
 	default:
 		return false, nil
 	}
-	s.view.X = math.Max(0, math.Min(1, s.view.X))
-	s.view.Y = math.Max(0, math.Min(1, s.view.Y))
+	m.clampMap()
 	return true, nil
 }
 
@@ -223,6 +226,7 @@ func formatLatLon(lat, lon float64) string {
 func (m Model) mapStyles() map[worldmap.Class]lipgloss.Style {
 	return map[worldmap.Class]lipgloss.Style{
 		worldmap.ClassEmpty:      lipgloss.NewStyle(),
+		worldmap.ClassEquator:    m.st.mapEquator,
 		worldmap.ClassBorder:     m.st.mapBorder,
 		worldmap.ClassCoast:      m.st.mapCoast,
 		worldmap.ClassLake:       m.st.mapWater,

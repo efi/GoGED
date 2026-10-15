@@ -245,6 +245,7 @@ func (m *Model) fitSurname() {
 	// Close places would fill the screen with countryside; a region keeps
 	// the coasts in view.
 	s.view.Zoom = math.Min(s.view.Zoom, surnameZoom)
+	m.clampMap()
 }
 
 // surnameZoom is the closest a surname's places are shown at first.

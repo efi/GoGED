@@ -181,6 +181,9 @@ func (m *Model) layout() {
 	m.movePlaces(0)
 	m.movePlaceEvents(0)
 	m.rebuildPerson()
+	if m.mapv.ready {
+		m.clampMap()
+	}
 	if t := &m.tree; t.mode == modeLifespans && t.chart != nil {
 		// The lifespans fit the width.
 		sel := t.chart.Nodes[t.sel].Ind

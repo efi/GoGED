@@ -93,6 +93,19 @@ func Load() (*World, error) {
 // maxLat is the latitude limit of the Web Mercator projection.
 const maxLat = 85.05112878
 
+// The map is drawn from North to South only: beyond, there is mostly ice,
+// which the projection stretches the most.
+const (
+	North = 80.0
+	South = -60.0
+)
+
+// bandTop and bandBottom are North and South in Web Mercator.
+var (
+	_, bandTop    = Project(North, 0)
+	_, bandBottom = Project(South, 0)
+)
+
 // Project converts a latitude and longitude in degrees to Web Mercator
 // coordinates in [0, 1]: x grows towards the east, y towards the south.
 func Project(lat, lon float64) (x, y float64) {

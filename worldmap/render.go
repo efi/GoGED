@@ -58,12 +58,36 @@ func Fit(minX, minY, maxX, maxY float64, cols, rows int) View {
 	return v
 }
 
+// Clamped returns the view moved, if need be, so that it shows no more
+// than the world and the latitudes between North and South, or centers
+// these if the screen shows more.
+func (v View) Clamped(cols, rows int) View {
+	v.X = max(0, min(1, v.X))
+	_, h := v.Span(cols, rows)
+	if h >= bandBottom-bandTop {
+		v.Y = (bandTop + bandBottom) / 2
+	} else {
+		v.Y = max(bandTop+h/2, min(bandBottom-h/2, v.Y))
+	}
+	return v
+}
+
+// WholeWorld returns the view that shows all of the map: the whole width
+// and the latitudes between North and South, as large as fits.
+func WholeWorld(cols, rows int) View {
+	zx := math.Log2(float64(cols*2) / 256)
+	zy := math.Log2(float64(rows*4) / (256 * (bandBottom - bandTop)))
+	v := View{X: 0.5, Zoom: max(MinZoom, min(MaxZoom, zx, zy))}
+	return v.Clamped(cols, rows)
+}
+
 // Class tells the user interface how to color a cell.
 type Class uint8
 
 // Cell classes from lowest to highest priority.
 const (
 	ClassEmpty Class = iota
+	ClassEquator
 	ClassBorder
 	ClassCoast
 	ClassLake
@@ -124,10 +148,11 @@ func (f Frame) String() string {
 
 // canvas is a Braille dot canvas.
 type canvas struct {
-	cols, rows int
-	w, h       int // in dots
-	dots       []uint8
-	class      []Class
+	cols, rows  int
+	w, h        int     // in dots
+	top, bottom float64 // the dot rows lines are drawn between
+	dots        []uint8
+	class       []Class
 }
 
 // brailleBits maps a dot position within a cell (x 0-1, y 0-3) to its bit.
@@ -145,11 +170,15 @@ func (c *canvas) set(x, y int, cl Class) {
 }
 
 // clip restricts the segment (x0,y0)-(x1,y1) to the rectangle
-// [0,w]×[0,h] (Liang-Barsky). It reports false if nothing is visible.
-func clip(x0, y0, x1, y1, w, h float64) (float64, float64, float64, float64, bool) {
+// [left,right]×[top,bottom] (Liang-Barsky). It reports false if nothing
+// is visible.
+func clip(x0, y0, x1, y1, left, top, right, bottom float64) (float64, float64, float64, float64, bool) {
+	if right < left || bottom < top {
+		return 0, 0, 0, 0, false
+	}
 	t0, t1 := 0.0, 1.0
 	dx, dy := x1-x0, y1-y0
-	for _, e := range [4][2]float64{{-dx, x0}, {dx, w - x0}, {-dy, y0}, {dy, h - y0}} {
+	for _, e := range [4][2]float64{{-dx, x0 - left}, {dx, right - x0}, {-dy, y0 - top}, {dy, bottom - y0}} {
 		p, q := e[0], e[1]
 		if p == 0 {
 			if q < 0 {
@@ -173,10 +202,10 @@ func clip(x0, y0, x1, y1, w, h float64) (float64, float64, float64, float64, boo
 	return x0 + t0*dx, y0 + t0*dy, x0 + t1*dx, y0 + t1*dy, true
 }
 
-// line draws a clipped segment with Bresenham's algorithm. Dotted lines
-// set every other dot.
+// line draws a segment with Bresenham's algorithm, clipped to the screen
+// and to the latitudes shown. Dotted lines set every other dot.
 func (c *canvas) line(x0, y0, x1, y1 float64, cl Class, dotted bool) {
-	x0, y0, x1, y1, ok := clip(x0, y0, x1, y1, float64(c.w)-0.001, float64(c.h)-0.001)
+	x0, y0, x1, y1, ok := clip(x0, y0, x1, y1, 0, c.top, float64(c.w)-0.001, c.bottom-0.001)
 	if !ok {
 		return
 	}
@@ -225,10 +254,12 @@ func sign(x int) int {
 // web map shows per pixel.
 const detailBias = 1.5
 
-// Render draws the map for a screen of cols×rows cells. Markers are drawn
-// on top; the marker with index selected (or none if -1) is highlighted
-// and always labeled. Other markers are labeled where there is room, in
-// the order given, so the most important places should come first.
+// Render draws the map for a screen of cols×rows cells: the features
+// between the latitudes North and South, and the equator. Markers are
+// drawn on top, wherever they are; the marker with index selected (or
+// none if -1) is highlighted and always labeled. Other markers are
+// labeled where there is room, in the order given, so the most important
+// places should come first.
 func (w *World) Render(v View, cols, rows int, markers []Marker, selected int) Frame {
 	cols, rows = max(cols, 1), max(rows, 1)
 	c := &canvas{cols: cols, rows: rows, w: cols * 2, h: rows * 4}
@@ -239,6 +270,10 @@ func (w *World) Render(v View, cols, rows int, markers []Marker, selected int) F
 	spanX, spanY := v.Span(cols, rows)
 	left, top := v.X-spanX/2, v.Y-spanY/2
 	right, bottom := left+spanX, top+spanY
+	c.top = max(0, (bandTop-top)*d)
+	c.bottom = min(float64(c.h), (bandBottom-top)*d)
+	equator := (0.5 - top) * d
+	c.line(-left*d, equator, (1-left)*d, equator, ClassEquator, false)
 	if w != nil {
 		for i := range w.segs {
 			s := &w.segs[i]

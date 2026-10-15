@@ -144,7 +144,7 @@ func TestClip(t *testing.T) {
 		{[4]float64{5, 12, 5, 20}, [4]float64{}, false},
 	}
 	for _, tt := range tests {
-		x0, y0, x1, y1, ok := clip(tt.in[0], tt.in[1], tt.in[2], tt.in[3], 10, 10)
+		x0, y0, x1, y1, ok := clip(tt.in[0], tt.in[1], tt.in[2], tt.in[3], 0, 0, 10, 10)
 		if ok != tt.ok || (ok && [4]float64{x0, y0, x1, y1} != tt.want) {
 			t.Errorf("clip(%v) = %v,%v,%v,%v,%v want %v %v", tt.in, x0, y0, x1, y1, ok, tt.want, tt.ok)
 		}
@@ -167,7 +167,7 @@ func TestRenderGolden(t *testing.T) {
 		"            ⢸              ⡇            ",
 		"            ⢸              ⡇            ",
 		"            ⢸              ⡇            ",
-		"            ⢸              ⡇            ",
+		"⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⢹⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⡏⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉⠉", // the equator
 		"            ⢸              ⡇            ",
 		"            ⢸              ⡇            ",
 		"            ⠸⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠇            ",
@@ -177,7 +177,8 @@ func TestRenderGolden(t *testing.T) {
 	if got := f.String(); got != want {
 		t.Errorf("render:\n%s\nwant:\n%s", got, want)
 	}
-	if f.Cells[2][12].Class != ClassCoast || f.Cells[0][0].Class != ClassEmpty {
+	if f.Cells[2][12].Class != ClassCoast || f.Cells[0][0].Class != ClassEmpty || f.Cells[6][0].Class != ClassEquator ||
+		f.Cells[6][12].Class != ClassCoast {
 		t.Error("classes")
 	}
 }
@@ -201,8 +202,19 @@ func TestRenderClassesAndDetail(t *testing.T) {
 		t.Errorf("classes at zoom 2: %v", classes)
 	}
 	// Borders are dotted: the top edge does not fill every dot.
-	if strings.Contains(f.String(), "⠉⠉⠉⠉") {
-		t.Errorf("borders should be dotted:\n%s", f.String())
+	var borders strings.Builder
+	for _, row := range f.Cells {
+		for _, c := range row {
+			if c.Class == ClassBorder {
+				borders.WriteRune(c.Rune)
+			} else {
+				borders.WriteRune(' ')
+			}
+		}
+		borders.WriteByte('\n')
+	}
+	if strings.Contains(borders.String(), "⠉⠉⠉⠉") {
+		t.Errorf("borders should be dotted:\n%s", borders.String())
 	}
 	v.Zoom = 8
 	f = w.Render(v, 40, 12, nil, -1)
@@ -391,5 +403,71 @@ func TestRenderFaintMarkers(t *testing.T) {
 	c, r = f.MarkerCells[1][0], f.MarkerCells[1][1]
 	if f.Cells[r][c].Rune != '●' || !strings.Contains(f.String(), "A") || strings.Contains(f.String(), "Under") {
 		t.Errorf("a marker over a faint one:\n%s", f)
+	}
+}
+
+func TestRenderBand(t *testing.T) {
+	// A meridian from the Arctic to Antarctica, and an island near the
+	// South Pole.
+	w := New([]Polyline{
+		{Kind: Coastline, Lon: []float64{0, 0}, Lat: []float64{85, -85}},
+		{Kind: Coastline, Lon: []float64{-3, 3, 3, -3, -3}, Lat: []float64{-69, -69, -71, -71, -69}},
+	})
+	cols, rows := 80, 40
+	v := View{X: 0.5, Y: 0.5, Zoom: 0} // 256 dots: the whole world in 64 rows
+	f := w.Render(v, cols, rows, nil, -1)
+	_, north := Project(North, 0)
+	_, south := Project(South, 0)
+	d := v.dotsPerWorld()
+	top := int(((north-v.Y)*d + float64(rows*2)) / 4)
+	bottom := int(((south-v.Y)*d + float64(rows*2)) / 4)
+	for r, row := range f.Cells {
+		c := row[cols/2]
+		drawn := c.Rune != 0 && c.Class == ClassCoast
+		if want := r >= top && r <= bottom; drawn != want {
+			t.Errorf("row %d (band %d–%d): drawn %v", r, top, bottom, drawn)
+		}
+	}
+	// The equator crosses the whole world, and only the world.
+	_, eq, _ := v.Locate(0.5, 0.5, cols, rows)
+	if f.Cells[eq][0].Class != ClassEquator || f.Cells[eq][cols-1].Class != ClassEquator {
+		t.Errorf("equator row %d: %+v", eq, f.Cells[eq][:3])
+	}
+	narrow := New(nil).Render(View{X: 0.5, Y: 0.5, Zoom: -1}, cols, rows, nil, -1)
+	if narrow.Cells[eq][0].Rune != 0 || narrow.Cells[eq][cols/2].Class != ClassEquator {
+		t.Errorf("zoomed out, the equator ends with the world")
+	}
+}
+
+func TestClampedAndWholeWorld(t *testing.T) {
+	_, north := Project(North, 0)
+	_, south := Project(South, 0)
+	// Zoomed in, the view stays within the band and the world.
+	v := View{X: -0.2, Y: 0.01, Zoom: 5}.Clamped(80, 20)
+	_, h := v.Span(80, 20)
+	if v.X != 0 || math.Abs(v.Y-h/2-north) > 1e-12 {
+		t.Errorf("north-west: %+v", v)
+	}
+	v = View{X: 1.5, Y: 0.99, Zoom: 5}.Clamped(80, 20)
+	if v.X != 1 || math.Abs(v.Y+h/2-south) > 1e-12 {
+		t.Errorf("south-east: %+v", v)
+	}
+	if v := (View{X: 0.3, Y: 0.4, Zoom: 5}).Clamped(80, 20); v.X != 0.3 || v.Y != 0.4 {
+		t.Errorf("a view within the band moved: %+v", v)
+	}
+	// Zoomed out further than the band, it is centered.
+	if v := (View{X: 0.5, Y: 0.1, Zoom: -1}).Clamped(80, 40); v.Y != (north+south)/2 {
+		t.Errorf("zoomed out: %+v", v)
+	}
+	// The whole world fills the screen with the band or the width.
+	for _, size := range [][2]int{{110, 25}, {200, 25}, {60, 40}} {
+		w := WholeWorld(size[0], size[1])
+		sw, sh := w.Span(size[0], size[1])
+		if sw < 1-1e-9 && sh < south-north-1e-9 || sw > 1+1e-9 && sh > south-north+1e-9 {
+			t.Errorf("%v: spans %v × %v", size, sw, sh)
+		}
+		if w.X != 0.5 || math.Abs(w.Y-(north+south)/2) > 1e-12 {
+			t.Errorf("%v: center %+v", size, w)
+		}
 	}
 }

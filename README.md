@@ -54,8 +54,9 @@ The screenshots below use the [GEDCOM-L sample file](testdata/Muster_GEDCOM_UTF-
   (country → county → town) with the number of events and people, collapsible
   and filterable. Select a place to list everything that happened there and in
   the places within it, then open the people involved.
-- **Map (experimental)**: a zoomable world map drawn with Braille characters,
-  with coastlines, country borders, rivers and lakes, and a marker for every
+- **Map (experimental)**: a zoomable world map drawn with Braille characters
+  from 80°N to 60°S, with coastlines, country borders, rivers and lakes, the
+  equator, and a marker for every
   place that has coordinates (`PLAC` → `MAP` → `LATI`/`LONG`, or the place
   record the place refers to). The map data is
   compiled into the executable, so goged stays a single file.
@@ -270,7 +271,7 @@ Try it with the sample file in [`testdata/family.ged`](testdata/family.ged).
 | Map     | arrows (`h` `j` `k` `l`), `+` `-` | pan, zoom |
 |         | `s`, `PgUp` `PgDn`, `e` | surname view on/off: the places of the people born with a surname; another surname; all events, births, deaths or other events |
 |         | `n` / `N`, `enter` | next/previous place (most events first), list the events at the place |
-|         | `0`, `w`, `c` | fit all places, whole world, center on the selected place |
+|         | `0`, `w`, `c` | fit all places, the whole map (80°N to 60°S), center on the selected place |
 | Stats   | `enter` | for the selected surname: the people with it, or the surname on the map; for a period: the people born then |
 | Checks  | `←` `→`, `space` | lower or raise the threshold of a check (the findings change at once), switch it off or on |
 |         | `enter`, `o`, `r` | fold a check or open the person (or first place) of a finding, open the other person (or next place), reset all thresholds |
@@ -339,7 +340,10 @@ The map shows the 1:10m coastlines, land borders, rivers and lakes of
 supplements with smaller rivers in Europe, North America and Australia. The
 data is simplified to about 0.005° and stored in a compact format
 (`worldmap/world.bin`, 1.8 MB) that is embedded into the executable. Minor
-rivers and lakes appear as you zoom in. To rebuild the data from the Natural
+rivers and lakes appear as you zoom in. The map is drawn from 80°N to 60°S:
+beyond lies mostly ice, which Web Mercator stretches the most. The equator is
+a yellow line. The view stays within these latitudes, and `w` shows them all.
+To rebuild the data from the Natural
 Earth GeoJSON files (each layer takes a comma-separated list of files):
 
 ```sh

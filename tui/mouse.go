@@ -306,10 +306,9 @@ func (m *Model) dragMap(x, y int) {
 	m.clampMap()
 }
 
+// clampMap keeps the map within the world and the latitudes it shows.
 func (m *Model) clampMap() {
-	s := &m.mapv
-	s.view.X = math.Max(0, math.Min(1, s.view.X))
-	s.view.Y = math.Max(0, math.Min(1, s.view.Y))
+	m.mapv.view = m.mapv.view.Clamped(m.mapCols(), m.mapRows())
 }
 
 // mapPoint returns the Web Mercator point in the middle of a map cell.

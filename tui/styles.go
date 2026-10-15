@@ -22,6 +22,7 @@ type styles struct {
 	mapBorder   lipgloss.Style
 	mapCoast    lipgloss.Style
 	mapWater    lipgloss.Style
+	mapEquator  lipgloss.Style
 	mapMarker   lipgloss.Style
 	mapSelected lipgloss.Style
 	mapLabel    lipgloss.Style
@@ -49,6 +50,7 @@ func defaultStyles() styles {
 		mapBorder:   lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#A0A0A0", Dark: "#6E6E6E"}),
 		mapCoast:    lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#4E7A32", Dark: "#9CCB7A"}),
 		mapWater:    lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#1E6BB8", Dark: "#5AA9E6"}),
+		mapEquator:  lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#B89B00", Dark: "#FFEA00"}),
 		mapMarker:   lipgloss.NewStyle().Foreground(warm).Bold(true),
 		mapSelected: lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#C0262D", Dark: "#FF6B6B"}).Bold(true),
 		mapLabel:    lipgloss.NewStyle().Foreground(warm),

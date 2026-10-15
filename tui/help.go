@@ -80,7 +80,7 @@ var helpSections = [][]string{
 	{"+ / -", "zoom in / out"},
 	{"n / N", "next / previous place with coordinates (most events first)"},
 	{"enter", "list the events at the selected place"},
-	{"0 / w / c", "fit all places / show the whole world / center on the selected place"},
+	{"0 / w / c", "fit all places / show the whole map, 80°N to 60°S, with the equator in yellow / center on the selected place"},
 	{"s", "the surname view: the places of the people born with a surname, with their events; again for all places"},
 	{"PgUp PgDn", "in the surname view: the previous / next surname (most people first; or click one)"},
 	{"e", "in the surname view: all events, births, deaths or other events"},

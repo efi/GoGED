@@ -414,7 +414,16 @@ packages.
   `go:embed`, so goged stays a single executable.
 - The renderer uses a Web Mercator projection, Liang–Barsky clipping and
   Bresenham lines on a Braille canvas (2×4 dots per cell). Borders are drawn
-  dotted. Labels are placed right of a marker, else left. A rune value of
+  dotted.
+- **Latitudes:** only `North` (80°) to `South` (−60°) are drawn: lines are
+  clipped to that band (`canvas.top`/`bottom`), markers are not. The data
+  keeps the rest: only 3.6% of the points lie outside, nearly all of them
+  Antarctica's coast, so the user's choice between hiding and removing
+  went to hiding. `View.Clamped` keeps the view within the world and the
+  band (or centers the band when zoomed out further); the TUI calls it
+  through `clampMap` after every change of the view and on resize.
+  `WholeWorld` fits the band without a margin (`w`). The equator is drawn
+  first, as `ClassEquator` beneath every feature, in bright yellow. Labels are placed right of a marker, else left. A rune value of
   −1 marks the second cell of a wide character.
 - **Faint markers** (`Marker.Faint`): small dots of `ClassFaint`, beneath
   labels, without labels, not counted in the digits of shared cells.

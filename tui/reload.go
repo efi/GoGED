@@ -301,6 +301,7 @@ func (m *Model) replaceDoc(doc *gedcom.Document) {
 		n.mapv.world, n.mapv.err = m.mapv.world, m.mapv.err
 		n.ensureMap()
 		n.mapv.view = m.mapv.view
+		n.clampMap()
 		if len(m.mapv.places) > 0 {
 			sel := m.mapv.places[m.mapv.sel].Full
 			for i, p := range n.mapv.places {

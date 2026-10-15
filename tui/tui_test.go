@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -1587,8 +1588,11 @@ func TestMapView(t *testing.T) {
 	for range 50 {
 		a.press("left", "up")
 	}
-	if a.m.mapv.view.X != 0 || a.m.mapv.view.Y != 0 {
-		t.Errorf("the center stays on the map: %v,%v", a.m.mapv.view.X, a.m.mapv.view.Y)
+	// The center stays on the map, and the top at 80°N.
+	_, north := worldmap.Project(worldmap.North, 0)
+	_, spanY := a.m.mapv.view.Span(a.m.mapCols(), a.m.mapRows())
+	if v := a.m.mapv.view; v.X != 0 || math.Abs(v.Y-spanY/2-north) > 1e-9 {
+		t.Errorf("the center stays on the map: %v,%v", v.X, v.Y)
 	}
 
 	// Cycle through places; the view follows the selection.
@@ -1603,7 +1607,10 @@ func TestMapView(t *testing.T) {
 	}
 	a.press("p", "space", "c")
 	a.press("w")
-	a.contains("center 0.00°N 0.00°E")
+	if a.m.mapv.view != worldmap.WholeWorld(a.m.mapCols(), a.m.mapRows()) {
+		t.Errorf("w shows the whole map: %+v", a.m.mapv.view)
+	}
+	a.contains("center 30.")
 
 	// Enter lists the events at the place.
 	a.press("0", "enter")
