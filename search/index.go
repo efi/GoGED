@@ -50,12 +50,14 @@ type entry struct {
 	sources     string
 	text        string // all values of the record, for any:
 	sortKey     string
+	pos         int32 // in Index.entries
 }
 
 // Index holds pre-folded search data for every individual of a document.
 type Index struct {
 	doc     *gedcom.Document
 	entries []*entry // sorted alphabetically by surname, given name
+	links   birthLinks
 }
 
 // NewIndex builds the search index for doc.
@@ -65,6 +67,9 @@ func NewIndex(doc *gedcom.Document) *Index {
 		ix.entries = append(ix.entries, newEntry(ind))
 	}
 	sort.SliceStable(ix.entries, func(i, j int) bool { return ix.entries[i].sortKey < ix.entries[j].sortKey })
+	for i, e := range ix.entries {
+		e.pos = int32(i)
+	}
 	return ix
 }
 
@@ -183,9 +188,30 @@ func sortableYear(ind *gedcom.Individual) string {
 	return string(s)
 }
 
-// Search returns the individuals matching every term of q, best matches
-// first; equally good matches are ordered by name.
+// Search returns the individuals matching q, best matches first; equally
+// good matches are ordered by name. An ancestor: or descendant: term with
+// an ID nobody has matches nobody.
 func (ix *Index) Search(q Query) []Result {
+	results, _ := ix.search(q)
+	return results
+}
+
+// SearchString parses and runs a query. Unlike Search, it reports an ID
+// nobody has.
+func (ix *Index) SearchString(s string) ([]Result, error) {
+	q, err := Parse(s)
+	if err != nil {
+		return nil, err
+	}
+	results, err := ix.search(q)
+	if err != nil {
+		return nil, err
+	}
+	return results, nil
+}
+
+func (ix *Index) search(q Query) ([]Result, error) {
+	err := ix.resolve(&q)
 	results := make([]Result, 0, 64)
 	for _, e := range ix.entries {
 		score, name, ok := ix.match(e, q)
@@ -194,16 +220,7 @@ func (ix *Index) Search(q Query) []Result {
 		}
 	}
 	sort.SliceStable(results, func(i, j int) bool { return results[i].Score > results[j].Score })
-	return results
-}
-
-// SearchString parses and runs a query.
-func (ix *Index) SearchString(s string) ([]Result, error) {
-	q, err := Parse(s)
-	if err != nil {
-		return nil, err
-	}
-	return ix.Search(q), nil
+	return results, err
 }
 
 // match scores an entry against a query. It also reports which name
@@ -442,6 +459,8 @@ func (ix *Index) matchField(e *entry, t *Term) int {
 		return boolScore(matchTagPath(e.ind.Node, t.tagPath, t.tagVal))
 	case FieldHas:
 		return boolScore(e.has(t.folded))
+	case FieldAncestor, FieldDescendant:
+		return boolScore(t.kin[e.pos])
 	}
 	return 0
 }

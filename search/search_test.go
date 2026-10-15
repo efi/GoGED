@@ -263,6 +263,9 @@ func TestParseErrors(t *testing.T) {
 		"tag:BIRT..X":   "tag: expects",
 		"sounds:123":    "sounds: expects a name",
 		"name:":         "missing value for name:",
+		"ancestor:=2":   "ancestor: expects an ID",
+		"desc:I1=x":     "descendant: expects an ID",
+		"anc:I1=~3":     "ancestor: expects an ID",
 	}
 	for in, want := range tests {
 		_, err := Parse(in)
@@ -660,7 +663,7 @@ func BenchmarkSearch(b *testing.B) {
 }
 
 func FuzzParse(f *testing.F) {
-	for _, s := range []string{"john", `-surname:"van der" b:1850..1860`, "~smyth", "tag:BIRT.PLAC=x", "has:notes", `"`, "a:b:c"} {
+	for _, s := range []string{"john", `-surname:"van der" b:1850..1860`, "~smyth", "tag:BIRT.PLAC=x", "has:notes", `"`, "a:b:c", "ancestor:I20=..3", "desc:I1=0.."} {
 		f.Add(s)
 	}
 	ix := NewIndex(loadSample(f))
@@ -796,5 +799,119 @@ func TestEventQueryBoolean(t *testing.T) {
 	}
 	if _, err := ParseEventQuery("type:birth)"); err == nil {
 		t.Error("unmatched bracket")
+	}
+}
+
+func TestSearchKin(t *testing.T) {
+	doc, err := gedcom.ParseFile(filepath.Join("..", "testdata", "cousins.ged"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Rosa's parents Felix and Marta are first cousins: Anton and Clara,
+	// children of Georg and Hanna, are their parents.
+	ix := NewIndex(doc)
+	tests := map[string]string{
+		"ancestor:R":              "F,FA,FB,G1,G2,GG1,GG2,M,MA,MB",
+		"ancestor:R=1":            "F,M",
+		"ancestor:R=..2":          "F,FA,FB,M,MA,MB",
+		"ancestor:R=<=2":          "F,FA,FB,M,MA,MB",
+		"ancestor:R=3":            "G1,G2", // by two lines, once each
+		"ancestor:R=3..":          "G1,G2,GG1,GG2",
+		"ancestor:R=>3":           "GG1,GG2",
+		"ancestor:R=0..1":         "F,M,R",
+		"ancestor:R=9":            "",
+		"ancestor:@r@":            "F,FA,FB,G1,G2,GG1,GG2,M,MA,MB", // in any case, with @
+		"ancestors:R=":            "F,FA,FB,G1,G2,GG1,GG2,M,MA,MB", // = still to be followed by generations
+		"descendant:G1":           "F,FA,M,MB,R",
+		"descendants:G1=3":        "R",
+		"desc:GG1=4":              "R",
+		"desc:R":                  "",
+		"ancestor:R sex:f":        "FB,G2,GG2,M,MB",
+		"surname:kern -anc:R":     "R",
+		"anc:F|M=1":               "FA,FB,G1,G2,GG1,GG2,MA,MB",
+		"anc:F (desc:G1 | sex:f)": "FA,FB,G2,GG2",
+	}
+	for q, want := range tests {
+		rs, err := ix.SearchString(q)
+		if err != nil {
+			t.Errorf("%q: %v", q, err)
+			continue
+		}
+		if got := sortedIDs(rs); got != want {
+			t.Errorf("%q = %s, want %s", q, got, want)
+		}
+	}
+
+	// An ID nobody has is an error; Search, which reports none, finds
+	// nobody.
+	if _, err := ix.SearchString("ancestor:X1"); err == nil || err.Error() != "ancestor: nobody has the ID X1" {
+		t.Errorf("unknown ID: %v", err)
+	}
+	q, _ := Parse("descendant:X1 | surname:lang")
+	if got := sortedIDs(ix.Search(q)); got != "M,MA" {
+		t.Errorf("unknown ID or Lang = %s", got)
+	}
+	// The query is left as it was.
+	q, _ = Parse("ancestor:R")
+	ix.Search(q)
+	if q.Terms[0].kin != nil {
+		t.Error("Search changed the query")
+	}
+}
+
+func TestSearchKinAdoption(t *testing.T) {
+	doc, err := gedcom.ParseFile(filepath.Join("..", "testdata", "Muster_GEDCOM_UTF-8.ged"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Markus (I6) was born to I18 and I17 and adopted by I19 and I20.
+	ix := NewIndex(doc)
+	rs, err := ix.SearchString("ancestor:I6=1")
+	if err != nil || sortedIDs(rs) != "I17,I18" {
+		t.Errorf("parents of Markus: %s %v", sortedIDs(rs), err)
+	}
+	for _, id := range []string{"I19", "I20"} {
+		rs, _ := ix.SearchString("descendant:" + id)
+		if len(rs) != 0 {
+			t.Errorf("descendants of %s, who adopted Markus: %s", id, sortedIDs(rs))
+		}
+	}
+}
+
+func TestSearchKinCycle(t *testing.T) {
+	// A is B's father and B is A's: a mistake, but it must not hang.
+	doc, err := gedcom.ParseString(`0 HEAD
+0 @A@ INDI
+1 NAME A /X/
+0 @B@ INDI
+1 NAME B /X/
+0 @C@ INDI
+1 NAME C /X/
+0 @F1@ FAM
+1 HUSB @A@
+1 CHIL @B@
+0 @F2@ FAM
+1 HUSB @B@
+1 CHIL @A@
+1 CHIL @C@
+0 TRLR
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ix := NewIndex(doc)
+	tests := map[string]string{
+		"ancestor:A":        "A,B",
+		"ancestor:A=1":      "B",
+		"ancestor:A=2":      "A",
+		"ancestor:C=1000..": "", // followed only as far as there are people
+		"descendant:A":      "A,B,C",
+		"descendant:A=2":    "A,C",
+	}
+	for q, want := range tests {
+		rs, err := ix.SearchString(q)
+		if err != nil || sortedIDs(rs) != want {
+			t.Errorf("%q = %s, want %s (%v)", q, sortedIDs(rs), want, err)
+		}
 	}
 }

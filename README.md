@@ -170,6 +170,7 @@ Batch mode prints to standard output and exits:
 
 ```sh
 goged -q 'surname:jones born:<1850' family.ged
+goged -q 'ancestor:I20 born:leeds' family.ged
 goged -tree I20 -gen 5 family.ged          # pedigree chart (ancestors)
 goged -desc I1 -ascii family.ged           # descendant chart, ASCII lines
 goged -hourglass I3 -gen 3 family.ged      # descendants left, ancestors right
@@ -295,6 +296,8 @@ are ignored (`muller` finds Müller), and so are apostrophes (`obrien` and
 | `occupation:weaver`, `note:mill`, `source:census`, `any:text` | occupations, notes, cited sources, any value |
 | `has:parents` | `birth death parents father mother spouse children siblings notes sources media occupation` |
 | `tag:_MILT`, `tag:BIRT.PLAC=leeds` | a tag (path) exists, optionally with a value |
+| `ancestor:I20`, `descendant:I1` | the ancestors or descendants of a person, along birth links: adoptive, foster and step parents don't count |
+| `ancestor:I20=2`, `descendant:I1=..3`, `ancestor:I20=0..` | only some generations, written like years: 1 is the parents or children, 2 the grandparents or grandchildren; 0 is the person themselves |
 | `-term` | exclude: `smith -given:john`, `-has:parents` |
 | `smith \| jones`, `smith OR jones` | either |
 | `(smith \| jones) born:<1850`, `-(place:leeds \| place:york)` | groups, also excluded as a whole |

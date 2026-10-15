@@ -6,6 +6,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/efi/goged/gedcom"
 )
 
 // Field names a searchable property.
@@ -31,6 +33,8 @@ const (
 	FieldTag        Field = "tag"
 	FieldHas        Field = "has"
 	FieldSounds     Field = "sounds"
+	FieldAncestor   Field = "ancestor"
+	FieldDescendant Field = "descendant"
 	FieldType       Field = "type" // event filters only
 )
 
@@ -52,6 +56,8 @@ var fieldAliases = map[string]Field{
 	"tag":    FieldTag,
 	"has":    FieldHas,
 	"sounds": FieldSounds, "soundex": FieldSounds,
+	"ancestor": FieldAncestor, "ancestors": FieldAncestor, "anc": FieldAncestor,
+	"descendant": FieldDescendant, "descendants": FieldDescendant, "desc": FieldDescendant,
 	"type": FieldType, "t": FieldType,
 }
 
@@ -73,6 +79,9 @@ type Term struct {
 	sex     string
 	soundex string
 	cologne string
+	kinID   string    // for ancestor: and descendant:
+	gens    yearRange // their generations, 1 for parents or children
+	kin     []bool    // the people they stand for by their place in the index, found by Index.resolve
 }
 
 // Query is a parsed search query: its terms, and how they combine (see
@@ -278,8 +287,38 @@ func parseTerm(tok string) (*Term, error) {
 		if t.soundex == "" {
 			return nil, &ParseError{"sounds: expects a name"}
 		}
+	case FieldAncestor, FieldDescendant:
+		if err := t.parseKin(); err != nil {
+			return nil, err
+		}
 	}
 	return t, nil
+}
+
+// parseKin reads the value of ancestor: and descendant: terms: the ID of
+// a person, then, after =, which generations count if not all, as years
+// are given: I1=2 for the grandparents, I1=..3 or I1=<=3 up to the
+// great-grandparents, I1=0.. for the person and all ancestors.
+func (t *Term) parseKin() error {
+	id, gens, _ := strings.Cut(t.Value, "=")
+	t.kinID = gedcom.StripXref(id)
+	t.gens = yearRange{1, maxYear}
+	bad := &ParseError{fmt.Sprintf("%s: expects an ID such as I1, with generations after = if wanted: I1=2, I1=1..3, I1=<=3", t.Field)}
+	if t.kinID == "" {
+		return bad
+	}
+	// An = without generations yet, as when typing, counts all.
+	if gens = strings.TrimSpace(gens); gens != "" {
+		r, ok := parseYearRange(gens)
+		if !ok || strings.HasPrefix(gens, "~") {
+			return bad
+		}
+		if r.lo == minYear {
+			r.lo = 1
+		}
+		t.gens = r
+	}
+	return nil
 }
 
 // String renders the query in canonical form, mainly for debugging.

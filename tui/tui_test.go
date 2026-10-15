@@ -834,6 +834,18 @@ func TestSearchBooleanTyping(t *testing.T) {
 	a.contains("unmatched )")
 }
 
+func TestSearchKinTyping(t *testing.T) {
+	a := newApp(t, Options{})
+	a.typ("ancestor:I99")
+	a.contains("ancestor: nobody has the ID I99")
+	a.press("backspace", "backspace")
+	a.typ("20")
+	a.contains("8 matches", "Smith, William", "King, Lucy")
+	a.typ("=..2 -sex:m")
+	a.contains("2 matches", "Doe, Jane", "King, Lucy")
+	a.notContains("Brown, Elizabeth")
+}
+
 func TestHintsView(t *testing.T) {
 	a := newApp(t, Options{Today: time.Date(2026, 10, 14, 0, 0, 0, 0, time.UTC)})
 	a.resize(110, 60)
