@@ -1589,7 +1589,7 @@ func TestMapView(t *testing.T) {
 		a.press("left", "up")
 	}
 	// The center stays on the map, and the top at 80°N.
-	_, north := worldmap.Project(worldmap.North, 0)
+	_, north := a.m.mapv.view.Proj.Project(worldmap.North, 0)
 	_, spanY := a.m.mapv.view.Span(a.m.mapCols(), a.m.mapRows())
 	if v := a.m.mapv.view; v.X != 0 || math.Abs(v.Y-spanY/2-north) > 1e-9 {
 		t.Errorf("the center stays on the map: %v,%v", v.X, v.Y)
@@ -1607,10 +1607,36 @@ func TestMapView(t *testing.T) {
 	}
 	a.press("p", "space", "c")
 	a.press("w")
-	if a.m.mapv.view != worldmap.WholeWorld(a.m.mapCols(), a.m.mapRows()) {
+	if a.m.mapv.view != worldmap.Equirectangular.WholeWorld(a.m.mapCols(), a.m.mapRows()) {
 		t.Errorf("w shows the whole map: %+v", a.m.mapv.view)
 	}
-	a.contains("center 30.")
+	// Equirectangular by default: the middle of 80°N and 60°S is 10°N.
+	a.contains("Map (experimental) · Equirectangular · ", "center 10.00°N 0.00°E")
+
+	// v goes through the projections, keeping the center where it is
+	// zoomed in, and moving the markers.
+	leeds := a.m.mapv.markers[0]
+	a.press("+", "+", "+", "left", "up")
+	center := func() (float64, float64) { return a.m.mapv.view.Proj.Unproject(a.m.mapv.view.X, a.m.mapv.view.Y) }
+	lat0, lon0 := center()
+	a.press("v")
+	lat, lon := center()
+	a.contains("Map (experimental) · Equal Earth · ", "Equal Earth projection: areas true")
+	if a.m.mapv.view.Proj != worldmap.EqualEarth || a.m.mapv.markers[0] == leeds || math.Abs(lat-lat0) > 1e-6 || math.Abs(lon-lon0) > 1e-6 {
+		t.Errorf("Equal Earth: view %+v, Leeds %+v, center %v,%v", a.m.mapv.view, a.m.mapv.markers[0], lat, lon)
+	}
+	if x, y := worldmap.EqualEarth.Project(53.7997, -1.5492); a.m.mapv.markers[0].X != x || a.m.mapv.markers[0].Y != y {
+		t.Errorf("Leeds in Equal Earth at %+v", a.m.mapv.markers[0])
+	}
+	a.press("v")
+	if lat2, lon2 := center(); a.m.mapv.view.Proj != worldmap.WebMercator || math.Abs(lat2-lat) > 1e-6 || math.Abs(lon2-lon) > 1e-6 {
+		t.Errorf("Web Mercator: %+v, center %v,%v", a.m.mapv.view, lat2, lon2)
+	}
+	a.contains("Map (experimental) · Web Mercator · ")
+	a.press("v")
+	if a.m.mapv.view.Proj != worldmap.Equirectangular || a.m.mapv.markers[0] != leeds {
+		t.Errorf("back to Equirectangular: %+v, Leeds %+v", a.m.mapv.view, a.m.mapv.markers[0])
+	}
 
 	// Enter lists the events at the place.
 	a.press("0", "enter")

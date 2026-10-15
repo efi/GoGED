@@ -81,6 +81,7 @@ var helpSections = [][]string{
 	{"n / N", "next / previous place with coordinates (most events first)"},
 	{"enter", "list the events at the selected place"},
 	{"0 / w / c", "fit all places / show the whole map, 80°N to 60°S, with the equator in yellow / center on the selected place"},
+	{"v", "the next projection: Equirectangular (latitudes evenly spaced, lands wider towards the poles, as the labels are), Equal Earth (areas true), Web Mercator (shapes true, as web maps)"},
 	{"s", "the surname view: the places of the people born with a surname, with their events; again for all places"},
 	{"PgUp PgDn", "in the surname view: the previous / next surname (most people first; or click one)"},
 	{"e", "in the surname view: all events, births, deaths or other events"},

@@ -6,12 +6,13 @@ import (
 	"github.com/mattn/go-runewidth"
 )
 
-// View is the visible part of the map: its center in Web Mercator
-// coordinates and a zoom level. At zoom z the whole world is 256·2^z
-// Braille dots wide; every terminal cell holds 2×4 dots.
+// View is the visible part of the map: its projection, its center on the
+// plane of the projection, and a zoom level. At zoom z the whole world is
+// 256·2^z Braille dots wide; every terminal cell holds 2×4 dots.
 type View struct {
 	X, Y float64
 	Zoom float64
+	Proj Projection
 }
 
 // Zoom limits.
@@ -23,14 +24,14 @@ const (
 // dotsPerWorld returns the width of the world in dots.
 func (v View) dotsPerWorld() float64 { return 256 * math.Pow(2, v.Zoom) }
 
-// Span returns the width and height of the view in Web Mercator units for
-// a screen of cols×rows cells.
+// Span returns the width and height of the view on the plane of the map
+// for a screen of cols×rows cells.
 func (v View) Span(cols, rows int) (w, h float64) {
 	d := v.dotsPerWorld()
 	return float64(cols*2) / d, float64(rows*4) / d
 }
 
-// Locate returns the cell that shows the Web Mercator point (x, y).
+// Locate returns the cell that shows the point (x, y) of the plane.
 func (v View) Locate(x, y float64, cols, rows int) (col, row int, ok bool) {
 	d := v.dotsPerWorld()
 	dx := (x-v.X)*d + float64(cols)
@@ -39,10 +40,11 @@ func (v View) Locate(x, y float64, cols, rows int) (col, row int, ok bool) {
 	return col, row, col >= 0 && row >= 0 && col < cols && row < rows
 }
 
-// Fit returns a view that shows the Web Mercator box with a small margin.
-// A degenerate box (a single place) is shown at a regional zoom level.
-func Fit(minX, minY, maxX, maxY float64, cols, rows int) View {
-	v := View{X: (minX + maxX) / 2, Y: (minY + maxY) / 2, Zoom: 7}
+// Fit returns a view of a projection that shows the box on its plane with
+// a small margin. A degenerate box (a single place) is shown at a regional
+// zoom level.
+func (p Projection) Fit(minX, minY, maxX, maxY float64, cols, rows int) View {
+	v := View{X: (minX + maxX) / 2, Y: (minY + maxY) / 2, Zoom: 7, Proj: p}
 	w, h := (maxX-minX)*1.25, (maxY-minY)*1.25
 	if w <= 0 && h <= 0 {
 		return v
@@ -63,6 +65,7 @@ func Fit(minX, minY, maxX, maxY float64, cols, rows int) View {
 // these if the screen shows more.
 func (v View) Clamped(cols, rows int) View {
 	v.X = max(0, min(1, v.X))
+	bandTop, bandBottom := v.Proj.band()
 	_, h := v.Span(cols, rows)
 	if h >= bandBottom-bandTop {
 		v.Y = (bandTop + bandBottom) / 2
@@ -72,12 +75,14 @@ func (v View) Clamped(cols, rows int) View {
 	return v
 }
 
-// WholeWorld returns the view that shows all of the map: the whole width
-// and the latitudes between North and South, as large as fits.
-func WholeWorld(cols, rows int) View {
+// WholeWorld returns the view of a projection that shows all of the map:
+// the whole width and the latitudes between North and South, as large as
+// fits.
+func (p Projection) WholeWorld(cols, rows int) View {
+	top, bottom := p.band()
 	zx := math.Log2(float64(cols*2) / 256)
-	zy := math.Log2(float64(rows*4) / (256 * (bandBottom - bandTop)))
-	v := View{X: 0.5, Zoom: max(MinZoom, min(MaxZoom, zx, zy))}
+	zy := math.Log2(float64(rows*4) / (256 * (bottom - top)))
+	v := View{X: 0.5, Zoom: max(MinZoom, min(MaxZoom, zx, zy)), Proj: p}
 	return v.Clamped(cols, rows)
 }
 
@@ -86,7 +91,8 @@ type Class uint8
 
 // Cell classes from lowest to highest priority.
 const (
-	ClassEmpty Class = iota
+	ClassEmpty   Class = iota
+	ClassOutline       // the edge of the world, where it is curved
 	ClassEquator
 	ClassBorder
 	ClassCoast
@@ -254,8 +260,9 @@ func sign(x int) int {
 // web map shows per pixel.
 const detailBias = 1.5
 
-// Render draws the map for a screen of cols×rows cells: the features
-// between the latitudes North and South, and the equator. Markers are
+// Render draws the map for a screen of cols×rows cells in the view's
+// projection: the features between the latitudes North and South, the
+// equator, and for Equal Earth the curved edge of the world. Markers are
 // drawn on top, wherever they are; the marker with index selected (or
 // none if -1) is highlighted and always labeled. Other markers are
 // labeled where there is room, in the order given, so the most important
@@ -270,13 +277,25 @@ func (w *World) Render(v View, cols, rows int, markers []Marker, selected int) F
 	spanX, spanY := v.Span(cols, rows)
 	left, top := v.X-spanX/2, v.Y-spanY/2
 	right, bottom := left+spanX, top+spanY
+	bandTop, bandBottom := v.Proj.band()
 	c.top = max(0, (bandTop-top)*d)
 	c.bottom = min(float64(c.h), (bandBottom-top)*d)
 	equator := (0.5 - top) * d
 	c.line(-left*d, equator, (1-left)*d, equator, ClassEquator, false)
+	if v.Proj == EqualEarth {
+		for _, lon := range []float64{-180, 180} {
+			px, py := v.Proj.Project(South, lon)
+			for lat := South + 1; lat <= North; lat++ {
+				nx, ny := v.Proj.Project(lat, lon)
+				c.line((px-left)*d, (py-top)*d, (nx-left)*d, (ny-top)*d, ClassOutline, true)
+				px, py = nx, ny
+			}
+		}
+	}
 	if w != nil {
-		for i := range w.segs {
-			s := &w.segs[i]
+		segs := w.segments(v.Proj)
+		for i := range segs {
+			s := &segs[i]
 			if float64(s.minZoom) > v.Zoom+detailBias ||
 				float64(s.maxX) < left || float64(s.minX) > right ||
 				float64(s.maxY) < top || float64(s.minY) > bottom {

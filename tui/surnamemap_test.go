@@ -3,6 +3,8 @@ package tui
 import (
 	"strings"
 	"testing"
+
+	"github.com/efi/goged/worldmap"
 )
 
 // surnameApp opens family.ged on the map's surname view.
@@ -142,7 +144,7 @@ func TestSurnameDialog(t *testing.T) {
 func TestSurnameMapReload(t *testing.T) {
 	a, path := watchedApp(t)
 	a.resize(110, 34)
-	a.press("alt+6", "s", "pgdown", "e")
+	a.press("alt+6", "s", "pgdown", "e", "v")
 	rewrite(t, path, `1 NAME John /Smith/`, `1 NAME Johann /Smith/`)
 	a.poll(path)
 	a.poll(path)
@@ -150,6 +152,11 @@ func TestSurnameMapReload(t *testing.T) {
 	a.finish(a.press("y"))
 	if sn := a.m.mapv.sn; !sn.on || a.shown() != "Jones" || sn.kind != eventsBirth {
 		t.Errorf("after the reload: on %v, %s, %s", sn.on, a.shown(), eventKindNames[sn.kind])
+	}
+	// The projection stays, and the markers are in it.
+	s := &a.m.mapv
+	if x, y := worldmap.EqualEarth.Project(s.places[0].Lat, s.places[0].Lon); s.view.Proj != worldmap.EqualEarth || s.markers[0].X != x || s.markers[0].Y != y {
+		t.Errorf("after the reload: %s, marker %+v", s.view.Proj, s.markers[0])
 	}
 }
 

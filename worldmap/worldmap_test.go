@@ -73,24 +73,51 @@ func TestDecodeErrors(t *testing.T) {
 	}
 }
 
-func TestProjection(t *testing.T) {
-	x, y := Project(0, 0)
-	if x != 0.5 || math.Abs(y-0.5) > 1e-12 {
-		t.Errorf("Project(0,0) = %v,%v", x, y)
-	}
-	x, y = Project(90, -180)
-	if x != 0 || math.Abs(y) > 1e-6 {
-		t.Errorf("north-west corner = %v,%v", x, y)
-	}
-	for _, p := range [][2]float64{{53.7997, -1.5492}, {-33.87, 151.21}, {50.781464, 10.786089}, {0, 179}} {
-		x, y := Project(p[0], p[1])
-		lat, lon := Unproject(x, y)
-		if math.Abs(lat-p[0]) > 1e-9 || math.Abs(lon-p[1]) > 1e-9 {
-			t.Errorf("round trip %v -> %v,%v", p, lat, lon)
+func TestProjections(t *testing.T) {
+	for p := range projections {
+		// The equator is in the middle, 180°W and 180°E at the edges.
+		if x, y := p.Project(0, 0); math.Abs(x-0.5) > 1e-12 || math.Abs(y-0.5) > 1e-12 {
+			t.Errorf("%s: Equirectangular.Project(0, 0) = %v,%v", p, x, y)
+		}
+		if x, _ := p.Project(0, -180); math.Abs(x) > 1e-12 {
+			t.Errorf("%s: 180°W at %v", p, x)
+		}
+		if x, _ := p.Project(0, 180); math.Abs(x-1) > 1e-12 {
+			t.Errorf("%s: 180°E at %v", p, x)
+		}
+		if _, y := p.Project(50, 0); y >= 0.5 {
+			t.Errorf("%s: north must be above the equator", p)
+		}
+		for _, pt := range [][2]float64{{53.7997, -1.5492}, {-33.87, 151.21}, {50.781464, 10.786089}, {0, 179}, {79.9, -179.9}, {-59.9, 120}} {
+			x, y := p.Project(pt[0], pt[1])
+			lat, lon := p.Unproject(x, y)
+			if math.Abs(lat-pt[0]) > 1e-9 || math.Abs(lon-pt[1]) > 1e-9 {
+				t.Errorf("%s: round trip %v -> %v,%v", p, pt, lat, lon)
+			}
+		}
+		if p.Next() == p || p.Next().Next().Next() != p {
+			t.Errorf("%s: Next cycles through all three", p)
 		}
 	}
-	if _, y1 := Project(50, 0); y1 >= 0.5 {
-		t.Error("north must be above the equator")
+	if Equirectangular != 0 || Projection(0).String() != "Equirectangular" || EqualEarth.String() != "Equal Earth" || WebMercator.String() != "Web Mercator" {
+		t.Error("names, or the default is not equirectangular")
+	}
+	// Web Mercator stretches the north the most, Equirectangular the least.
+	_, m := WebMercator.Project(60, 0)
+	_, e := EqualEarth.Project(60, 0)
+	_, q := Equirectangular.Project(60, 0)
+	if !(m < e && e < q) {
+		t.Errorf("60°N at %v, %v, %v", m, e, q)
+	}
+	if x, y := WebMercator.Project(90, -180); x != 0 || math.Abs(y) > 1e-6 {
+		t.Errorf("Web Mercator's north-west corner = %v,%v", x, y)
+	}
+	if _, y := Equirectangular.Project(90, 0); y != 0.25 {
+		t.Errorf("the North Pole is a quarter down: %v", y)
+	}
+	// Equal Earth's meridians curve: 180° is closer to the middle at 60°N.
+	if x, _ := EqualEarth.Project(60, 180); x > 0.9 {
+		t.Errorf("Equal Earth at 60°N, 180°: %v", x)
 	}
 }
 
@@ -107,7 +134,7 @@ func TestViewHelpers(t *testing.T) {
 		t.Error("corner of the world is off screen")
 	}
 
-	f := Fit(0.4, 0.3, 0.6, 0.5, 80, 24)
+	f := Equirectangular.Fit(0.4, 0.3, 0.6, 0.5, 80, 24)
 	if f.X != 0.5 || f.Y != 0.4 {
 		t.Errorf("Fit center = %v,%v", f.X, f.Y)
 	}
@@ -115,16 +142,16 @@ func TestViewHelpers(t *testing.T) {
 	if sw < 0.25-1e-9 || sh < 0.25-1e-9 || (sw > 0.26 && sh > 0.26) {
 		t.Errorf("Fit should just cover the box with a margin: span %v x %v", sw, sh)
 	}
-	if one := Fit(0.3, 0.3, 0.3, 0.3, 80, 24); one.Zoom != 7 || one.X != 0.3 {
+	if one := Equirectangular.Fit(0.3, 0.3, 0.3, 0.3, 80, 24); one.Zoom != 7 || one.X != 0.3 {
 		t.Errorf("single point = %+v", one)
 	}
-	if wide := Fit(0, 0, 1, 1, 10, 5); wide.Zoom != MinZoom {
+	if wide := Equirectangular.Fit(0, 0, 1, 1, 10, 5); wide.Zoom != MinZoom {
 		t.Errorf("tiny screen clamps to MinZoom: %+v", wide)
 	}
-	if close := Fit(0.5, 0.5, 0.5000001, 0.5000001, 80, 24); close.Zoom != 10 {
+	if close := Equirectangular.Fit(0.5, 0.5, 0.5000001, 0.5000001, 80, 24); close.Zoom != 10 {
 		t.Errorf("zoom is capped at a regional level: %+v", close)
 	}
-	if flat := Fit(0.2, 0.5, 0.4, 0.5, 80, 24); flat.Zoom <= 0 || flat.Zoom > 10 {
+	if flat := Equirectangular.Fit(0.2, 0.5, 0.4, 0.5, 80, 24); flat.Zoom <= 0 || flat.Zoom > 10 {
 		t.Errorf("horizontal box: %+v", flat)
 	}
 }
@@ -232,10 +259,10 @@ func TestRenderClassesAndDetail(t *testing.T) {
 }
 
 func TestRenderMarkersAndLabel(t *testing.T) {
-	x, y := Project(-0.05, 0.05)   // inside the cell right below the center
-	x2, y2 := Project(-0.06, 0.06) // same cell at zoom 2
-	x3, y3 := Project(5, 5)
-	far, farY := Project(80, 170)
+	x, y := Equirectangular.Project(-0.05, 0.05)   // inside the cell right below the center
+	x2, y2 := Equirectangular.Project(-0.06, 0.06) // same cell at zoom 2
+	x3, y3 := Equirectangular.Project(5, 5)
+	far, farY := Equirectangular.Project(80, 170)
 	markers := []Marker{{X: x, Y: y, Label: "A"}, {X: x2, Y: y2, Label: "B"}, {X: x3, Y: y3, Label: "Leeds"}, {X: far, Y: farY, Label: "Far"}}
 	v := View{X: 0.5, Y: 0.5, Zoom: 2}
 	f := New(nil).Render(v, 40, 12, markers, 2)
@@ -293,10 +320,10 @@ func TestLabelWideAndLong(t *testing.T) {
 }
 
 func TestMinorLabels(t *testing.T) {
-	x1, y1 := Project(-0.5, -7) // west
-	x2, y2 := Project(-0.5, 3)  // east, same row
-	x3, y3 := Project(-0.5, 4)  // right next to east, so east's label moves left
-	x4, y4 := Project(-0.5, 5)  // leaves no room for crowded's label on either side
+	x1, y1 := Equirectangular.Project(-0.5, -7) // west
+	x2, y2 := Equirectangular.Project(-0.5, 3)  // east, same row
+	x3, y3 := Equirectangular.Project(-0.5, 4)  // right next to east, so east's label moves left
+	x4, y4 := Equirectangular.Project(-0.5, 5)  // leaves no room for crowded's label on either side
 	v := View{X: 0.5, Y: 0.5, Zoom: 2}
 	f := New(nil).Render(v, 40, 12, []Marker{{X: x1, Y: y1, Label: "West"}, {X: x2, Y: y2, Label: "East"}, {X: x3, Y: y3, Label: "Crowded"}, {X: x4, Y: y4, Label: "Hidden"}}, 0)
 	row := f.MarkerCells[0][1]
@@ -311,7 +338,7 @@ func TestMinorLabels(t *testing.T) {
 	var many []Marker // a 5×9 grid of places, each in its own cell
 	for r := range 5 {
 		for c := range 9 {
-			mx, my := Project(-0.5-float64(r)*1.5, -12+float64(c)*3)
+			mx, my := Equirectangular.Project(-0.5-float64(r)*1.5, -12+float64(c)*3)
 			many = append(many, Marker{X: mx, Y: my, Label: "P"})
 		}
 	}
@@ -336,7 +363,7 @@ func TestLoadEmbedded(t *testing.T) {
 		t.Fatal(err)
 	}
 	kinds := map[Kind]int{}
-	for _, s := range w.segs {
+	for _, s := range w.segments(Equirectangular) {
 		kinds[s.kind]++
 		if len(s.x) < 2 || len(s.x) > maxSegmentPoints {
 			t.Fatalf("segment with %d points", len(s.x))
@@ -348,7 +375,7 @@ func TestLoadEmbedded(t *testing.T) {
 		}
 	}
 	// Leeds lies on land in England: the British coastline passes nearby.
-	x, y := Project(53.8, -1.55)
+	x, y := Equirectangular.Project(53.8, -1.55)
 	f := w.Render(View{X: x, Y: y, Zoom: 5}, 60, 20, []Marker{{X: x, Y: y, Label: "Leeds"}}, 0)
 	coast := 0
 	for _, row := range f.Cells {
@@ -383,15 +410,15 @@ func BenchmarkRenderWorld(b *testing.B) {
 
 func BenchmarkRenderRegion(b *testing.B) {
 	w, _ := Load()
-	x, y := Project(53.8, -1.55)
+	x, y := Equirectangular.Project(53.8, -1.55)
 	for i := 0; i < b.N; i++ {
 		w.Render(View{X: x, Y: y, Zoom: 7}, 160, 48, nil, -1)
 	}
 }
 
 func TestRenderFaintMarkers(t *testing.T) {
-	x, y := Project(-0.05, 0.05)
-	x2, y2 := Project(-5, -5)
+	x, y := Equirectangular.Project(-0.05, 0.05)
+	x2, y2 := Equirectangular.Project(-5, -5)
 	v := View{X: 0.5, Y: 0.5, Zoom: 2}
 	// A faint marker alone, and one in the cell of another marker.
 	markers := []Marker{{X: x2, Y: y2, Label: "Faint", Faint: true}, {X: x, Y: y, Label: "A"}, {X: x, Y: y, Label: "Under", Faint: true}}
@@ -416,8 +443,8 @@ func TestRenderBand(t *testing.T) {
 	cols, rows := 80, 40
 	v := View{X: 0.5, Y: 0.5, Zoom: 0} // 256 dots: the whole world in 64 rows
 	f := w.Render(v, cols, rows, nil, -1)
-	_, north := Project(North, 0)
-	_, south := Project(South, 0)
+	_, north := Equirectangular.Project(North, 0)
+	_, south := Equirectangular.Project(South, 0)
 	d := v.dotsPerWorld()
 	top := int(((north-v.Y)*d + float64(rows*2)) / 4)
 	bottom := int(((south-v.Y)*d + float64(rows*2)) / 4)
@@ -440,34 +467,89 @@ func TestRenderBand(t *testing.T) {
 }
 
 func TestClampedAndWholeWorld(t *testing.T) {
-	_, north := Project(North, 0)
-	_, south := Project(South, 0)
-	// Zoomed in, the view stays within the band and the world.
-	v := View{X: -0.2, Y: 0.01, Zoom: 5}.Clamped(80, 20)
-	_, h := v.Span(80, 20)
-	if v.X != 0 || math.Abs(v.Y-h/2-north) > 1e-12 {
-		t.Errorf("north-west: %+v", v)
-	}
-	v = View{X: 1.5, Y: 0.99, Zoom: 5}.Clamped(80, 20)
-	if v.X != 1 || math.Abs(v.Y+h/2-south) > 1e-12 {
-		t.Errorf("south-east: %+v", v)
-	}
-	if v := (View{X: 0.3, Y: 0.4, Zoom: 5}).Clamped(80, 20); v.X != 0.3 || v.Y != 0.4 {
-		t.Errorf("a view within the band moved: %+v", v)
-	}
-	// Zoomed out further than the band, it is centered.
-	if v := (View{X: 0.5, Y: 0.1, Zoom: -1}).Clamped(80, 40); v.Y != (north+south)/2 {
-		t.Errorf("zoomed out: %+v", v)
-	}
-	// The whole world fills the screen with the band or the width.
-	for _, size := range [][2]int{{110, 25}, {200, 25}, {60, 40}} {
-		w := WholeWorld(size[0], size[1])
-		sw, sh := w.Span(size[0], size[1])
-		if sw < 1-1e-9 && sh < south-north-1e-9 || sw > 1+1e-9 && sh > south-north+1e-9 {
-			t.Errorf("%v: spans %v × %v", size, sw, sh)
+	for p := range projections {
+		north, south := p.band()
+		// Zoomed in, the view stays within the band and the world.
+		v := View{X: -0.2, Y: 0.01, Zoom: 5, Proj: p}.Clamped(80, 20)
+		_, h := v.Span(80, 20)
+		if v.X != 0 || math.Abs(v.Y-h/2-north) > 1e-12 || v.Proj != p {
+			t.Errorf("%s: north-west: %+v", p, v)
 		}
-		if w.X != 0.5 || math.Abs(w.Y-(north+south)/2) > 1e-12 {
-			t.Errorf("%v: center %+v", size, w)
+		v = View{X: 1.5, Y: 0.99, Zoom: 5, Proj: p}.Clamped(80, 20)
+		if v.X != 1 || math.Abs(v.Y+h/2-south) > 1e-12 {
+			t.Errorf("%s: south-east: %+v", p, v)
+		}
+		if v := (View{X: 0.3, Y: 0.4, Zoom: 5, Proj: p}).Clamped(80, 20); v.X != 0.3 || v.Y != 0.4 {
+			t.Errorf("%s: a view within the band moved: %+v", p, v)
+		}
+		// Zoomed out further than the band, it is centered.
+		if v := (View{X: 0.5, Y: 0.1, Zoom: -1, Proj: p}).Clamped(80, 40); v.Y != (north+south)/2 {
+			t.Errorf("%s: zoomed out: %+v", p, v)
+		}
+		// The whole world fills the screen with the band or the width.
+		for _, size := range [][2]int{{110, 25}, {200, 25}, {60, 40}} {
+			w := p.WholeWorld(size[0], size[1])
+			sw, sh := w.Span(size[0], size[1])
+			if sw < 1-1e-9 && sh < south-north-1e-9 || sw > 1+1e-9 && sh > south-north+1e-9 {
+				t.Errorf("%s %v: spans %v × %v", p, size, sw, sh)
+			}
+			if w.X != 0.5 || math.Abs(w.Y-(north+south)/2) > 1e-12 || w.Proj != p {
+				t.Errorf("%s %v: center %+v", p, size, w)
+			}
 		}
 	}
+}
+
+func TestRenderProjections(t *testing.T) {
+	// A meridian at 90°E from the Arctic to the Antarctic.
+	w := New([]Polyline{{Kind: Coastline, Lon: []float64{90, 90, 90}, Lat: []float64{70, 0, -50}}})
+	rows := map[Projection][2]int{}
+	for p := range projections {
+		v := p.WholeWorld(100, 30)
+		f := w.Render(v, 100, 30, nil, -1)
+		first, last := -1, -1
+		outline := 0
+		for r, row := range f.Cells {
+			for _, c := range row {
+				if c.Class == ClassCoast {
+					if first < 0 {
+						first = r
+					}
+					last = r
+				}
+				if c.Class == ClassOutline {
+					outline++
+				}
+			}
+		}
+		rows[p] = [2]int{first, last}
+		// Only Equal Earth draws the edge of the world, which is curved.
+		if (outline > 0) != (p == EqualEarth) {
+			t.Errorf("%s: %d cells of outline", p, outline)
+		}
+		if first < 0 {
+			t.Errorf("%s: no meridian:\n%s", p, f.String())
+		}
+	}
+	// Web Mercator gives the north more rows than the others.
+	if m, q := rows[WebMercator], rows[Equirectangular]; m[1]-m[0] <= q[1]-q[0] {
+		t.Errorf("rows of the meridian: %v", rows)
+	}
+}
+
+func TestPrepareWhileRendering(t *testing.T) {
+	w := New([]Polyline{square(Coastline, 5)})
+	done := make(chan bool)
+	go func() {
+		for p := range projections {
+			w.Prepare(p)
+		}
+		done <- true
+	}()
+	for p := range projections {
+		if f := w.Render(View{X: 0.5, Y: 0.5, Zoom: 2, Proj: p}, 40, 12, nil, -1); !strings.ContainsRune(f.String(), '⡇') {
+			t.Errorf("%s:\n%s", p, f.String())
+		}
+	}
+	<-done
 }

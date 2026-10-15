@@ -32,7 +32,7 @@ vector and raster map data @ naturalearthdata.com.
 Borders show the de facto situation as published by Natural Earth and
 do not imply any position on disputed territories.`
 
-// segment is a piece of a polyline in Web Mercator coordinates with its
+// segment is a piece of a polyline on the plane of a projection, with its
 // bounding box. Long lines are split so off-screen parts can be skipped.
 type segment struct {
 	kind                   Kind
@@ -41,34 +41,47 @@ type segment struct {
 	minX, minY, maxX, maxY float32
 }
 
-// World holds map features ready for rendering.
+// World holds map features ready for rendering: the lines in degrees, and
+// on the plane of each projection once it has been drawn.
 type World struct {
-	segs []segment
+	lines []Polyline
+	once  [projections]sync.Once
+	segs  [projections][]segment
 }
 
 const maxSegmentPoints = 64
 
 // New prepares polylines for rendering.
-func New(lines []Polyline) *World {
-	w := &World{}
-	for _, l := range lines {
-		for start := 0; start < len(l.Lon)-1; start += maxSegmentPoints - 1 {
-			end := min(start+maxSegmentPoints, len(l.Lon))
-			s := segment{kind: l.Kind, minZoom: l.MinZoom}
-			s.minX, s.minY = math.MaxFloat32, math.MaxFloat32
-			s.maxX, s.maxY = -math.MaxFloat32, -math.MaxFloat32
-			for i := start; i < end; i++ {
-				x, y := Project(l.Lat[i], l.Lon[i])
-				fx, fy := float32(x), float32(y)
-				s.x = append(s.x, fx)
-				s.y = append(s.y, fy)
-				s.minX, s.maxX = min(s.minX, fx), max(s.maxX, fx)
-				s.minY, s.maxY = min(s.minY, fy), max(s.maxY, fy)
+func New(lines []Polyline) *World { return &World{lines: lines} }
+
+// Prepare projects the lines for p, if that has not been done yet, so
+// that the first map in that projection is drawn as fast as the others.
+// It may run alongside Render.
+func (w *World) Prepare(p Projection) { w.segments(p) }
+
+// segments returns the lines projected by p, projecting them the first
+// time.
+func (w *World) segments(p Projection) []segment {
+	w.once[p].Do(func() {
+		for _, l := range w.lines {
+			for start := 0; start < len(l.Lon)-1; start += maxSegmentPoints - 1 {
+				end := min(start+maxSegmentPoints, len(l.Lon))
+				s := segment{kind: l.Kind, minZoom: l.MinZoom, x: make([]float32, 0, end-start), y: make([]float32, 0, end-start)}
+				s.minX, s.minY = math.MaxFloat32, math.MaxFloat32
+				s.maxX, s.maxY = -math.MaxFloat32, -math.MaxFloat32
+				for i := start; i < end; i++ {
+					x, y := p.Project(l.Lat[i], l.Lon[i])
+					fx, fy := float32(x), float32(y)
+					s.x = append(s.x, fx)
+					s.y = append(s.y, fy)
+					s.minX, s.maxX = min(s.minX, fx), max(s.maxX, fx)
+					s.minY, s.maxY = min(s.minY, fy), max(s.maxY, fy)
+				}
+				w.segs[p] = append(w.segs[p], s)
 			}
-			w.segs = append(w.segs, s)
 		}
-	}
-	return w
+	})
+	return w.segs[p]
 }
 
 var (
@@ -88,37 +101,4 @@ func Load() (*World, error) {
 		loaded = New(lines)
 	})
 	return loaded, errLoaded
-}
-
-// maxLat is the latitude limit of the Web Mercator projection.
-const maxLat = 85.05112878
-
-// The map is drawn from North to South only: beyond, there is mostly ice,
-// which the projection stretches the most.
-const (
-	North = 80.0
-	South = -60.0
-)
-
-// bandTop and bandBottom are North and South in Web Mercator.
-var (
-	_, bandTop    = Project(North, 0)
-	_, bandBottom = Project(South, 0)
-)
-
-// Project converts a latitude and longitude in degrees to Web Mercator
-// coordinates in [0, 1]: x grows towards the east, y towards the south.
-func Project(lat, lon float64) (x, y float64) {
-	lat = max(-maxLat, min(maxLat, lat))
-	x = (lon + 180) / 360
-	s := math.Sin(lat * math.Pi / 180)
-	y = 0.5 - math.Log((1+s)/(1-s))/(4*math.Pi)
-	return x, y
-}
-
-// Unproject converts Web Mercator coordinates back to degrees.
-func Unproject(x, y float64) (lat, lon float64) {
-	lon = x*360 - 180
-	lat = math.Atan(math.Sinh(math.Pi*(1-2*y))) * 180 / math.Pi
-	return lat, lon
 }

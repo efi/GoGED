@@ -626,7 +626,7 @@ func (m Model) viewFooter() string {
 	case m.active == viewPlaces && m.places.detail != nil:
 		hints = [][2]string{{"↑↓", "select"}, {"enter", "open person"}, {"esc", "back to places"}, {"?", "help"}}
 	case m.active == viewMap:
-		hints = [][2]string{{"arrows", "pan"}, {"+/-", "zoom"}, {"n/N", "next/previous place"}, {"enter", "events here"}, {"s", "surnames"}, {"0/w", "fit places/world"}, {"L", "licenses"}, {"?", "help"}}
+		hints = [][2]string{{"arrows", "pan"}, {"+/-", "zoom"}, {"n/N", "next/previous place"}, {"enter", "events here"}, {"s", "surnames"}, {"v", "projection"}, {"0/w", "fit places/world"}, {"?", "help"}}
 		if m.mapv.sn.on {
 			hints = [][2]string{{"s", "all places"}, {"PgUp/PgDn", "surname"}, {"e", "events"}, {"n/N", "places"}, {"enter", "events here"}, {"arrows +/-", "pan, zoom"}, {"?", "help"}}
 		}

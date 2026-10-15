@@ -241,7 +241,7 @@ func (m *Model) fitSurname() {
 		m.setStatus(fmt.Sprintf("no %s of %s took place where coordinates are known", eventKindNames[s.sn.kind], s.sn.names[s.sn.name].name))
 		return
 	}
-	s.view = worldmap.Fit(minX, minY, maxX, maxY, m.mapCols(), m.mapRows())
+	s.view = s.view.Proj.Fit(minX, minY, maxX, maxY, m.mapCols(), m.mapRows())
 	// Close places would fill the screen with countryside; a region keeps
 	// the coasts in view.
 	s.view.Zoom = math.Min(s.view.Zoom, surnameZoom)

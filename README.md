@@ -55,7 +55,8 @@ The screenshots below use the [GEDCOM-L sample file](testdata/Muster_GEDCOM_UTF-
   and filterable. Select a place to list everything that happened there and in
   the places within it, then open the people involved.
 - **Map (experimental)**: a zoomable world map drawn with Braille characters
-  from 80°N to 60°S, with coastlines, country borders, rivers and lakes, the
+  from 80°N to 60°S in three projections (Equirectangular, Equal Earth, Web
+  Mercator), with coastlines, country borders, rivers and lakes, the
   equator, and a marker for every
   place that has coordinates (`PLAC` → `MAP` → `LATI`/`LONG`, or the place
   record the place refers to). The map data is
@@ -272,6 +273,7 @@ Try it with the sample file in [`testdata/family.ged`](testdata/family.ged).
 |         | `s`, `PgUp` `PgDn`, `e` | surname view on/off: the places of the people born with a surname; another surname; all events, births, deaths or other events |
 |         | `n` / `N`, `enter` | next/previous place (most events first), list the events at the place |
 |         | `0`, `w`, `c` | fit all places, the whole map (80°N to 60°S), center on the selected place |
+|         | `v` | the next projection: Equirectangular, Equal Earth, Web Mercator |
 | Stats   | `enter` | for the selected surname: the people with it, or the surname on the map; for a period: the people born then |
 | Checks  | `←` `→`, `space` | lower or raise the threshold of a check (the findings change at once), switch it off or on |
 |         | `enter`, `o`, `r` | fold a check or open the person (or first place) of a finding, open the other person (or next place), reset all thresholds |
@@ -343,6 +345,16 @@ data is simplified to about 0.005° and stored in a compact format
 rivers and lakes appear as you zoom in. The map is drawn from 80°N to 60°S:
 beyond lies mostly ice, which Web Mercator stretches the most. The equator is
 a yellow line. The view stays within these latitudes, and `w` shows them all.
+
+`v` switches between three projections, keeping the center:
+
+- **Equirectangular** (the default) spaces the latitudes evenly; lands get
+  wider towards the poles, which leaves room for the labels.
+- **Equal Earth** keeps the areas true; the meridians curve towards the
+  poles, and a faint line marks the edge of the world.
+- **Web Mercator**, as web maps use it, keeps the shapes true; sizes grow
+  towards the poles.
+
 To rebuild the data from the Natural
 Earth GeoJSON files (each layer takes a comma-separated list of files):
 
@@ -387,7 +399,7 @@ build date; a second run on the same day replaces that day's release.
 | [`genealogy`](genealogy) | relationship calculator, life timelines, place hierarchy, statistics |
 | [`search`](search) | query language, diacritic folding, Soundex and Cologne phonetics, person index, event filter |
 | [`chart`](chart) | pedigree, descendant, hourglass and lifespan charts with node positions for navigation |
-| [`worldmap`](worldmap) | embedded Natural Earth map data, Web Mercator projection and Braille renderer; [`mkworld`](worldmap/mkworld) converts GeoJSON |
+| [`worldmap`](worldmap) | embedded Natural Earth map data, three projections (Equirectangular, Equal Earth, Web Mercator) and the Braille renderer; [`mkworld`](worldmap/mkworld) converts GeoJSON |
 | [`export`](export) | selection of the people to export (everybody, or a connected component) and the GEXF writer |
 | [`diff`](diff) | what changed between two versions of a file, records paired by their identifiers |
 | [`fonts`](fonts) | the embedded font of the PDF export, Martian Mono Condensed |

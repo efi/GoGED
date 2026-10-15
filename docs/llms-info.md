@@ -412,7 +412,19 @@ packages.
   "GOGEDMAP" v1: gzip, coordinates scaled by 1e4, zigzag varint deltas, and
   the Natural Earth `min_zoom` for level of detail. It is embedded with
   `go:embed`, so goged stays a single executable.
-- The renderer uses a Web Mercator projection, Liang–Barsky clipping and
+- **Projections** (`projection.go`): `Equirectangular` (the zero value
+  and the default, as the user wanted: lands get wider, as the labels
+  are), `EqualEarth` (polynomial forward, Newton's method back) and
+  `WebMercator`. All map x 0–1 from 180°W to 180°E and put the equator at
+  y 0.5, in the same units, so `View`, zoom, `Fit`, `Locate` and the mouse
+  work alike. `View.Proj` is the projection; `World` keeps the lines in
+  degrees and projects them for a projection the first time it is drawn
+  (`segments`, a `sync.Once` each). In the TUI `v` cycles
+  (`cycleProjection`): the center is unprojected and projected again,
+  the markers too (`projectMarkers`); on reload the projection is set
+  before `ensureMap`. Equal Earth gets its curved edge drawn dotted
+  (`ClassOutline`).
+- The renderer uses Liang–Barsky clipping and
   Bresenham lines on a Braille canvas (2×4 dots per cell). Borders are drawn
   dotted.
 - **Latitudes:** only `North` (80°) to `South` (−60°) are drawn: lines are

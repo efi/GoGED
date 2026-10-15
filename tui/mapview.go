@@ -52,6 +52,14 @@ func (m *Model) ensureMap() {
 	s.ready = true
 	if s.world == nil && s.err == nil {
 		s.world, s.err = worldmap.Load()
+		if s.world != nil {
+			// The other projections are ready by the time v asks for them.
+			go func(w *worldmap.World, shown worldmap.Projection) {
+				for p := shown.Next(); p != shown; p = p.Next() {
+					w.Prepare(p)
+				}
+			}(s.world, s.view.Proj)
+		}
 	}
 	m.ensurePlaces()
 	located := m.places.root.Located()
@@ -64,9 +72,9 @@ func (m *Model) ensureMap() {
 	s.places = located
 	s.markers = make([]worldmap.Marker, len(located))
 	for i, p := range located {
-		s.markers[i].X, s.markers[i].Y = worldmap.Project(p.Lat, p.Lon)
 		s.markers[i].Label = p.Name
 	}
+	m.projectMarkers()
 	m.places.root.Walk(func(n *genealogy.PlaceNode) bool {
 		if len(n.Events) > 0 && !n.HasCoords {
 			s.unknown++
@@ -74,6 +82,33 @@ func (m *Model) ensureMap() {
 		return true
 	})
 	m.fitMap()
+}
+
+// projectMarkers places the markers in the projection of the map.
+func (m *Model) projectMarkers() {
+	s := &m.mapv
+	for i, p := range s.places {
+		s.markers[i].X, s.markers[i].Y = s.view.Proj.Project(p.Lat, p.Lon)
+	}
+}
+
+// cycleProjection shows the map in the next projection, centered where
+// it was.
+func (m *Model) cycleProjection() {
+	s := &m.mapv
+	lat, lon := s.view.Proj.Unproject(s.view.X, s.view.Y)
+	s.view.Proj = s.view.Proj.Next()
+	s.view.X, s.view.Y = s.view.Proj.Project(lat, max(-180, min(180, lon)))
+	m.projectMarkers()
+	m.clampMap()
+	m.setStatus(s.view.Proj.String() + " projection: " + projectionNotes[s.view.Proj])
+}
+
+// projectionNotes say what each projection is good for.
+var projectionNotes = map[worldmap.Projection]string{
+	worldmap.Equirectangular: "latitudes evenly spaced, lands wider towards the poles",
+	worldmap.EqualEarth:      "areas true, meridians curving towards the poles",
+	worldmap.WebMercator:     "shapes true, sizes growing towards the poles",
 }
 
 // fitMap shows all located places, or the whole world if there are none.
@@ -88,13 +123,13 @@ func (m *Model) fitMap() {
 		minX, maxX = math.Min(minX, mk.X), math.Max(maxX, mk.X)
 		minY, maxY = math.Min(minY, mk.Y), math.Max(maxY, mk.Y)
 	}
-	s.view = worldmap.Fit(minX, minY, maxX, maxY, m.mapCols(), m.mapRows())
+	s.view = s.view.Proj.Fit(minX, minY, maxX, maxY, m.mapCols(), m.mapRows())
 	m.clampMap()
 }
 
 // showWorld shows all of the map: the latitudes between 80°N and 60°S.
 func (m *Model) showWorld() {
-	m.mapv.view = worldmap.WholeWorld(m.mapCols(), m.mapRows())
+	m.mapv.view = m.mapv.view.Proj.WholeWorld(m.mapCols(), m.mapRows())
 }
 
 // selectMarker selects a place and centers the map on it.
@@ -126,11 +161,11 @@ func (m *Model) selectMapPlace(n *genealogy.PlaceNode) {
 	}
 	minX, minY, maxX, maxY := math.Inf(1), math.Inf(1), math.Inf(-1), math.Inf(-1)
 	for _, p := range inside {
-		x, y := worldmap.Project(p.Lat, p.Lon)
+		x, y := s.view.Proj.Project(p.Lat, p.Lon)
 		minX, maxX = math.Min(minX, x), math.Max(maxX, x)
 		minY, maxY = math.Min(minY, y), math.Max(maxY, y)
 	}
-	s.view = worldmap.Fit(minX, minY, maxX, maxY, m.mapCols(), m.mapRows())
+	s.view = s.view.Proj.Fit(minX, minY, maxX, maxY, m.mapCols(), m.mapRows())
 	m.clampMap()
 	for i, p := range s.places {
 		if p == inside[0] {
@@ -193,6 +228,8 @@ func (m *Model) updateMap(msg tea.KeyMsg) (bool, tea.Cmd) {
 		m.fitMap()
 	case "w":
 		m.showWorld()
+	case "v":
+		m.cycleProjection()
 	case "enter":
 		if len(s.places) == 0 {
 			return true, nil
@@ -226,6 +263,7 @@ func formatLatLon(lat, lon float64) string {
 func (m Model) mapStyles() map[worldmap.Class]lipgloss.Style {
 	return map[worldmap.Class]lipgloss.Style{
 		worldmap.ClassEmpty:      lipgloss.NewStyle(),
+		worldmap.ClassOutline:    m.st.mapBorder,
 		worldmap.ClassEquator:    m.st.mapEquator,
 		worldmap.ClassBorder:     m.st.mapBorder,
 		worldmap.ClassCoast:      m.st.mapCoast,
@@ -245,9 +283,9 @@ func (m Model) viewMap(h int) string {
 		return m.st.err.Render("  the map data could not be loaded: " + s.err.Error())
 	}
 	rows := max(1, h-3)
-	lat, lon := worldmap.Unproject(s.view.X, s.view.Y)
-	info := m.st.section.Render("Map") + m.st.dim.Render(fmt.Sprintf(" (experimental) · zoom %.1f · center %s · %s with coordinates",
-		s.view.Zoom, formatLatLon(lat, lon), plural(len(s.places), "place", "places")))
+	lat, lon := s.view.Proj.Unproject(s.view.X, s.view.Y)
+	info := m.st.section.Render("Map") + m.st.dim.Render(fmt.Sprintf(" (experimental) · %s · zoom %.1f · center %s · %s with coordinates",
+		s.view.Proj, s.view.Zoom, formatLatLon(lat, max(-180, min(180, lon))), plural(len(s.places), "place", "places")))
 	if s.unknown > 0 {
 		info += m.st.dim.Render(fmt.Sprintf(", %d without", s.unknown))
 	}

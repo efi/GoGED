@@ -299,6 +299,7 @@ func (m *Model) replaceDoc(doc *gedcom.Document) {
 	}
 	if m.mapv.ready {
 		n.mapv.world, n.mapv.err = m.mapv.world, m.mapv.err
+		n.mapv.view.Proj = m.mapv.view.Proj
 		n.ensureMap()
 		n.mapv.view = m.mapv.view
 		n.clampMap()
