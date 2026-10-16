@@ -581,7 +581,10 @@ packages.
 - One `Model` holds all views; each view has its own state struct and file.
   Overlays are help and licenses.
 - **Keys:** digits switch views except while typing, so alt+N also works.
-  Multi-rune key messages are split.
+  Multi-rune key messages are split. `m` marks `Model.selected()`, the
+  person selected in the view shown (a result, the person of an event,
+  a chart node, a stats line, a finding), else the current person; in
+  the search box, where letters are typed, it is alt+m.
 - **`docView`:** a scrollable list of lines, where lines with a target
   person or a query are links.
 - **Query history** (`history.go`): the search box and the filters of

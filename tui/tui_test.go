@@ -517,6 +517,53 @@ func TestMarkReference(t *testing.T) {
 	a.contains("no relationship to Grace Hill found")
 }
 
+// m marks the person selected in the view shown, else the current one.
+func TestMarkSelected(t *testing.T) {
+	a := newApp(t, Options{})
+	a.openPerson("I1")
+	marked := func(view string, want *gedcom.Individual) {
+		t.Helper()
+		if want == nil || a.m.reference != want {
+			t.Errorf("%s: marked %v, want %v", view, a.m.reference, want)
+		}
+		a.m.reference = nil
+	}
+
+	a.press("/", "esc")
+	a.typ("smith")
+	a.press("down", "alt+m")
+	marked("search", a.m.search.results[1].Individual)
+	if a.m.search.input.Value() != "smith" {
+		t.Errorf("alt+m changed the query to %q", a.m.search.input.Value())
+	}
+
+	a.press("alt+4", "down", "down", "down", "m")
+	marked("events", eventPerson(a.m.ev.list[3]))
+
+	a.press("alt+5")
+	for a.m.selectedPlace().Count() < 2 {
+		a.press("down")
+	}
+	a.press("enter", "down", "m")
+	marked("events at a place", eventPerson(a.m.places.events[1]))
+
+	a.press("alt+7", "home", "m")
+	marked("stats", a.m.stats.stats.LongestLived)
+
+	a.press("alt+8")
+	for r, cr := range a.m.checks.rows {
+		if cr.finding >= 0 && a.m.checks.results[cr.check][cr.finding].Person != nil {
+			a.m.checks.cursor = r
+			break
+		}
+	}
+	a.press("m")
+	marked("checks", a.m.finding().Person)
+
+	a.press("alt+6", "m")
+	marked("map", a.m.doc.Individual("I1"))
+}
+
 func TestPersonViewWrap(t *testing.T) {
 	a := newMusterApp(t)
 	a.resize(80, 60)

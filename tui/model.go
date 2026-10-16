@@ -291,6 +291,43 @@ func (m *Model) switchTo(v view) {
 	m.active = v
 }
 
+// selected returns the person selected in the view shown: a search
+// result, the person of an event, a person in a chart, a line of the
+// statistics or the person of a finding; else the current person.
+func (m *Model) selected() *gedcom.Individual {
+	var ind *gedcom.Individual
+	switch m.active {
+	case viewSearch:
+		if s := &m.search; s.cursor < len(s.results) {
+			ind = s.results[s.cursor].Individual
+		}
+	case viewTree:
+		if t := &m.tree; t.chart != nil && t.sel < len(t.chart.Nodes) {
+			ind = t.chart.Nodes[t.sel].Ind
+		}
+	case viewEvents:
+		if e := &m.ev; e.cursor < len(e.list) {
+			ind = eventPerson(e.list[e.cursor])
+		}
+	case viewPlaces:
+		if p := &m.places; p.detail != nil && p.evCursor < len(p.events) {
+			ind = eventPerson(p.events[p.evCursor])
+		}
+	case viewStats:
+		if d := &m.stats.doc; d.selected() != nil && d.visible(d.selectedLine(), m.bodyHeight()) {
+			ind = d.selected().target
+		}
+	case viewChecks:
+		if f := m.finding(); f != nil {
+			ind = f.Person
+		}
+	}
+	if ind == nil {
+		return m.current()
+	}
+	return ind
+}
+
 func (m *Model) mark(ind *gedcom.Individual) {
 	if ind == nil {
 		return
@@ -428,7 +465,7 @@ func (m *Model) handleKey(msg tea.KeyMsg) tea.Cmd {
 	case "]", "alt+right":
 		m.forward()
 	case "m":
-		m.mark(m.current())
+		m.mark(m.selected())
 	case "W":
 		m.wrap = !m.wrap
 		m.rebuildPerson()

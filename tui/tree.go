@@ -277,8 +277,6 @@ func (m *Model) updateTree(msg tea.KeyMsg) (bool, tea.Cmd) {
 		m.setGenerations(*t.generations() + 1)
 	case "-", "_":
 		m.setGenerations(*t.generations() - 1)
-	case "m":
-		m.mark(node.Ind)
 	default:
 		return false, nil
 	}

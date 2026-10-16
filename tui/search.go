@@ -111,6 +111,9 @@ func (m *Model) updateSearch(msg tea.KeyMsg) (bool, tea.Cmd) {
 		if recall(&s.hist, &s.input, historyKey(msg.String())) {
 			m.runSearch()
 		}
+	case "alt+m":
+		// Letters go into the query.
+		m.mark(m.selected())
 	case "f1":
 		return false, nil
 	case "?":
