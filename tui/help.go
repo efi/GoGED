@@ -60,6 +60,7 @@ var helpSections = [][]string{
 	{"", "on a \"truncated as duplicate\" placeholder: show the ancestors there instead"},
 	{"p / d / h / s / v", "pedigree / descendants / hourglass (descendants left, ancestors right) / lifespans / the next of these"},
 	{"+ / -", "more / fewer generations; in the lifespans one more each way: grandparents, aunts and uncles, grandchildren"},
+	{"P", "print the whole chart to a PDF file, as the screen would show it if it were large enough: A4, or larger as the chart needs; asks for the file name"},
 	{"lifespans", "the lives of the parents, siblings, partners and children as lines on a time axis, coloured while the person lived; ⚭ marriages, ╍ approximate dates, ┄ birth or death not recorded; on the right how long they lived at the same time (for partners: were married)"},
 	{""},
 	{"Events"},

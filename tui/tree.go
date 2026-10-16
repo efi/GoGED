@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/efi/goged/chart"
 	"github.com/efi/goged/gedcom"
@@ -277,6 +278,8 @@ func (m *Model) updateTree(msg tea.KeyMsg) (bool, tea.Cmd) {
 		m.setGenerations(*t.generations() + 1)
 	case "-", "_":
 		m.setGenerations(*t.generations() - 1)
+	case "P":
+		m.askPrintChart(m.chartFileName())
 	default:
 		return false, nil
 	}
@@ -353,26 +356,34 @@ func (m *Model) setGenerations(n int) {
 	}
 }
 
+// chartNames name the charts.
+var chartNames = [treeModes]string{"Pedigree", "Descendants", "Hourglass", "Lifespans"}
+
+// chartReach says how far the chart shown reaches: " · 4 generations".
+func (m Model) chartReach() string {
+	if t := &m.tree; t.mode == modeLifespans {
+		return " · " + lifespanReach(t.lifeGens)
+	}
+	return fmt.Sprintf(" · %d generations", m.tree.gens)
+}
+
 func (m Model) viewTree(h int) string {
 	t := &m.tree
 	if t.chart == nil || m.current() == nil {
 		return m.st.dim.Render("  No person selected. Press / to search.")
 	}
-	kind := [treeModes]string{"Pedigree", "Descendants", "Hourglass", "Lifespans"}[t.mode]
+	kind := chartNames[t.mode]
 	sel := t.chart.Nodes[t.sel]
 	// The selected person comes last; if the line is too long, the root's
 	// name and then the number of generations are left out so that the
 	// selection stays readable.
-	gens := fmt.Sprintf(" · %d generations", t.gens)
-	if t.mode == modeLifespans {
-		gens = " · " + lifespanReach(t.lifeGens)
-	}
+	gens := m.chartReach()
 	selected := m.st.dim.Render(" · selected: ") + m.st.name.Render(chart.Label(sel.Ind))
 	if sel.Kind == chart.KindDuplicate {
 		selected = m.st.dim.Render(" · selected: ancestors of ") + m.st.name.Render(chart.Label(sel.Ind)) +
 			m.st.dim.Render(", shown elsewhere; enter or space shows them here")
 	}
-	header := m.st.section.Render(kind+" of "+m.current().DisplayName()) + m.st.dim.Render(gens) + selected
+	header := m.st.section.Render(m.chartTitle()) + m.st.dim.Render(gens) + selected
 	if ansi.StringWidth(header) > m.width {
 		header = m.st.section.Render(kind) + m.st.dim.Render(gens) + selected
 	}
@@ -431,28 +442,38 @@ func (m Model) renderTreeLine(i int) string {
 		if start < left || end > right {
 			text = ansi.Cut(text, max(0, left-start), min(w, right-start))
 		}
-		switch {
-		case seg.Node >= 0 && seg.Node == t.sel:
-			b.WriteString(m.st.selected.Render(text))
-		case seg.Class == chart.ClassText:
-			b.WriteString(text)
-		case seg.Class == chart.ClassBar:
-			b.WriteString(m.st.bar.Render(text))
-		case seg.Class == chart.ClassRootBar:
-			b.WriteString(m.st.name.Render(text))
-		case seg.Class == chart.ClassMarker:
-			b.WriteString(m.st.mapMarker.Render(text))
-		case seg.Node < 0 || seg.Class == chart.ClassDim:
-			b.WriteString(m.st.dim.Render(text))
-		case t.chart.Nodes[seg.Node].Kind == chart.KindDuplicate:
-			b.WriteString(m.st.dim.Render(text))
-		case t.chart.Nodes[seg.Node].Ind == m.reference:
-			b.WriteString(m.st.reference.Render(text))
-		case seg.Node == 0:
-			b.WriteString(m.st.root.Render(text))
+		switch style, ok := m.segmentStyle(t.chart, seg, t.sel); {
+		case ok:
+			b.WriteString(style.Render(text))
 		default:
 			b.WriteString(text)
 		}
 	}
 	return b.String()
+}
+
+// segmentStyle returns the style of a segment of chart c with node sel
+// selected (-1 for none), or false for plain text.
+func (m Model) segmentStyle(c *chart.Chart, seg chart.Segment, sel int) (lipgloss.Style, bool) {
+	switch {
+	case seg.Node >= 0 && seg.Node == sel:
+		return m.st.selected, true
+	case seg.Class == chart.ClassText:
+		return lipgloss.Style{}, false
+	case seg.Class == chart.ClassBar:
+		return m.st.bar, true
+	case seg.Class == chart.ClassRootBar:
+		return m.st.name, true
+	case seg.Class == chart.ClassMarker:
+		return m.st.mapMarker, true
+	case seg.Node < 0 || seg.Class == chart.ClassDim:
+		return m.st.dim, true
+	case c.Nodes[seg.Node].Kind == chart.KindDuplicate:
+		return m.st.dim, true
+	case c.Nodes[seg.Node].Ind == m.reference:
+		return m.st.reference, true
+	case seg.Node == 0:
+		return m.st.root, true
+	}
+	return lipgloss.Style{}, false
 }

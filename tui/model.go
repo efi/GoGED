@@ -656,6 +656,8 @@ func (m Model) viewFooter() string {
 	}
 	var hints [][2]string
 	switch {
+	case m.dlg != nil && m.dlg.input != nil:
+		hints = m.dlg.hints
 	case m.dlg != nil:
 		hints = append([][2]string{{"←→", "choose"}, {"enter", "confirm"}}, m.dlg.hints...)
 	case m.showHelp && (m.overlay == "Changes" || m.overlay == "Compare"):
@@ -671,7 +673,7 @@ func (m Model) viewFooter() string {
 		if m.width < 120 {
 			charts = "charts"
 		}
-		hints = [][2]string{{"arrows", "move"}, {"enter", "open"}, {"space", "re-root"}, {"p/d/h/s", charts}, {"+/-", "generations"}, {"?", "help"}}
+		hints = [][2]string{{"arrows", "move"}, {"enter", "open"}, {"space", "re-root"}, {"p/d/h/s", charts}, {"+/-", "generations"}, {"P", "print"}, {"?", "help"}}
 	case m.active == viewEvents && m.ev.editing:
 		hints = [][2]string{{"type", "filter"}, {"enter", "done"}, {"esc", "clear"}, {"alt+↑↓", "history"}}
 	case m.active == viewEvents:

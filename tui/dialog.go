@@ -4,12 +4,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
 )
 
 // A dialog is a small question over the view, answered with one of its
-// buttons: whether to load the file again, or what to show of a surname.
+// buttons: whether to load the file again, what to show of a surname, or
+// the name of a file to print a chart to.
 
 // dialogGrace is how long a dialog that comes unasked ignores keys: they
 // were meant for the view.
@@ -25,6 +27,9 @@ type dialog struct {
 	choice  int
 	since   time.Time // when an unasked dialog appeared; zero for one asked for
 	answer  func(m *Model, choice int) tea.Cmd
+	// input, if set, is a text field above the buttons: the keys go to
+	// it, enter chooses the first button and esc cancels.
+	input *textinput.Model
 }
 
 // ask shows a dialog.
@@ -44,6 +49,17 @@ func (m *Model) updateDialog(msg tea.KeyMsg) tea.Cmd {
 	d := m.dlg
 	if !d.since.IsZero() && time.Since(d.since) < dialogGrace {
 		return nil
+	}
+	if d.input != nil {
+		switch msg.String() {
+		case "enter":
+			return m.choose(0)
+		case "esc":
+			return m.choose(d.cancel)
+		}
+		var cmd tea.Cmd
+		*d.input, cmd = d.input.Update(msg)
+		return cmd
 	}
 	switch key := msg.String(); key {
 	case "left", "h", "shift+tab", "up", "k":
@@ -94,10 +110,20 @@ func (m *Model) layoutDialog() dialogBox {
 	for _, t := range d.text {
 		content = append(content, m.st.name.Render(t))
 	}
+	inner := 0
+	for _, c := range content {
+		inner = max(inner, ansi.StringWidth(c))
+	}
+	if d.input != nil {
+		// The field is as wide as the box, at least wide enough for a
+		// long file name.
+		inner = min(max(inner, ansi.StringWidth(d.input.Value())+4, 60), m.width-6)
+		d.input.Width = max(1, inner-ansi.StringWidth(d.input.Prompt)-1)
+		content = append(content, "", d.input.View())
+	}
 	content = append(content, "", strings.Join(buttons, "  "), "")
 	buttonLine := len(content) - 2
 
-	inner := 0
 	for _, c := range content {
 		inner = max(inner, ansi.StringWidth(c))
 	}

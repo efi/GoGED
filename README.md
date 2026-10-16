@@ -48,7 +48,8 @@ The screenshots below use the [GEDCOM-L sample file](testdata/Muster_GEDCOM_UTF-
   lived, with marriages, approximate dates and lives whose end (or
   beginning) is not recorded; on the right how long each lived at the same
   time as the person, or was married to them. Each generation more adds
-  grandparents, aunts and uncles, and grandchildren.
+  grandparents, aunts and uncles, and grandchildren. `P` prints the whole
+  chart to a PDF file, on A4 or a larger page as the chart needs.
 - **Events browser** listing all (or only the vital) events of the file in
   chronological order, with a filter for type, year range, place and names.
 - **Places browser**: every place in the file arranged by jurisdiction
@@ -272,6 +273,7 @@ Try it with the sample file in [`testdata/family.ged`](testdata/family.ged).
 | Charts  | arrows (`j` `k` `l`) | move: `←` towards the root, `→` away from it (in the hourglass: left and right as drawn), `↑` `↓` to the previous or next person (in a pedigree or hourglass: of the same column) |
 |         | `enter` / `space` | open person / make them the root; on "truncated as duplicate": show those ancestors here instead |
 |         | `p` `d` `h` `s` `v`, `+` `-` | pedigree, descendants, hourglass, lifespans, the next of these; more or fewer generations (in the lifespans one more each way) |
+|         | `P` | print the whole chart to a PDF file, as a large enough screen would show it, on A4 or a larger page as the chart needs |
 | Events  | `f`, `a`, `x`, `enter` | edit filter, all/important events, clear filter, open person |
 | Places  | `←` `→` (`h` `l`), `-` / `+` | collapse/expand a place (or go to the enclosing/first contained place); collapse/expand all |
 |         | `enter`, `esc` | list the events at a place and within it (enter again opens the person); back to the places |

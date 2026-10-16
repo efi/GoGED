@@ -576,6 +576,28 @@ packages.
   and Cyrillic, and the box drawing goged uses, but not ★ ⚭ ▸ ▾, Greek,
   Hebrew, Arabic or most Vietnamese letters, which print as boxes.
 
+### Printing a chart (tui/printchart.go)
+
+- **`P`** in the Charts tab prints the whole chart as a large enough
+  screen would show it (the user asked for a printable screenshot rather
+  than an export): the heading, a blank line and every chart line, styled
+  by `segmentStyle` as on screen but without the selection, in
+  `paperColor`. The lifespans are drawn again at their natural width.
+- **Page:** A4 portrait, landscape if the lines are wider than a portrait
+  page, and larger in either direction as far as they need
+  (`chartPage`); 9 pt Martian Mono on the grid of the book export.
+- **Drawn glyphs:** Martian Mono has the light box-drawing characters but
+  not ━ ╸ ╺ ╍ ┄ ┊ ▸ ▾ ◂ ● ◉ ⚭ ★ ≥. `drawGlyph` draws all line drawing as
+  vector lines from the middle of the cell (`boxArms`: arms, heavy,
+  dashes), which also joins vertical lines without gaps, and the symbols
+  as shapes. Checked by rendering with Ghostscript (`gs -sDEVICE=png16m`),
+  which is installed on workhorse.
+- **File:** a dialog with a text field (`dialog.input`; the keys go to it,
+  enter prints, esc cancels) suggests a name next to the GEDCOM file that
+  is not taken: `family-pedigree-I14.pdf`, then `-2` … (the user chose
+  to be asked). An existing file is replaced after the dialog asks again;
+  the GEDCOM file never is. Written with `export.WriteFile`.
+
 ### tui
 
 - One `Model` holds all views; each view has its own state struct and file.
@@ -780,4 +802,3 @@ packages.
   - Source and repository records as their own view.
   - Editing support.
   - GEDCOM 7 SNOTE and SCHMA specifics beyond reading notes.
-  - Exporting charts.
