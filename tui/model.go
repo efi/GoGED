@@ -475,6 +475,8 @@ func (m *Model) handleKey(msg tea.KeyMsg) tea.Cmd {
 		m.mark(m.selected())
 	case "C":
 		m.compareSelected()
+	case "M":
+		m.mapPerson(m.selected())
 	case "W":
 		m.wrap = !m.wrap
 		m.rebuildPerson()
@@ -667,7 +669,7 @@ func (m Model) viewFooter() string {
 	case m.active == viewSearch:
 		hints = [][2]string{{"type", "search"}, {"↑↓", "select"}, {"enter", "open"}, {"esc", "clear/back"}, {"alt+↑↓", "history"}, {"tab/alt+1-9", "views"}, {"?", "help"}}
 	case m.active == viewPerson:
-		hints = [][2]string{{"↑↓", "relatives"}, {"enter", "go"}, {"←→", "history"}, {"t/d/h/s", "charts"}, {"c", "context"}, {"m/C", "mark/compare"}, {"/", "search"}, {"?", "help"}}
+		hints = [][2]string{{"↑↓", "select"}, {"enter", "go"}, {"←→", "history"}, {"t/d/h/s", "charts"}, {"c", "context"}, {"m/C/M", "mark/compare/map"}, {"/", "search"}, {"?", "help"}}
 	case m.active == viewTree:
 		charts := "pedigree/descendants/hourglass/lifespans"
 		if m.width < 120 {
@@ -684,6 +686,9 @@ func (m Model) viewFooter() string {
 		hints = [][2]string{{"↑↓", "select"}, {"enter", "open person"}, {"esc", "back to places"}, {"M", "map"}, {"?", "help"}}
 	case m.active == viewMap:
 		hints = [][2]string{{"arrows", "pan"}, {"+/-", "zoom"}, {"n/N", "next/previous place"}, {"enter", "events here"}, {"s", "surnames"}, {"v", "projection"}, {"0/w", "fit places/world"}, {"?", "help"}}
+		if m.mapv.pm.on {
+			hints = personHints
+		}
 		if m.mapv.sn.on {
 			hints = [][2]string{{"s", "all places"}, {"PgUp/PgDn", "surname"}, {"e", "events"}, {"n/N", "places"}, {"enter", "events here"}, {"arrows +/-", "pan, zoom"}, {"?", "help"}}
 		}

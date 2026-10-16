@@ -334,6 +334,12 @@ func (m *Model) replaceDoc(doc *gedcom.Document) {
 				}
 			}
 		}
+		// The person view stays on the person, if they are still there.
+		if pm := m.mapv.pm; pm.on && same(pm.ind) != nil {
+			n.mapv.pm = personMap{on: true, ind: same(pm.ind), noRoute: pm.noRoute, offset: pm.offset}
+			n.computePersonMap()
+			n.mapv.pm.scrollList(n.mapv.sel)
+		}
 	}
 
 	if c := m.checks; c.results != nil {

@@ -33,6 +33,9 @@ type mapState struct {
 	opening      bool
 
 	sn surnameMap
+	pm personMap
+	// placeOf is the marker each event counts at (eventMarkers).
+	placeOf map[*gedcom.Event]int
 }
 
 const (
@@ -177,7 +180,7 @@ func (m *Model) mapEvent(ev *gedcom.Event) {
 // them, the first selected. none says that there are none.
 func (m *Model) showMapPlaces(nodes []*genealogy.PlaceNode, none string) {
 	s := &m.mapv
-	s.sn.on = false
+	s.sn.on, s.pm.on = false, false
 	if len(nodes) == 1 {
 		for i, p := range s.places {
 			if p == nodes[0] {
@@ -214,8 +217,17 @@ func (m *Model) updateMap(msg tea.KeyMsg) (bool, tea.Cmd) {
 	s := &m.mapv
 	spanX, spanY := s.view.Span(m.mapCols(), m.mapRows())
 	key := msg.String()
-	if key == "s" {
+	switch {
+	case key == "s":
 		m.toggleSurnames()
+		return true, nil
+	case key == "M" && s.pm.on:
+		m.leavePersonMap()
+		return true, nil
+	case key == "M":
+		m.mapPerson(m.current())
+		return true, nil
+	case s.pm.on && m.updatePersonMap(key):
 		return true, nil
 	}
 	if s.sn.on {
@@ -305,6 +317,7 @@ func (m Model) mapStyles() map[worldmap.Class]lipgloss.Style {
 		worldmap.ClassCoast:      m.st.mapCoast,
 		worldmap.ClassLake:       m.st.mapWater,
 		worldmap.ClassRiver:      m.st.mapWater,
+		worldmap.ClassRoute:      m.st.mapRoute,
 		worldmap.ClassFaint:      m.st.dim,
 		worldmap.ClassLabel:      m.st.name,
 		worldmap.ClassMinorLabel: m.st.mapLabel,
@@ -326,12 +339,14 @@ func (m Model) viewMap(h int) string {
 		info += m.st.dim.Render(fmt.Sprintf(", %d without", s.unknown))
 	}
 	var selLine string
-	byName := s.sn.on
+	byName, byPerson := s.sn.on, s.pm.on
 	switch {
 	case len(s.places) == 0:
 		selLine = m.st.dim.Render("  no place in this file has coordinates — they are read from PLAC.MAP.LATI and LONG")
 	case byName:
 		selLine = m.st.mapSelected.Render("◉") + " " + m.st.name.Render(s.places[s.sel].Full) + (&m).surnameInfo()
+	case byPerson:
+		selLine = m.st.mapSelected.Render("◉") + " " + m.st.name.Render(s.places[s.sel].Full) + (&m).personInfo()
 	default:
 		p := s.places[s.sel]
 		selLine = m.st.mapSelected.Render("◉") + " " + m.st.name.Render(p.Full) +
@@ -345,18 +360,28 @@ func (m Model) viewMap(h int) string {
 				eventKindNames[sn.kind], plural(sn.places[sn.names[sn.name].name], "place", "places"))) +
 			m.st.key.Render("e") + m.st.dim.Render(" events · ") + m.st.key.Render("s") + m.st.dim.Render(" all places")
 	}
+	if byPerson {
+		info = (&m).personHeading()
+	}
 	sel := s.sel
 	if len(s.places) == 0 {
 		sel = -1
 	}
 	markers := s.markers
-	if byName {
+	var route []int
+	switch {
+	case byName:
 		markers = (&m).surnameMarkers()
+	case byPerson:
+		markers, route = (&m).personMarkers(), (&m).personRoute()
 	}
 	cols := (&m).mapCols()
-	frame := s.world.Render(s.view, cols, rows, markers, sel)
+	frame := s.world.RenderRoute(s.view, cols, rows, markers, sel, route)
 	var panel []string
-	if cols < m.width {
+	switch {
+	case cols < m.width && byPerson:
+		panel = (&m).personPanel(rows, m.width-cols-3)
+	case cols < m.width:
 		panel = (&m).panelLines(rows, m.width-cols-3)
 	}
 

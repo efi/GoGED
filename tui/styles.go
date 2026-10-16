@@ -26,6 +26,7 @@ type styles struct {
 	mapMarker   lipgloss.Style
 	mapSelected lipgloss.Style
 	mapLabel    lipgloss.Style
+	mapRoute    lipgloss.Style
 	bar         lipgloss.Style
 }
 
@@ -54,6 +55,7 @@ func defaultStyles() styles {
 		mapMarker:   lipgloss.NewStyle().Foreground(warm).Bold(true),
 		mapSelected: lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#C0262D", Dark: "#FF6B6B"}).Bold(true),
 		mapLabel:    lipgloss.NewStyle().Foreground(warm),
+		mapRoute:    lipgloss.NewStyle().Foreground(accent).Bold(true),
 		bar:         lipgloss.NewStyle().Foreground(accent),
 	}
 }

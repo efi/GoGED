@@ -280,7 +280,7 @@ func (m *Model) clickMap(x, y int) {
 	for i, mk := range s.markers {
 		col, r, ok := s.view.Locate(mk.X, mk.Y, m.mapCols(), m.mapRows())
 		// In the surname view only the surname's places can be chosen.
-		if s.sn.on && len(s.sn.events[i]) == 0 {
+		if s.sn.on && len(s.sn.events[i]) == 0 || s.pm.on && len(s.pm.events[i]) == 0 {
 			continue
 		}
 		if d := max(col-x, x-col, r-row, row-r); ok && d < dist {

@@ -67,7 +67,10 @@ The screenshots below use the [GEDCOM-L sample file](testdata/Muster_GEDCOM_UTF-
   surname had events, with their number, and a panel with the surnames,
   the selected place and the surname's events per decade; `e` narrows the
   events to births, deaths or the others. From the statistics, a surname
-  opens there, too.
+  opens there, too. The person view (`M` wherever a person is selected)
+  shows the places of one person's events in the same way, joined by a
+  violet dotted route in the order of their life, with a panel of their
+  places and the events at each.
 - **Relationship calculator**: mark a reference person and every person view
   tells how they are related ("Harold Smith's third cousin", "half-great-aunt",
   "brother-in-law", "husband's aunt", "co-father-in-law", "adoptive father"),
@@ -254,6 +257,7 @@ Try it with the sample file in [`testdata/family.ged`](testdata/family.ged).
 |         | `b`, `backspace`, `[` / `]` | back / forward in history |
 |         | `m` (`alt+m` in the search) | mark the selected person as reference for relationships: a result, the person of an event, a person in a chart, a finding …, else the current person (again to clear) |
 |         | `C` (`alt+C` in the search) | compare the selected person with the marked one, side by side, the differences marked |
+|         | `M` (`alt+M` in the search) | the map of the selected person: the places of their events and their route (where a place or an event is selected: its place) |
 |         | `W` | wrap long lines in the person view instead of cutting them (again to cut) |
 |         | `y` / `n` / `N` | when another program has changed the file: load it again, not this time, never this session |
 |         | `?` | help · `L` licenses · `q`, `ctrl+c` quit |
@@ -284,6 +288,7 @@ Try it with the sample file in [`testdata/family.ged`](testdata/family.ged).
 |         | `n` / `N`, `enter` | next/previous place (most events first), list the events at the place |
 |         | `0`, `w`, `c` | fit all places, the whole map (80°N to 60°S), center on the selected place |
 |         | `v` | the next projection: Equirectangular, Equal Earth, Web Mercator |
+|         | `M`, `n` / `N`, `c`, `l`, `esc` | person view on/off: the places of the current person's events and their route in date order; the next/previous of their places; relatives' events on/off; the route on/off; all places |
 | Stats   | `enter` | for the selected surname: the people with it, or the surname on the map; for a period: the people born then |
 | Checks  | `←` `→`, `space` | lower or raise the threshold of a check (the findings change at once), switch it off or on |
 |         | `enter`, `o`, `r` | fold a check or open the person (or first place) of a finding, open the other person (or next place), reset all thresholds |

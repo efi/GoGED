@@ -624,6 +624,19 @@ packages.
   years, coordinates, distance from the first located place, place
   record and GOV, dim where all agree. The places are kept by full name
   and looked up in the places tree (`placesNamed`).
+- **Person view of the map** (`personmap.go`): `M` wherever a person is
+  selected (`selected()`; alt+M in the search, and on the map itself the
+  current person, again to leave) shows the places of the person's
+  `Timeline` events like the surname view: markers with the number of
+  events, the others faint, a panel (the places in the order of their
+  first event, `stops`, and the events at the one selected). Events count
+  at the nearest located place (`eventMarkers`, shared with the surname
+  view). Relatives' events follow `person.hideRelatives`, which `c`
+  switches here too (the user's choice), so `c` does not center there. A
+  violet dotted route (`RenderRoute`, `ClassRoute`, `st.mapRoute`) joins
+  the places of the person's own dated events in date order; `l` hides it
+  (so `l` does not pan there). The panel's list scrolls when the
+  selection changes, not when it is drawn. A reload keeps the view.
 - **M means map** (the user's choice; comparing is C): in the Events tab
   the selected event's place (`mapEvent`, through `placesState.nodeOf`),
   in a place's events the place listed, in the Checks a group of similar

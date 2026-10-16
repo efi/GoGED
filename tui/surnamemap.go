@@ -46,9 +46,8 @@ type surnameMap struct {
 	kind   int
 
 	surnameOf map[*gedcom.Individual]string
-	placeOf   map[*gedcom.Event]int // the marker each event counts at
-	places    map[string]int        // places on the map per surname, for kind
-	placesFor int                   // the kind places was worked out for, plus 1
+	places    map[string]int // places on the map per surname, for kind
+	placesFor int            // the kind places was worked out for, plus 1
 
 	// For the surname and kind shown: its events at each marker, its people
 	// there, and all its events of the kind, also those without coordinates.
@@ -64,7 +63,7 @@ type surnameEntry struct {
 
 // mapCols is the width of the map itself.
 func (m *Model) mapCols() int {
-	if m.mapv.sn.on && m.width >= surnamePanelMin {
+	if (m.mapv.sn.on || m.mapv.pm.on) && m.width >= surnamePanelMin {
 		return m.width - surnamePanel
 	}
 	return m.width
@@ -96,26 +95,6 @@ func (m *Model) ensureSurnames() {
 		}
 		return search.Fold(a.name) < search.Fold(b.name)
 	})
-	index := map[*genealogy.PlaceNode]int{}
-	for i, p := range s.places {
-		index[p] = i
-	}
-	sn.placeOf = map[*gedcom.Event]int{}
-	var walk func(n *genealogy.PlaceNode, at int)
-	walk = func(n *genealogy.PlaceNode, at int) {
-		if i, ok := index[n]; ok {
-			at = i
-		}
-		if at >= 0 {
-			for _, e := range n.Events {
-				sn.placeOf[e] = at
-			}
-		}
-		for _, c := range n.Children {
-			walk(c, at)
-		}
-	}
-	walk(m.places.root, -1)
 }
 
 // kindOf tells which kind of event e is.
@@ -157,11 +136,12 @@ func (m *Model) computeSurname() {
 		sn.places = map[string]int{}
 	}
 	seen := map[string]map[int]bool{}
+	placeOf := m.eventMarkers()
 	for _, e := range m.doc.Events() {
 		if sn.kind != eventsAll && kindOf(e) != sn.kind {
 			continue
 		}
-		at, located := sn.placeOf[e]
+		at, located := placeOf[e]
 		for _, sname := range sn.surnamesOf(e) {
 			if counting && located {
 				if seen[sname] == nil {
@@ -280,7 +260,7 @@ func (m *Model) toggleSurnames() {
 		m.setStatus("nobody in the file has a surname")
 		return
 	}
-	s.sn.on = true
+	s.sn.on, s.pm.on = true, false
 	m.setSurname(s.sn.name)
 }
 
@@ -463,8 +443,13 @@ func (m *Model) panelLines(rows, width int) []string {
 	return out
 }
 
-// clickPanel chooses the surname at body row y of the panel, if any.
+// clickPanel chooses the surname at body row y of the panel, if any, or
+// the place in the person view.
 func (m *Model) clickPanel(y int) {
+	if m.mapv.pm.on {
+		m.clickPersonPanel(y)
+		return
+	}
 	sn := &m.mapv.sn
 	// The list starts below the panel's title and a blank line, on the
 	// map's first row (the body's third).
