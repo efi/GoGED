@@ -252,6 +252,7 @@ Try it with the sample file in [`testdata/family.ged`](testdata/family.ged).
 |         | `tab` / `shift+tab`, `1`…`9` (`alt+1`…`alt+9` while typing) | switch view: search, person, charts, events, places, map, stats, checks, export |
 |         | `b`, `backspace`, `[` / `]` | back / forward in history |
 |         | `m` (`alt+m` in the search) | mark the selected person as reference for relationships: a result, the person of an event, a person in a chart, a finding …, else the current person (again to clear) |
+|         | `M` (`alt+M` in the search) | compare the selected person with the marked one, side by side, the differences marked |
 |         | `W` | wrap long lines in the person view instead of cutting them (again to cut) |
 |         | `y` / `n` / `N` | when another program has changed the file: load it again, not this time, never this session |
 |         | `?` | help · `L` licenses · `q`, `ctrl+c` quit |

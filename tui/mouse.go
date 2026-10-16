@@ -104,7 +104,7 @@ func (m *Model) click(x, y int) tea.Cmd {
 		return nil
 	case y >= m.bodyHeight():
 		return nil // the footer
-	case m.showHelp && m.overlay == "Changes":
+	case m.showHelp && (m.overlay == "Changes" || m.overlay == "Compare"):
 		return m.clickLink(&m.help, y)
 	case m.showHelp:
 		m.showHelp = false

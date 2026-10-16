@@ -114,6 +114,8 @@ func (m *Model) updateSearch(msg tea.KeyMsg) (bool, tea.Cmd) {
 	case "alt+m":
 		// Letters go into the query.
 		m.mark(m.selected())
+	case "alt+M":
+		m.compareSelected()
 	case "f1":
 		return false, nil
 	case "?":

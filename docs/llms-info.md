@@ -585,6 +585,12 @@ packages.
   person selected in the view shown (a result, the person of an event,
   a chart node, a stats line, a finding), else the current person; in
   the search box, where letters are typed, it is alt+m.
+- **Comparison** (`compare.go`): `M` (alt+M in the search) compares
+  `selected()` with the marked person in the "Compare" overlay: a line on
+  each person (links, the marked one first), then the rows of
+  `diff.People` in columns, wrapped with `expand` to the width, ≠ on
+  differing rows. `compareState` keeps the two people; a reload looks
+  them up again by ID.
 - **`docView`:** a scrollable list of lines, where lines with a target
   person or a query are links.
 - **Query history** (`history.go`): the search box and the filters of

@@ -94,6 +94,8 @@ type Model struct {
 	watch watchState
 	// dlg is the dialog shown, if any.
 	dlg *dialog
+	// compare holds the people of the comparison overlay (M).
+	compare compareState
 }
 
 // New creates the model for a document.
@@ -466,6 +468,8 @@ func (m *Model) handleKey(msg tea.KeyMsg) tea.Cmd {
 		m.forward()
 	case "m":
 		m.mark(m.selected())
+	case "M":
+		m.compareSelected()
 	case "W":
 		m.wrap = !m.wrap
 		m.rebuildPerson()
@@ -496,6 +500,8 @@ func (m *Model) rebuildOverlay() {
 		m.buildLicenses()
 	case "Changes":
 		m.buildChanges()
+	case "Compare":
+		m.buildCompare()
 	default:
 		m.buildHelp()
 	}
@@ -647,14 +653,14 @@ func (m Model) viewFooter() string {
 	switch {
 	case m.dlg != nil:
 		hints = append([][2]string{{"←→", "choose"}, {"enter", "confirm"}}, m.dlg.hints...)
-	case m.showHelp && m.overlay == "Changes":
+	case m.showHelp && (m.overlay == "Changes" || m.overlay == "Compare"):
 		hints = [][2]string{{"↑↓", "select"}, {"enter", "open"}, {"any other key", "close"}}
 	case m.showHelp:
 		hints = [][2]string{{"↑↓", "scroll"}, {"any key", "close"}}
 	case m.active == viewSearch:
 		hints = [][2]string{{"type", "search"}, {"↑↓", "select"}, {"enter", "open"}, {"esc", "clear/back"}, {"alt+↑↓", "history"}, {"tab/alt+1-9", "views"}, {"?", "help"}}
 	case m.active == viewPerson:
-		hints = [][2]string{{"↑↓", "relatives"}, {"enter", "go"}, {"←→", "history"}, {"t/d/h/s", "charts"}, {"c", "context"}, {"m", "mark"}, {"/", "search"}, {"?", "help"}}
+		hints = [][2]string{{"↑↓", "relatives"}, {"enter", "go"}, {"←→", "history"}, {"t/d/h/s", "charts"}, {"c", "context"}, {"m/M", "mark/compare"}, {"/", "search"}, {"?", "help"}}
 	case m.active == viewTree:
 		charts := "pedigree/descendants/hourglass/lifespans"
 		if m.width < 120 {
