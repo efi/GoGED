@@ -19,6 +19,7 @@ type searchState struct {
 	cursor  int
 	offset  int
 	lastRun string
+	hist    history
 }
 
 func newTextInput(prompt, placeholder string) textinput.Model {
@@ -53,8 +54,10 @@ func (m *Model) runSearch() {
 	m.search.cursor, m.search.offset = 0, 0
 }
 
-// setQuery replaces the search query and runs it.
+// setQuery replaces the search query and runs it; the query replaced goes
+// into the history.
 func (m *Model) setQuery(q string) {
+	m.search.hist.add(m.search.input.Value())
 	m.search.input.SetValue(q)
 	m.search.input.CursorEnd()
 	m.runSearch()
@@ -103,6 +106,10 @@ func (m *Model) updateSearch(msg tea.KeyMsg) (bool, tea.Cmd) {
 				prev = viewPerson
 			}
 			m.switchTo(prev)
+		}
+	case "alt+up", "alt+down":
+		if recall(&s.hist, &s.input, historyKey(msg.String())) {
+			m.runSearch()
 		}
 	case "f1":
 		return false, nil

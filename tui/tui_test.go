@@ -83,6 +83,9 @@ func keyMsg(k string) tea.KeyMsg {
 		return tea.KeyMsg{Type: t}
 	}
 	if rest, ok := strings.CutPrefix(k, "alt+"); ok {
+		if t, ok := keyTypes[rest]; ok {
+			return tea.KeyMsg{Type: t, Alt: true}
+		}
 		return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(rest), Alt: true}
 	}
 	return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(k)}

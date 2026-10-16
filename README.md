@@ -27,6 +27,7 @@ The screenshots below use the [GEDCOM-L sample file](testdata/Muster_GEDCOM_UTF-
 - **Search as you type** over names (diacritic-insensitive, alternate and
   married names included, phonetic matching) and over any other
   property: dates, places, occupations, notes, sources, arbitrary GEDCOM tags.
+  Earlier queries and filters come back with `alt+↑`.
 - **Person view** with parents, siblings and half-siblings, every family with
   spouse and children, associated people (godparents, witnesses, friends:
   `ASSO`, `_ASSO`) and records that may describe the same person (`ALIA`),
@@ -258,6 +259,7 @@ Try it with the sample file in [`testdata/family.ged`](testdata/family.ged).
 |         | back and forward buttons | back / forward in history |
 |         | `shift`+drag | select text in most terminals; `-no-mouse` leaves the mouse to the terminal |
 | Search  | type, `↑` `↓` `pgup` `pgdown`, `enter`, `esc` | search, select, open, clear / return |
+|         | `alt+↑` / `alt+↓` | earlier / later queries of the session; past the newest, a new empty line (also in the filters of events and places) |
 | Person  | `↑` `↓` (`j` `k`), `enter` | move between relatives, go to relative |
 |         | `←` `→` (`l`) | back / forward |
 |         | `t` / `d` / `h` / `s` | pedigree / descendant / hourglass chart / lifespans of this person |

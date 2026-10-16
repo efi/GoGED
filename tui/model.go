@@ -262,6 +262,10 @@ func (m *Model) switchTo(v view) {
 		m.setStatus("select a person first: search and press enter")
 		return
 	}
+	if m.active == viewSearch {
+		// Leaving the search uses the query.
+		m.search.hist.add(m.search.input.Value())
+	}
 	if v == viewSearch {
 		m.prev = m.active
 		m.search.input.Focus()
@@ -611,7 +615,7 @@ func (m Model) viewFooter() string {
 	case m.showHelp:
 		hints = [][2]string{{"↑↓", "scroll"}, {"any key", "close"}}
 	case m.active == viewSearch:
-		hints = [][2]string{{"type", "search"}, {"↑↓", "select"}, {"enter", "open"}, {"esc", "clear/back"}, {"tab/alt+1-9", "views"}, {"?", "help"}}
+		hints = [][2]string{{"type", "search"}, {"↑↓", "select"}, {"enter", "open"}, {"esc", "clear/back"}, {"alt+↑↓", "history"}, {"tab/alt+1-9", "views"}, {"?", "help"}}
 	case m.active == viewPerson:
 		hints = [][2]string{{"↑↓", "relatives"}, {"enter", "go"}, {"←→", "history"}, {"t/d/h/s", "charts"}, {"c", "context"}, {"m", "mark"}, {"/", "search"}, {"?", "help"}}
 	case m.active == viewTree:
@@ -621,11 +625,11 @@ func (m Model) viewFooter() string {
 		}
 		hints = [][2]string{{"arrows", "move"}, {"enter", "open"}, {"space", "re-root"}, {"p/d/h/s", charts}, {"+/-", "generations"}, {"?", "help"}}
 	case m.active == viewEvents && m.ev.editing:
-		hints = [][2]string{{"type", "filter"}, {"enter", "done"}, {"esc", "clear"}}
+		hints = [][2]string{{"type", "filter"}, {"enter", "done"}, {"esc", "clear"}, {"alt+↑↓", "history"}}
 	case m.active == viewEvents:
 		hints = [][2]string{{"↑↓", "select"}, {"enter", "open"}, {"f", "filter"}, {"a", "all/important"}, {"?", "help"}}
 	case m.active == viewPlaces && m.places.editing:
-		hints = [][2]string{{"type", "filter"}, {"enter", "done"}, {"esc", "clear"}}
+		hints = [][2]string{{"type", "filter"}, {"enter", "done"}, {"esc", "clear"}, {"alt+↑↓", "history"}}
 	case m.active == viewPlaces && m.places.detail != nil:
 		hints = [][2]string{{"↑↓", "select"}, {"enter", "open person"}, {"esc", "back to places"}, {"?", "help"}}
 	case m.active == viewMap:

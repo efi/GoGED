@@ -221,6 +221,7 @@ func (m *Model) replaceDoc(doc *gedcom.Document) {
 	n.width, n.height = m.width, m.height
 	n.layout()
 	n.watch, n.wrap, n.prev = m.watch, m.wrap, m.prev
+	n.search.hist, n.ev.hist, n.places.hist = m.search.hist, m.ev.hist, m.places.hist
 	n.showHelp, n.overlay, n.help = m.showHelp, m.overlay, m.help
 	same := func(ind *gedcom.Individual) *gedcom.Individual {
 		if ind == nil {

@@ -18,6 +18,7 @@ type eventsState struct {
 	err     string
 	cursor  int
 	offset  int
+	hist    history
 }
 
 func newEventsState() eventsState {
@@ -67,13 +68,20 @@ func (m *Model) updateEventsFilter(msg tea.KeyMsg) (bool, tea.Cmd) {
 	e := &m.ev
 	switch msg.String() {
 	case "enter":
+		e.hist.add(e.input.Value())
 		e.editing = false
 		e.input.Blur()
 	case "esc":
+		e.hist.add(e.input.Value())
 		e.input.SetValue("")
 		e.editing = false
 		e.input.Blur()
 		m.filterEvents()
+	case "alt+up", "alt+down":
+		if recall(&e.hist, &e.input, historyKey(msg.String())) {
+			e.cursor, e.offset = 0, 0
+			m.filterEvents()
+		}
 	case "up":
 		m.moveEvents(-1)
 	case "down":
@@ -84,6 +92,7 @@ func (m *Model) updateEventsFilter(msg tea.KeyMsg) (bool, tea.Cmd) {
 		m.moveEvents(m.eventsListHeight())
 	default:
 		if isViewKey(msg.String()) {
+			e.hist.add(e.input.Value())
 			e.editing = false
 			e.input.Blur()
 			return false, nil
@@ -140,6 +149,7 @@ func (m *Model) updateEvents(msg tea.KeyMsg) (bool, tea.Cmd) {
 		if e.input.Value() == "" {
 			return false, nil
 		}
+		e.hist.add(e.input.Value())
 		e.input.SetValue("")
 		m.filterEvents()
 	default:

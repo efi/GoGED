@@ -573,6 +573,14 @@ packages.
   Multi-rune key messages are split.
 - **`docView`:** a scrollable list of lines, where lines with a target
   person or a query are links.
+- **Query history** (`history.go`): the search box and the filters of
+  events and places each keep a `history` for the session (not saved).
+  A text is recorded when it is used: enter, leaving the box or the
+  search view (`switchTo`), clearing it, or a query replaced by
+  `setQuery`. alt+↑/↓ step through it (`recall`); text typed or changed
+  is first kept as the newest entry, and stepping past the newest gives
+  an empty line, as the user asked. ↑↓ stay with the lists. `replaceDoc`
+  carries the histories over.
 - **Lines, columns and wrapping:** a `span` with a `width` is a column; the
   spans after the last column flow. `line.layout(width, wrapped)` either
   cuts (columns padded or cut with "…", the rest runs on and `fit` cuts it

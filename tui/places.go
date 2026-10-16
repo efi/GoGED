@@ -19,6 +19,7 @@ type placesState struct {
 	collapsed map[*genealogy.PlaceNode]bool
 	input     textinput.Model
 	editing   bool
+	hist      history
 	rows      []*genealogy.PlaceNode // visible rows
 	cursor    int
 	offset    int
@@ -178,6 +179,7 @@ func (m *Model) showPlace(full string) {
 	}
 	p.detail, p.events = nil, nil
 	if m.filteringPlaces() {
+		p.hist.add(p.input.Value())
 		p.input.SetValue("")
 		p.editing = false
 		p.input.Blur()
@@ -217,18 +219,25 @@ func (m *Model) updatePlacesFilter(msg tea.KeyMsg) (bool, tea.Cmd) {
 	p := &m.places
 	switch key := msg.String(); {
 	case key == "enter":
+		p.hist.add(p.input.Value())
 		p.editing = false
 		p.input.Blur()
 	case key == "esc":
+		p.hist.add(p.input.Value())
 		p.input.SetValue("")
 		p.editing = false
 		p.input.Blur()
 		m.refreshPlaces()
+	case historyKey(key) != 0:
+		if recall(&p.hist, &p.input, historyKey(key)) {
+			m.refreshPlaces()
+		}
 	case key == "up":
 		m.movePlaces(-1)
 	case key == "down":
 		m.movePlaces(1)
 	case isViewKey(key):
+		p.hist.add(p.input.Value())
 		p.editing = false
 		p.input.Blur()
 		return false, nil
@@ -326,6 +335,7 @@ func (m *Model) updatePlaces(msg tea.KeyMsg) (bool, tea.Cmd) {
 		if p.input.Value() == "" {
 			return false, nil
 		}
+		p.hist.add(p.input.Value())
 		p.input.SetValue("")
 		m.refreshPlaces()
 	default:
