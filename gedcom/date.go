@@ -721,16 +721,17 @@ func parseYear(t string, sd *SimpleDate) bool {
 		if err != nil {
 			return false
 		}
-		// Expand an abbreviated second year: 1750/51 -> 1751, 1799/00 -> 1800.
+		// The second year is the next one, written in full or with its
+		// last digits: 1750/51, 1799/00, 1699/1700. Anything else, such
+		// as 1750/99, is not a dual year.
 		mod := 1
 		for range dualStr {
 			mod *= 10
 		}
-		full := y - y%mod + n
-		if full <= y {
-			full += mod
+		if n != (y+1)%mod {
+			return false
 		}
-		sd.DualYear = full
+		sd.DualYear = y + 1
 	}
 	return true
 }

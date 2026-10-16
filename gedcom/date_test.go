@@ -42,6 +42,7 @@ func TestParseDate(t *testing.T) {
 		{"12 FEB 1750/51", DateExact, SimpleDate{Year: 1750, Month: 2, Day: 12, DualYear: 1751}, SimpleDate{}, "12 Feb 1750/51"},
 		{"1799/00", DateExact, SimpleDate{Year: 1799, DualYear: 1800}, SimpleDate{}, "1799/1800"},
 		{"1699/1700", DateExact, SimpleDate{Year: 1699, DualYear: 1700}, SimpleDate{}, "1699/1700"},
+		{"1709/0", DateExact, SimpleDate{Year: 1709, DualYear: 1710}, SimpleDate{}, "1709/10"},
 		{"44 B.C.", DateExact, SimpleDate{Year: 44, BC: true}, SimpleDate{}, "44 BC"},
 		{"15 MAR 44 BCE", DateExact, SimpleDate{Year: 44, Month: 3, Day: 15, BC: true}, SimpleDate{}, "15 Mar 44 BC"},
 		{"@#DJULIAN@ 1 JAN 1700", DateExact, SimpleDate{Calendar: Julian, Year: 1700, Month: 1, Day: 1}, SimpleDate{}, "1 Jan 1700 (Julian)"},
@@ -78,6 +79,8 @@ func TestParseDateInvalid(t *testing.T) {
 		"BET 1850 AND", "FROM x TO 1850", "TO", "12 13 1850", "1850/", "1850/123456",
 		"1850-13-01", "18x0", "@#DJULIAN@ 1 VEND 8", "@#DHEBREW@ 1 JAN 5785", "30 ADS 5785",
 		"1 2 3 4", "ABT", "1850-xx", "0", "-5", "12 MAR 1850 JAN",
+		// The second year of a dual year is the next one.
+		"1750/99", "1750/50", "1750/1750", "1750/1749", "12 FEB 1750/52",
 	}
 	for _, in := range bad {
 		d := ParseDate(in)
