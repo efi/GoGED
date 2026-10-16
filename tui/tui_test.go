@@ -684,6 +684,26 @@ func TestTreeGenerations(t *testing.T) {
 	a.contains("marked Arthur Smith as reference")
 }
 
+// The generations given at the start keep to the limits of the charts.
+func TestTreeGenerationsOption(t *testing.T) {
+	for _, tt := range []struct{ given, want int }{{0, 4}, {1, minGenerations}, {7, 7}, {50, maxPedigreeGenerations}} {
+		a := newApp(t, Options{Generations: tt.given})
+		a.openPerson("I20")
+		a.press("t")
+		if a.m.tree.gens != tt.want {
+			t.Errorf("%d generations given: %d shown", tt.given, a.m.tree.gens)
+		}
+	}
+	// + does not lower the generations.
+	a := newApp(t, Options{Generations: 50})
+	a.openPerson("I20")
+	a.press("t", "+")
+	if a.m.tree.gens != maxPedigreeGenerations {
+		t.Errorf("after +: %d generations", a.m.tree.gens)
+	}
+	a.contains("generations are limited to 2–20")
+}
+
 func TestTreeDuplicates(t *testing.T) {
 	doc, err := gedcom.ParseFile(filepath.Join("..", "testdata", "cousins.ged"))
 	if err != nil {

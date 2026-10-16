@@ -36,7 +36,7 @@ type Options struct {
 	Title string
 	// StartPerson is the identifier of a person to open on start.
 	StartPerson string
-	// Generations shown in tree views (default 4).
+	// Generations shown in the charts (default 4), from 2 to 20.
 	Generations int
 	// ASCII draws trees with ASCII characters only.
 	ASCII bool
@@ -98,9 +98,12 @@ type Model struct {
 
 // New creates the model for a document.
 func New(doc *gedcom.Document, opts Options) Model {
-	if opts.Generations < 2 {
+	// Generations below 1 select the default; others are kept within the
+	// limits that + and - keep to.
+	if opts.Generations < 1 {
 		opts.Generations = 4
 	}
+	opts.Generations = clamp(opts.Generations, minGenerations, maxPedigreeGenerations)
 	m := Model{
 		doc:     doc,
 		index:   search.NewIndex(doc),
