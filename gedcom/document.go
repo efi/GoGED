@@ -256,7 +256,7 @@ func (d *Document) buildIndividual(ind *Individual) {
 		case c.Tag == "NAME":
 			ind.Names = append(ind.Names, nameFromNode(c))
 		case c.Tag == "SEX":
-			ind.Sex = parseSex(c.Value)
+			ind.Sex = ParseSex(c.Value)
 		case c.Tag == "ALIA" && !c.IsPointer() && strings.TrimSpace(c.Value) != "":
 			// Some programs record an alias name instead of a link.
 			n := ParseName(c.Value)

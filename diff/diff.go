@@ -391,7 +391,7 @@ func describe(n *gedcom.Node, s side) (what, value string) {
 	case "NAME":
 		return "name", shorten(strings.ReplaceAll(n.Value, "/", ""))
 	case "SEX":
-		return "sex", gedcom.Sex(strings.ToUpper(strings.TrimSpace(n.Value))).String()
+		return "sex", gedcom.ParseSex(n.Value).String()
 	case "FAMC":
 		v := partners(s.doc.Family(ref))
 		if p := strings.TrimSpace(n.Val("PEDI")); p != "" {

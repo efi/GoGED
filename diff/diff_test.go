@@ -161,6 +161,17 @@ func TestCompare(t *testing.T) {
 	}
 }
 
+// SEX values are compared as the parser reads them: "male" and "M" are
+// the same.
+func TestCompareSex(t *testing.T) {
+	old := parse(t, "0 HEAD\n0 @I1@ INDI\n1 NAME A /B/\n1 SEX male\n0 @I2@ INDI\n1 NAME C /D/\n1 SEX male\n0 TRLR\n")
+	cur := parse(t, "0 HEAD\n0 @I1@ INDI\n1 NAME A /B/\n1 SEX M\n0 @I2@ INDI\n1 NAME C /D/\n1 SEX Female\n0 TRLR\n")
+	want := "~ I1 person A B: sex: details changed\n~ I2 person C D: sex: male → female"
+	if got := lines(Compare(old, cur)); got != want {
+		t.Errorf("got:\n%s\nwant:\n%s", got, want)
+	}
+}
+
 func TestCompareSame(t *testing.T) {
 	doc, err := gedcom.ParseFile(filepath.Join("..", "testdata", "Muster_GEDCOM_UTF-8.ged"))
 	if err != nil {

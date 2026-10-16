@@ -386,8 +386,8 @@ func TestPlace(t *testing.T) {
 func TestSexParsing(t *testing.T) {
 	tests := map[string]Sex{"M": SexMale, "f": SexFemale, "male": SexMale, "X": SexIntersex, "U": SexUnknown, "": SexUnknown}
 	for in, want := range tests {
-		if got := parseSex(in); got != want {
-			t.Errorf("parseSex(%q) = %q", in, got)
+		if got := ParseSex(in); got != want {
+			t.Errorf("ParseSex(%q) = %q", in, got)
 		}
 	}
 	for s, want := range map[Sex]string{SexMale: "male", SexFemale: "female", SexIntersex: "intersex", SexUnknown: "unknown"} {

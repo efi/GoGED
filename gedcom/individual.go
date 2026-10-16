@@ -15,7 +15,9 @@ const (
 	SexIntersex Sex = "X"
 )
 
-func parseSex(v string) Sex {
+// ParseSex reads a SEX value: M, F or X, or male or female, in any case.
+// Anything else is SexUnknown.
+func ParseSex(v string) Sex {
 	switch strings.ToUpper(strings.TrimSpace(v)) {
 	case "M", "MALE":
 		return SexMale
