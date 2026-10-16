@@ -302,7 +302,7 @@ func (ind *Individual) ParentLinks() []ParentLink {
 			for i := range out {
 				if out[i].Parent == p {
 					found = true
-					if pedigreeRank(pl.Pedigree) < pedigreeRank(out[i].Pedigree) {
+					if pl.Pedigree.Rank() < out[i].Pedigree.Rank() {
 						out[i] = pl
 					}
 				}
@@ -315,8 +315,9 @@ func (ind *Individual) ParentLinks() []ParentLink {
 	return out
 }
 
-// pedigreeRank orders kinds of links from the closest to the most distant.
-func pedigreeRank(p Pedigree) int {
+// Rank orders kinds of links from the closest to the most distant: birth,
+// unspecified, adopted, sealed, other, step and foster.
+func (p Pedigree) Rank() int {
 	switch p {
 	case PedigreeBirth:
 		return 0

@@ -166,30 +166,13 @@ type reach struct {
 	kind gedcom.Pedigree
 }
 
-// linkRank orders kinds of parent links from the closest to the most
-// distant.
-func linkRank(p gedcom.Pedigree) int {
-	switch p {
-	case gedcom.PedigreeUnknown, gedcom.PedigreeBirth:
-		return 0
-	case gedcom.PedigreeAdopted:
-		return 1
-	case gedcom.PedigreeSealed:
-		return 2
-	case gedcom.PedigreeOther:
-		return 3
-	case gedcom.PedigreeStep:
-		return 4
-	}
-	return 5 // foster
-}
-
-// farther returns the more distant of two kinds of links.
+// farther returns the more distant of two kinds of links; birth links
+// come out as PedigreeUnknown.
 func farther(a, b gedcom.Pedigree) gedcom.Pedigree {
-	if linkRank(b) > linkRank(a) {
+	if b.Rank() > a.Rank() {
 		a = b
 	}
-	if linkRank(a) == 0 {
+	if a.IsBirth() {
 		return gedcom.PedigreeUnknown
 	}
 	return a
@@ -215,7 +198,7 @@ func ancestorDistances(ind *gedcom.Individual, birthOnly bool) map[*gedcom.Indiv
 				case !seen:
 					dist[pl.Parent] = reach{d, k}
 					next = append(next, pl.Parent)
-				case r.dist == d && linkRank(k) < linkRank(r.kind):
+				case r.dist == d && k.Rank() < r.kind.Rank():
 					dist[pl.Parent] = reach{d, k}
 				}
 			}
@@ -246,7 +229,7 @@ func familyDistances(ind *gedcom.Individual, birthOnly bool) map[*gedcom.Family]
 			case !seen:
 				dist[l.Family] = reach{d, k}
 				*next = append(*next, l.Family)
-			case r.dist == d && linkRank(k) < linkRank(r.kind):
+			case r.dist == d && k.Rank() < r.kind.Rank():
 				dist[l.Family] = reach{d, k}
 			}
 		}

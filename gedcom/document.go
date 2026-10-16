@@ -446,7 +446,7 @@ func (d *Document) resolvePedigrees() {
 				if l.Family.Husband != p && l.Family.Wife != p {
 					continue
 				}
-				if k := l.Of(p); k != notAdopter && (!found || pedigreeRank(k) < pedigreeRank(best)) {
+				if k := l.Of(p); k != notAdopter && (!found || k.Rank() < best.Rank()) {
 					best, found = k, true
 				}
 			}
