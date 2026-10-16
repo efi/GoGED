@@ -172,6 +172,34 @@ func TestReloadAsks(t *testing.T) {
 	a.contains("Johann Smith")
 }
 
+// A reload while the list of changes is open shows the changes of that
+// reload, linked to the people of the file loaded now.
+func TestReloadWhileChangesShown(t *testing.T) {
+	a, path := watchedApp(t)
+	a.openPerson("I1")
+	reload := func(re, with string) {
+		t.Helper()
+		rewrite(t, path, re, with)
+		a.poll(path)
+		a.poll(path)
+		a.answerable()
+		a.finish(a.press("y"))
+	}
+	reload(`NAME John /Smith/`, `NAME Johann /Smith/`)
+	a.press("D")
+	a.contains("name: John Smith → Johann Smith")
+	reload(`NAME William /Smith/`, `NAME Wilhelm /Smith/`)
+	a.contains("[Changes]", "~ I1  Wilhelm Smith", "name: William Smith → Wilhelm Smith")
+	a.notContains("Johann")
+	if sel := a.m.help.selected(); sel == nil || sel.target != a.m.doc.Individual("I1") {
+		t.Fatal("the selected link does not lead to I1 of the file loaded now")
+	}
+	a.press("enter")
+	if cur := a.m.current(); cur == nil || cur != a.m.doc.Individual("I1") {
+		t.Error("enter does not open I1 of the file loaded now")
+	}
+}
+
 func TestReloadKeepsWhatItCan(t *testing.T) {
 	a, path := watchedApp(t)
 	a.openPerson("I14")

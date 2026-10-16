@@ -134,6 +134,14 @@ func (m *Model) reloaded(msg reloadedMsg) {
 	changes := diff.Compare(m.doc, msg.doc)
 	m.replaceDoc(msg.doc)
 	m.changes = &changes
+	if m.showHelp {
+		// An open overlay shows the file loaded now: its links lead into
+		// it, and the list of changes is that of this reload.
+		m.rebuildOverlay()
+		if m.overlay == "Changes" {
+			m.help.reset()
+		}
+	}
 	if changes.Empty() {
 		m.setStatus(fmt.Sprintf("loaded %s again: no differences", m.opts.Title))
 		return
