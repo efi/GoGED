@@ -1,9 +1,11 @@
 package tui
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
+	"github.com/efi/goged/gedcom"
 	"github.com/efi/goged/worldmap"
 )
 
@@ -139,6 +141,47 @@ func TestSurnameDialog(t *testing.T) {
 	// Married names are not birth surnames.
 	a.m.showSurnameOnMap("Nobody")
 	a.contains("nobody was born with the surname Nobody")
+}
+
+// A click in the list of surnames chooses the surname clicked, also when
+// the list has scrolled to the one shown, and after a reload.
+func TestSurnameListScrolls(t *testing.T) {
+	var b strings.Builder
+	b.WriteString("0 HEAD\n1 CHAR UTF-8\n")
+	// Twelve surnames, the earlier ones more frequent, each in a place of
+	// its own.
+	for i := range 12 {
+		for k := range 13 - i {
+			fmt.Fprintf(&b, "0 @I%d_%d@ INDI\n1 NAME X /Name%02d/\n1 BIRT\n2 PLAC Town%02d\n3 MAP\n4 LATI N%d\n4 LONG E%d\n",
+				i, k, i, i, 40+i, i)
+		}
+	}
+	b.WriteString("0 TRLR\n")
+	doc, err := gedcom.ParseString(b.String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := &app{t: t, m: New(doc, Options{Title: "names.ged"})}
+	a.resize(110, 34)
+	a.press("alt+6", "s")
+	for range 10 {
+		a.press("pgdown")
+	}
+	a.contains("▸ Name10 ", "Name03 ")
+	a.notContains("Name02 ")
+	a.clickOn("Name03 ")
+	if a.shown() != "Name03" {
+		t.Errorf("a click on Name03 shows %s", a.shown())
+	}
+
+	// A reload keeps the list where it is.
+	a.press("pgdown", "pgdown", "pgdown", "pgdown", "pgdown", "pgdown", "pgdown", "pgdown")
+	a.m.replaceDoc(doc)
+	a.contains("▸ Name11 ", "Name04 ")
+	a.clickOn("Name04 ")
+	if a.shown() != "Name04" {
+		t.Errorf("after the reload, a click on Name04 shows %s", a.shown())
+	}
 }
 
 func TestSurnameMapReload(t *testing.T) {

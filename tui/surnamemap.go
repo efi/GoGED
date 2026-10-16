@@ -205,9 +205,25 @@ func (m *Model) setSurname(i int) {
 		return
 	}
 	sn.name = clamp(i, 0, len(sn.names)-1)
+	sn.scrollList()
 	m.computeSurname()
 	m.selectBusiest()
 	m.fitSurname()
+}
+
+// scrollList scrolls the panel's list of surnames, if need be, so that it
+// shows the surname shown on the map. The list scrolls here rather than
+// when it is drawn, which happens on a copy of the model: a click in the
+// list must find the surnames where they are shown.
+func (sn *surnameMap) scrollList() {
+	rows := min(surnameListRows, len(sn.names))
+	sn.offset = clamp(sn.offset, 0, len(sn.names)-rows)
+	if sn.name < sn.offset {
+		sn.offset = sn.name
+	}
+	if sn.name >= sn.offset+rows {
+		sn.offset = sn.name - rows + 1
+	}
 }
 
 // selectBusiest selects the place with the most events of the surname.
@@ -366,12 +382,6 @@ func (m *Model) panelLines(rows, width int) []string {
 	sn := &s.sn
 	name := sn.names[sn.name].name
 	listRows := min(surnameListRows, len(sn.names))
-	if sn.name < sn.offset {
-		sn.offset = sn.name
-	}
-	if sn.name >= sn.offset+listRows {
-		sn.offset = sn.name - listRows + 1
-	}
 	out := []string{m.st.section.Render("Surnames") + m.st.dim.Render(" · PgUp PgDn"), ""}
 	for i := sn.offset; i < sn.offset+listRows; i++ {
 		e := sn.names[i]

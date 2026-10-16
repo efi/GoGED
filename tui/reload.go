@@ -317,6 +317,8 @@ func (m *Model) replaceDoc(doc *gedcom.Document) {
 			for i, e := range n.mapv.sn.names {
 				if e.name == sn.names[sn.name].name {
 					n.mapv.sn.on, n.mapv.sn.name, n.mapv.sn.kind = true, i, sn.kind
+					n.mapv.sn.offset = sn.offset
+					n.mapv.sn.scrollList()
 					n.computeSurname()
 				}
 			}
