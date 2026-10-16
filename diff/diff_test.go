@@ -161,6 +161,16 @@ func TestCompare(t *testing.T) {
 	}
 }
 
+// Links to people name them: who the alias is, who is associated and how.
+func TestCompareNamesLinkedPeople(t *testing.T) {
+	old := parse(t, "0 HEAD\n0 @I1@ INDI\n1 NAME A /B/\n1 ASSO @I2@\n2 RELA Godparent\n1 ALIA @I2@\n0 @I2@ INDI\n1 NAME C /D/\n0 @I3@ INDI\n1 NAME E /F/\n0 TRLR\n")
+	cur := parse(t, "0 HEAD\n0 @I1@ INDI\n1 NAME A /B/\n1 ASSO @I3@\n2 RELA Godparent\n1 ALIA @I3@\n0 @I2@ INDI\n1 NAME C /D/\n0 @I3@ INDI\n1 NAME E /F/\n0 TRLR\n")
+	want := "~ I1 person A B: association: C D · Godparent → E F · Godparent; alias: C D → E F"
+	if got := lines(Compare(old, cur)); got != want {
+		t.Errorf("got  %s\nwant %s", got, want)
+	}
+}
+
 // SEX values are compared as the parser reads them: "male" and "M" are
 // the same.
 func TestCompareSex(t *testing.T) {

@@ -418,6 +418,15 @@ func describe(n *gedcom.Node, s side) (what, value string) {
 		return "note", shorten(n.Value)
 	case "OBJE":
 		return "media", shorten(first(n.Val("TITL"), n.Val("FILE"), n.Value))
+	case "ALIA", "ASSO":
+		// A link to a person names them, and an association its relation.
+		if ind := s.doc.Individual(ref); n.IsPointer() && ind != nil {
+			v := person(ind)
+			if rel := first(n.Val("RELA"), n.Val("ROLE")); rel != "" && n.Tag == "ASSO" {
+				v += " · " + rel
+			}
+			return labels[n.Tag], shorten(v)
+		}
 	}
 	if e := s.events[n]; e != nil {
 		var parts []string
