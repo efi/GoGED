@@ -59,7 +59,10 @@ func TestPrintChart(t *testing.T) {
 	a.press("P", "ctrl+u")
 	a.typ(want)
 	a.press("enter")
-	a.contains(want+" exists.", "Print replaces it:")
+	// The dialog cuts a long path to the width of the screen; the start
+	// of the question will do.
+	asked := []rune(want + " exists.")
+	a.contains(string(asked[:min(40, len(asked))]), "Print replaces it:")
 	if data, _ := os.ReadFile(want); string(data) != "old" {
 		t.Error("replaced without asking")
 	}
