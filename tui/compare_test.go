@@ -12,14 +12,14 @@ import (
 func TestCompareView(t *testing.T) {
 	a := newApp(t, Options{})
 	a.openPerson("I1")
-	a.press("M")
+	a.press("C")
 	a.contains("mark a person with m first")
-	a.press("m", "M")
+	a.press("m", "C")
 	a.contains("is the marked person: select another one")
 
 	// The person shown, compared with the marked one.
 	a.openPerson("I3")
-	a.press("M")
+	a.press("C")
 	if !a.m.showHelp || a.m.overlay != "Compare" {
 		t.Fatal("M does not open the comparison")
 	}
@@ -39,7 +39,7 @@ func TestCompareView(t *testing.T) {
 
 	// Narrow, the rows wrap within their columns.
 	a.resize(60, 40)
-	a.press("M")
+	a.press("C")
 	for _, l := range strings.Split(ansi.Strip(a.view()), "\n") {
 		if ansi.StringWidth(l) > 60 {
 			t.Errorf("line of %d columns: %q", ansi.StringWidth(l), l)
@@ -48,13 +48,13 @@ func TestCompareView(t *testing.T) {
 	a.contains("Leeds, Yorkshire,")
 	a.press("esc")
 
-	// In the search, alt+M compares the result selected.
+	// In the search, alt+C compares the result selected.
 	a.resize(100, 30)
 	a.press("/", "esc")
 	a.typ("id:I14")
-	a.press("alt+M")
+	a.press("alt+C")
 	if a.m.overlay != "Compare" || a.m.compare.b.ID != "I14" || a.m.compare.a.ID != "I1" {
-		t.Errorf("alt+M compares %v with %v", a.m.compare.b, a.m.compare.a)
+		t.Errorf("alt+C compares %v with %v", a.m.compare.b, a.m.compare.a)
 	}
 
 	// A reload keeps the comparison, with the people of the file loaded now.
@@ -66,7 +66,7 @@ func TestCompareView(t *testing.T) {
 	a.contains("Comparison of two people", "Arthur Smith")
 }
 
-// In the checks, M compares a possible duplicate with the other record,
+// In the checks, C compares a possible duplicate with the other record,
 // and a group of places that may be the same in a table.
 func TestCompareInChecks(t *testing.T) {
 	doc, err := gedcom.ParseString(`0 HEAD
@@ -114,7 +114,7 @@ func TestCompareInChecks(t *testing.T) {
 	}
 
 	findingOf("duplicates")
-	a.press("M")
+	a.press("C")
 	if a.m.overlay != "Compare" || a.m.compare.a.ID != "I1" || a.m.compare.b.ID != "I2" {
 		t.Fatalf("overlay %q, comparison %+v", a.m.overlay, a.m.compare)
 	}
@@ -123,7 +123,7 @@ func TestCompareInChecks(t *testing.T) {
 	a.press("esc")
 
 	findingOf("similar-places")
-	a.press("M")
+	a.press("C")
 	a.contains("Places that may be the same", "similar names: Cöln · Koeln · Köln (in Deutschland)",
 		"place  events  people  years      coordinates     from Cöln  record  GOV",
 		"Cöln   1       1       1860       50.94°N 6.96°E  0 km       –       –",
@@ -136,6 +136,6 @@ func TestCompareInChecks(t *testing.T) {
 	// Other findings compare their person with the marked one.
 	a.press("alt+8")
 	findingOf("no-death")
-	a.press("M")
+	a.press("C")
 	a.contains("mark a person with m first")
 }

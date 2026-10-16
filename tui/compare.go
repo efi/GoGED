@@ -10,9 +10,9 @@ import (
 	"github.com/efi/goged/genealogy"
 )
 
-// The comparison (M): two people side by side, as diff.People pairs what
+// The comparison (C): two people side by side, as diff.People pairs what
 // their records hold, in an overlay like the help; the marked person is
-// on the left. In the checks, M also compares a group of places that may
+// on the left. In the checks, C also compares a group of places that may
 // be the same, in a table.
 
 type compareState struct {
@@ -31,7 +31,7 @@ func (m *Model) compareSelected() {
 	sel, ref := m.selected(), m.reference
 	switch {
 	case ref == nil:
-		m.setError("mark a person with m first: M compares the selected person with them")
+		m.setError("mark a person with m first: C compares the selected person with them")
 	case sel == nil:
 		m.setStatus("select a person to compare with " + ref.DisplayName())
 	case sel == ref:

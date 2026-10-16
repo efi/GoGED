@@ -252,7 +252,7 @@ func (m *Model) updateChecks(msg tea.KeyMsg) (bool, tea.Cmd) {
 			m.openPlaceOf(f, c.placeStep)
 			c.placeStep++
 		}
-	case "M":
+	case "C":
 		// A possible duplicate is compared with the other record, a group
 		// of places in a table; other findings as everywhere.
 		f := m.finding()

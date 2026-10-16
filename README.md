@@ -253,7 +253,7 @@ Try it with the sample file in [`testdata/family.ged`](testdata/family.ged).
 |         | `tab` / `shift+tab`, `1`…`9` (`alt+1`…`alt+9` while typing) | switch view: search, person, charts, events, places, map, stats, checks, export |
 |         | `b`, `backspace`, `[` / `]` | back / forward in history |
 |         | `m` (`alt+m` in the search) | mark the selected person as reference for relationships: a result, the person of an event, a person in a chart, a finding …, else the current person (again to clear) |
-|         | `M` (`alt+M` in the search) | compare the selected person with the marked one, side by side, the differences marked |
+|         | `C` (`alt+C` in the search) | compare the selected person with the marked one, side by side, the differences marked |
 |         | `W` | wrap long lines in the person view instead of cutting them (again to cut) |
 |         | `y` / `n` / `N` | when another program has changed the file: load it again, not this time, never this session |
 |         | `?` | help · `L` licenses · `q`, `ctrl+c` quit |
@@ -286,7 +286,7 @@ Try it with the sample file in [`testdata/family.ged`](testdata/family.ged).
 | Stats   | `enter` | for the selected surname: the people with it, or the surname on the map; for a period: the people born then |
 | Checks  | `←` `→`, `space` | lower or raise the threshold of a check (the findings change at once), switch it off or on |
 |         | `enter`, `o`, `r` | fold a check or open the person (or first place) of a finding, open the other person (or next place), reset all thresholds |
-|         | `M` | compare a possible duplicate with the other record side by side, or a group of similar places in a table: events, people, years, coordinates and distance, place record, GOV |
+|         | `C` | compare a possible duplicate with the other record side by side, or a group of similar places in a table: events, people, years, coordinates and distance, place record, GOV |
 | Export  | `↑` `↓`, `←` `→` | choose a setting, change it: the format, everybody or the people connected to the marked person |
 |         | `enter` | edit the file name, or export (an existing file is replaced after `enter` again) |
 

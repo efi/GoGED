@@ -473,7 +473,7 @@ func (m *Model) handleKey(msg tea.KeyMsg) tea.Cmd {
 		m.forward()
 	case "m":
 		m.mark(m.selected())
-	case "M":
+	case "C":
 		m.compareSelected()
 	case "W":
 		m.wrap = !m.wrap
@@ -667,7 +667,7 @@ func (m Model) viewFooter() string {
 	case m.active == viewSearch:
 		hints = [][2]string{{"type", "search"}, {"↑↓", "select"}, {"enter", "open"}, {"esc", "clear/back"}, {"alt+↑↓", "history"}, {"tab/alt+1-9", "views"}, {"?", "help"}}
 	case m.active == viewPerson:
-		hints = [][2]string{{"↑↓", "relatives"}, {"enter", "go"}, {"←→", "history"}, {"t/d/h/s", "charts"}, {"c", "context"}, {"m/M", "mark/compare"}, {"/", "search"}, {"?", "help"}}
+		hints = [][2]string{{"↑↓", "relatives"}, {"enter", "go"}, {"←→", "history"}, {"t/d/h/s", "charts"}, {"c", "context"}, {"m/C", "mark/compare"}, {"/", "search"}, {"?", "help"}}
 	case m.active == viewTree:
 		charts := "pedigree/descendants/hourglass/lifespans"
 		if m.width < 120 {
@@ -692,7 +692,7 @@ func (m Model) viewFooter() string {
 	case m.active == viewStats:
 		hints = [][2]string{{"↑↓", "surnames, births"}, {"enter", "list those people"}, {"?", "help"}}
 	case m.active == viewChecks:
-		hints = [][2]string{{"↑↓", "select"}, {"←→", "threshold"}, {"space", "on/off"}, {"enter", "fold/open"}, {"o", "other"}, {"M", "compare"}, {"r", "reset"}, {"?", "help"}}
+		hints = [][2]string{{"↑↓", "select"}, {"←→", "threshold"}, {"space", "on/off"}, {"enter", "fold/open"}, {"o", "other"}, {"C", "compare"}, {"r", "reset"}, {"?", "help"}}
 	case m.active == viewExport && m.export.editing:
 		hints = [][2]string{{"type", "file name"}, {"enter", "done"}, {"esc", "cancel"}}
 	case m.active == viewExport:

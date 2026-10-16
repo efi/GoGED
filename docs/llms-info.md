@@ -607,13 +607,13 @@ packages.
   person selected in the view shown (a result, the person of an event,
   a chart node, a stats line, a finding), else the current person; in
   the search box, where letters are typed, it is alt+m.
-- **Comparison** (`compare.go`): `M` (alt+M in the search) compares
+- **Comparison** (`compare.go`): `C` (alt+C in the search) compares
   `selected()` with the marked person in the "Compare" overlay: a line on
   each person (links, the marked one first), then the rows of
   `diff.People` in columns, wrapped with `expand` to the width, ≠ on
   differing rows. `compareState` keeps the two people with their labels
   ("Marked"/"Selected", or "One record"/"Other record" for a possible
-  duplicate); a reload looks them up again by ID. In the Checks, `M` on
+  duplicate); a reload looks them up again by ID. In the Checks, `C` on
   a duplicates finding compares its two people, and on a similar-places
   group shows a table of all its places (the user chose one table for
   any group): a row per place linking to it (`line.place`, which the
