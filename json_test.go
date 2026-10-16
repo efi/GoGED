@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -150,6 +151,25 @@ func TestJSONPeopleAndEvents(t *testing.T) {
 	}
 	if tl.Person.ID != "I14" || !found || tl.Events[0].Type != "BIRT" {
 		t.Errorf("timeline %+v", tl)
+	}
+
+	// Facts with the same label are all kept, in the order of the file.
+	path := filepath.Join(t.TempDir(), "facts.ged")
+	err := os.WriteFile(path, []byte("0 HEAD\n0 @I1@ INDI\n1 NAME A /B/\n1 BAPM\n2 DATE 1 JAN 1800\n2 _GODP Hans\n2 _GODP Grete\n2 RELI catholic\n0 TRLR\n"), 0o644)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := runCLI(t, "", "-json", "-timeline", "I1", path)
+	var facts struct {
+		Events []struct {
+			Facts []struct{ Label, Value string }
+		}
+	}
+	if err := json.Unmarshal([]byte(r.stdout), &facts); err != nil {
+		t.Fatalf("%v\n%s", err, r.stdout)
+	}
+	if got := fmt.Sprint(facts.Events); got != "[{[{religion catholic} {godparents Hans} {godparents Grete}]}]" {
+		t.Errorf("facts %s", got)
 	}
 
 	var rel jsonRelationship

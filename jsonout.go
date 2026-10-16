@@ -111,13 +111,20 @@ type jsonTimeline struct {
 
 type jsonTimelineEntry struct {
 	jsonEvent
-	Title       string            `json:"title"`
-	Relation    string            `json:"relation,omitempty"`
-	Relative    *jsonRef          `json:"relative,omitempty"`
-	Spouse      *jsonRef          `json:"spouse,omitempty"`
-	Age         string            `json:"age,omitempty"`
-	Restriction string            `json:"restriction,omitempty"`
-	Facts       map[string]string `json:"facts,omitempty"`
+	Title       string     `json:"title"`
+	Relation    string     `json:"relation,omitempty"`
+	Relative    *jsonRef   `json:"relative,omitempty"`
+	Spouse      *jsonRef   `json:"spouse,omitempty"`
+	Age         string     `json:"age,omitempty"`
+	Restriction string     `json:"restriction,omitempty"`
+	Facts       []jsonFact `json:"facts,omitempty"`
+}
+
+// jsonFact is a detail of an event, such as the godparents of a baptism.
+// An event may have several with the same label.
+type jsonFact struct {
+	Label string `json:"label"`
+	Value string `json:"value"`
 }
 
 func timelineJSON(ind *gedcom.Individual) jsonTimeline {
@@ -130,10 +137,7 @@ func timelineJSON(ind *gedcom.Individual) jsonTimeline {
 		}
 		if e.Own() {
 			for _, f := range e.Event.Facts() {
-				if j.Facts == nil {
-					j.Facts = map[string]string{}
-				}
-				j.Facts[f.Label] = f.Value
+				j.Facts = append(j.Facts, jsonFact{f.Label, f.Value})
 			}
 		}
 		t.Events = append(t.Events, j)
