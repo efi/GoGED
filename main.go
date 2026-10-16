@@ -477,12 +477,6 @@ func printEvents(list []*gedcom.Event, stdout io.Writer) {
 }
 
 func printPlaces(doc *gedcom.Document, w io.Writer) {
-	word := func(n int, one, many string) string {
-		if n == 1 {
-			return one
-		}
-		return many
-	}
 	genealogy.Places(doc).Walk(func(n *genealogy.PlaceNode) bool {
 		if n.Depth > 0 {
 			name := strings.Repeat("  ", n.Depth-1) + n.Name
