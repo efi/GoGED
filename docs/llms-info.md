@@ -441,8 +441,8 @@ packages.
   labels, without labels, not counted in the digits of shared cells.
 - **Surname view** (`tui/surnamemap.go`, the user's sketch "A"): `s` in
   the Map tab; birth surnames only (`Individual.BirthName`: TYPE birth or
-  maiden, else the first name that is not married/aka/immigrant). Each
-  event counts at its nearest located place (`placeOf`, so St Peter's
+  maiden, else the first name that is not married/aka/alias/immigrant).
+  Each event counts at its nearest located place (`placeOf`, so St Peter's
   counts for Leeds unless it has coordinates of its own); `computeSurname`
   works out per marker the events and people of the surname for the kind
   (`e`: all, births, deaths, other), and the places of every surname for

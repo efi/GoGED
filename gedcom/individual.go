@@ -168,7 +168,8 @@ func (ind *Individual) Name() Name {
 
 // BirthName returns the name the person was born with: a name of TYPE
 // birth (or maiden), else the first name that is not a married name, an
-// alias or an immigrant name, else the primary name.
+// alias (TYPE aka, or a name given with ALIA) or an immigrant name, else
+// the primary name.
 func (ind *Individual) BirthName() Name {
 	for _, n := range ind.Names {
 		if strings.EqualFold(n.Type, "birth") || strings.EqualFold(n.Type, "maiden") {
@@ -177,7 +178,7 @@ func (ind *Individual) BirthName() Name {
 	}
 	for _, n := range ind.Names {
 		switch strings.ToLower(n.Type) {
-		case "married", "aka", "immigrant":
+		case "married", "aka", "alias", "immigrant":
 		default:
 			return n
 		}

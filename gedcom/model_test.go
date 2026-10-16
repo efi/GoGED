@@ -697,12 +697,17 @@ func TestBirthName(t *testing.T) {
 1 NAME Carl /Lang/
 2 TYPE married
 0 @D@ INDI
+0 @E@ INDI
+1 NAME Eva /Roth/
+2 TYPE married
+1 ALIA Eva /Weiss/
 0 TRLR
 `)
 	if err != nil {
 		t.Fatal(err)
 	}
-	for id, want := range map[string]string{"A": "Doe", "B": "Berg", "C": "Lang", "D": ""} {
+	// An alias, also one given with ALIA, is not a birth name.
+	for id, want := range map[string]string{"A": "Doe", "B": "Berg", "C": "Lang", "D": "", "E": "Roth"} {
 		if got := doc.Individual(id).BirthName().Surname; got != want {
 			t.Errorf("%s: birth surname %q, want %q", id, got, want)
 		}
