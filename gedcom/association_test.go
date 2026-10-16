@@ -53,6 +53,8 @@ func TestAssociationLabels(t *testing.T) {
 	for rel, want := range map[string]string{
 		"GODP": "Godparent", "witn": "Witness", "Witness_of_Marriage": "Witness of marriage",
 		"": "Associate", "best friend": "Best friend", "Trauzeuge": "Trauzeuge",
+		// The first letter, not the first byte, is capitalized.
+		"ältester_Zeuge": "Ältester zeuge", "über": "Über",
 	} {
 		if got := (&Association{Relation: rel}).Label(); got != want {
 			t.Errorf("Label(%q) = %q, want %q", rel, got, want)

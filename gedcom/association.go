@@ -1,6 +1,10 @@
 package gedcom
 
-import "strings"
+import (
+	"strings"
+	"unicode"
+	"unicode/utf8"
+)
 
 // Association links a person to another one with ASSO, or with _ASSO as
 // several programs write it below events: a godparent, a witness, a friend.
@@ -37,7 +41,8 @@ func (a *Association) Label() string {
 	if strings.Contains(r, "_") {
 		r = strings.ToLower(strings.ReplaceAll(r, "_", " "))
 	}
-	return strings.ToUpper(r[:1]) + r[1:]
+	first, size := utf8.DecodeRuneInString(r)
+	return string(unicode.ToUpper(first)) + r[size:]
 }
 
 // Principals returns the people the association belongs to: the owner of
