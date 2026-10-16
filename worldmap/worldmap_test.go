@@ -258,6 +258,46 @@ func TestRenderClassesAndDetail(t *testing.T) {
 	}
 }
 
+// A route joins markers with a dotted line beneath them.
+func TestRenderRoute(t *testing.T) {
+	x1, y1 := Equirectangular.Project(0, -20)
+	x2, y2 := Equirectangular.Project(0, 20)
+	x3, y3 := Equirectangular.Project(10, 20)
+	markers := []Marker{{X: x1, Y: y1}, {X: x2, Y: y2}, {X: x3, Y: y3}}
+	_, centre := Equirectangular.Project(5, 0)
+	v := View{X: 0.5, Y: centre, Zoom: 2}
+	route := func(f Frame) (cells int) {
+		for _, row := range f.Cells {
+			for _, c := range row {
+				if c.Class == ClassRoute {
+					cells++
+				}
+			}
+		}
+		return cells
+	}
+	if n := route(New(nil).Render(v, 60, 20, markers, -1)); n != 0 {
+		t.Errorf("%d route cells without a route", n)
+	}
+	f := New(nil).RenderRoute(v, 60, 20, markers, -1, []int{0, 1, 1, 2, 7})
+	// The route along the equator from the first marker to the second.
+	r := f.MarkerCells[0][1]
+	for c := f.MarkerCells[0][0] + 1; c < f.MarkerCells[1][0]; c++ {
+		if f.Cells[r][c].Class != ClassRoute {
+			t.Errorf("cell %d of the equator: %+v", c, f.Cells[r][c])
+		}
+	}
+	if n := route(f); n < 20 {
+		t.Errorf("%d route cells", n)
+	}
+	// The markers stay on top.
+	for i, mc := range f.MarkerCells {
+		if f.Cells[mc[1]][mc[0]].Class != ClassMarker {
+			t.Errorf("marker %d is %+v", i, f.Cells[mc[1]][mc[0]])
+		}
+	}
+}
+
 func TestRenderMarkersAndLabel(t *testing.T) {
 	x, y := Equirectangular.Project(-0.05, 0.05)   // inside the cell right below the center
 	x2, y2 := Equirectangular.Project(-0.06, 0.06) // same cell at zoom 2

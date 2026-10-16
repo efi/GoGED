@@ -98,6 +98,7 @@ const (
 	ClassCoast
 	ClassLake
 	ClassRiver
+	ClassRoute // a dotted line joining markers
 	ClassFaint
 	ClassMinorLabel
 	ClassLabel
@@ -268,6 +269,13 @@ const detailBias = 1.5
 // labeled where there is room, in the order given, so the most important
 // places should come first.
 func (w *World) Render(v View, cols, rows int, markers []Marker, selected int) Frame {
+	return w.RenderRoute(v, cols, rows, markers, selected, nil)
+}
+
+// RenderRoute draws the map as Render does, with a route: a dotted line
+// from marker to marker in the order of route, which holds indexes into
+// markers. It runs beneath the markers and their labels.
+func (w *World) RenderRoute(v View, cols, rows int, markers []Marker, selected int, route []int) Frame {
 	cols, rows = max(cols, 1), max(rows, 1)
 	c := &canvas{cols: cols, rows: rows, w: cols * 2, h: rows * 4}
 	c.dots = make([]uint8, cols*rows)
@@ -311,6 +319,15 @@ func (w *World) Render(v View, cols, rows int, markers []Marker, selected int) F
 				px, py = nx, ny
 			}
 		}
+	}
+
+	for k := 1; k < len(route); k++ {
+		a, b := route[k-1], route[k]
+		if a == b || min(a, b) < 0 || max(a, b) >= len(markers) {
+			continue
+		}
+		p, q := markers[a], markers[b]
+		c.line((p.X-left)*d, (p.Y-top)*d, (q.X-left)*d, (q.Y-top)*d, ClassRoute, true)
 	}
 
 	f := Frame{Cols: cols, Rows: rows, Cells: make([][]Cell, rows)}

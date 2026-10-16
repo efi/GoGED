@@ -439,6 +439,9 @@ packages.
   −1 marks the second cell of a wide character.
 - **Faint markers** (`Marker.Faint`): small dots of `ClassFaint`, beneath
   labels, without labels, not counted in the digits of shared cells.
+- **Routes** (`RenderRoute`; `Render` draws none): a dotted line of
+  `ClassRoute` from marker to marker in the order of indexes given, over
+  the map's features and beneath markers and labels.
 - **Surname view** (`tui/surnamemap.go`, the user's sketch "A"): `s` in
   the Map tab; birth surnames only (`Individual.BirthName`: TYPE birth or
   maiden, else the first name that is not married/aka/alias/immigrant).
