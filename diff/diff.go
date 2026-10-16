@@ -5,6 +5,9 @@
 // submitters …) are reported as added, removed or changed, with what
 // changed in them. Change dates (CHAN) are left out, as editors update
 // them with every edit.
+//
+// People compares two people of a file side by side instead, such as two
+// records that may describe the same person.
 package diff
 
 import (

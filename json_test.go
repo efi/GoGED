@@ -172,6 +172,13 @@ func TestJSONPeopleAndEvents(t *testing.T) {
 		t.Errorf("facts %s", got)
 	}
 
+	var cmp jsonComparison
+	runJSON(t, &cmp, "-compare", "I3,I1", sample)
+	if cmp.A.ID != "I3" || cmp.B.ID != "I1" || len(cmp.Rows) != 12 || cmp.Rows[1] != (jsonCompareRow{"sex", "male", "male", true}) ||
+		cmp.Rows[8] != (jsonCompareRow{What: "parents", A: "William Smith & Elizabeth Brown"}) {
+		t.Errorf("comparison %+v", cmp)
+	}
+
 	var rel jsonRelationship
 	runJSON(t, &rel, "-relate", "I20,I23", sample)
 	if rel.Kind != "blood" || rel.Description != "third cousin" || rel.Sentence != "Dorothy Jones is Harold Smith's third cousin." ||
@@ -303,7 +310,7 @@ func TestChecksFlag(t *testing.T) {
 		{[]string{"-checks", "no-events=3"}, 2, "no-events has no threshold"},
 		{[]string{"-checks", "similar-places=very"}, 2, "similar-places: expects almost-identical, similar, somewhat-resembling"},
 		{[]string{"-checks", "all", "-person", "I99"}, 1, `no individual with ID "I99"`},
-		{[]string{"-json"}, 2, "-json goes with -q, -tree, -desc, -hourglass, -lifespans, -timeline, -relate, -events, -places, -stats, -checks, -diff"},
+		{[]string{"-json"}, 2, "-json goes with -q, -tree, -desc, -hourglass, -lifespans, -timeline, -relate, -compare, -events, -places, -stats, -checks, -diff"},
 		{[]string{"-json", "-export", "gexf", "-o", "-"}, 2, "-json goes with"},
 		{[]string{"-json", "-q", "foo:bar"}, 2, `unknown field "foo"`},
 		{[]string{"-json", "-events", "sex:m"}, 2, "not available for events"},

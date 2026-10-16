@@ -501,6 +501,17 @@ packages.
   whose people and families link to them: the overlays now move between
   links (`docView.move`, which scrolls when there are none) and enter
   opens one. Both versions are redacted the same way.
+- **`People(a, b)`** (`people.go`) compares two people of one file side
+  by side, for records that may describe the same person (the user's
+  request): the level-1 structures of both records, described as above
+  (a FAMS as "partner": the other partner, the marriage and the number of
+  children), paired by what they are, identical values first, as `Row`s
+  with a left and a right value; `Same` is equal values. Rows go in the
+  groups of `rowGroup`: names, sex, birth and baptism, other events,
+  death and burial, parents, partners, the rest. `-compare ID1,ID2`
+  prints them in columns with ≠ on differing rows, and `-json` as
+  `jsonComparison`. ALIA and ASSO links name the person (and the
+  relation), in the changes of a file too.
 
 ### JSON and batch checks (main package)
 

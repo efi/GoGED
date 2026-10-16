@@ -175,6 +175,30 @@ func relationshipJSON(a, b *gedcom.Individual) jsonRelationship {
 	return j
 }
 
+// -compare
+
+type jsonComparison struct {
+	A    jsonPerson       `json:"a"`
+	B    jsonPerson       `json:"b"`
+	Rows []jsonCompareRow `json:"rows"`
+}
+
+// jsonCompareRow is a detail of both people, as diff.Row.
+type jsonCompareRow struct {
+	What string `json:"what"`
+	A    string `json:"a,omitempty"`
+	B    string `json:"b,omitempty"`
+	Same bool   `json:"same"`
+}
+
+func comparisonJSON(a, b *gedcom.Individual, rows []diff.Row) jsonComparison {
+	j := jsonComparison{A: personJSON(a), B: personJSON(b), Rows: []jsonCompareRow{}}
+	for _, r := range rows {
+		j.Rows = append(j.Rows, jsonCompareRow{r.What, r.Left, r.Right, r.Same()})
+	}
+	return j
+}
+
 // -events
 
 type jsonEventPeople struct {

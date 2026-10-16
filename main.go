@@ -61,6 +61,7 @@ Usage:
   goged -export FORMAT [-pivot ID] [-o OUT] FILE.ged
                                           export as gexf, pdf or html and exit
   goged -diff OLD.ged FILE.ged            print what changed since OLD.ged
+  goged -compare ID1,ID2 FILE.ged         print two people side by side
   goged -checks all [-person ID] FILE.ged print the findings of the checks and hints
 
 Add -json to a flag that prints to get the output as JSON.
@@ -81,6 +82,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, startTUI tuiR
 		lifespan = fs.String("lifespans", "", "print the lifespans of the family of the person with `ID` on a time axis: parents, siblings, partners and children (more with -gen)")
 		timeline = fs.String("timeline", "", "print the timeline of the person with `ID`")
 		relate   = fs.String("relate", "", "print how two people are related, e.g. -relate I1,I20 (`ID1,ID2`)")
+		compare  = fs.String("compare", "", "print two people side by side, their differences marked, e.g. -compare I1,I20 (`ID1,ID2`)")
 		events   = fs.String("events", "", "print events matching `FILTER`, e.g. \"type:marr 1850..1870\"")
 		allEv    = fs.Bool("all", false, "with -events: include all events, not only births, marriages and deaths")
 		places   = fs.Bool("places", false, "print all places as a hierarchy with the number of events and people")
@@ -97,7 +99,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, startTUI tuiR
 		output   = fs.String("o", "", "with -export: write to `FILE` (- for standard output); default: the input file with the format's extension")
 		diffWith = fs.String("diff", "", "print what changed from the older version in `OLD.ged` to the file given, records paired by their IDs")
 		checks   = fs.String("checks", "", "print the findings of the plausibility checks and hints: all, checks, hints, or `IDs` with thresholds, e.g. old-age=100,similar-places=somewhat-resembling")
-		asJSON   = fs.Bool("json", false, "with -q, -tree, -desc, -hourglass, -lifespans, -timeline, -relate, -events, -places, -stats, -checks or -diff: print JSON")
+		asJSON   = fs.Bool("json", false, "with -q, -tree, -desc, -hourglass, -lifespans, -timeline, -relate, -compare, -events, -places, -stats, -checks or -diff: print JSON")
 	)
 	fs.Usage = func() {
 		fmt.Fprint(stderr, usageText)
@@ -196,6 +198,20 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, startTUI tuiR
 		}
 		return 0
 	}
+	// twoPeople looks up the people of -relate or -compare.
+	twoPeople := func(flag, ids string) (a, b *gedcom.Individual, code int) {
+		x, y, found := strings.Cut(ids, ",")
+		if !found {
+			fmt.Fprintf(stderr, "goged: -%s expects two IDs separated by a comma\n", flag)
+			return nil, nil, 2
+		}
+		a, ok1 := lookup(strings.TrimSpace(x))
+		b, ok2 := lookup(strings.TrimSpace(y))
+		if !ok1 || !ok2 {
+			return nil, nil, 1
+		}
+		return a, b, 0
+	}
 	// chartOf prints the chart of the person with id.
 	chartOf := func(id string, draw func(*gedcom.Individual) *chart.Chart, ancestors, descendants bool) int {
 		ind, ok := lookup(id)
@@ -240,17 +256,18 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, startTUI tuiR
 		}
 		return show(func() { printTimeline(ind, stdout) }, func() any { return timelineJSON(ind) })
 	case set["relate"]:
-		a, b, found := strings.Cut(*relate, ",")
-		if !found {
-			fmt.Fprintln(stderr, "goged: -relate expects two IDs separated by a comma")
-			return 2
+		a, b, code := twoPeople("relate", *relate)
+		if code != 0 {
+			return code
 		}
-		indA, ok1 := lookup(strings.TrimSpace(a))
-		indB, ok2 := lookup(strings.TrimSpace(b))
-		if !ok1 || !ok2 {
-			return 1
+		return show(func() { printRelationship(a, b, stdout) }, func() any { return relationshipJSON(a, b) })
+	case set["compare"]:
+		a, b, code := twoPeople("compare", *compare)
+		if code != 0 {
+			return code
 		}
-		return show(func() { printRelationship(indA, indB, stdout) }, func() any { return relationshipJSON(indA, indB) })
+		rows := diff.People(a, b)
+		return show(func() { printComparison(a, b, rows, stdout) }, func() any { return comparisonJSON(a, b, rows) })
 	case set["events"]:
 		q, err := search.ParseEventQuery(*events)
 		if err != nil {
@@ -367,7 +384,7 @@ func absPath(p string) string {
 }
 
 // jsonFlags are the flags whose output -json gives as data.
-var jsonFlags = []string{"q", "tree", "desc", "hourglass", "lifespans", "timeline", "relate", "events", "places", "stats", "checks", "diff"}
+var jsonFlags = []string{"q", "tree", "desc", "hourglass", "lifespans", "timeline", "relate", "compare", "events", "places", "stats", "checks", "diff"}
 
 func printResults(results []search.Result, stdout io.Writer) {
 	for _, r := range results {
@@ -463,6 +480,29 @@ func relationshipLines(a, b *gedcom.Individual, r genealogy.Relationship) []stri
 		lines = append(lines, fmt.Sprintf("Related through %s.", r.Via.DisplayName()))
 	}
 	return lines
+}
+
+// printComparison prints two people side by side: a row for every detail
+// of their records, marked with ≠ where they differ.
+func printComparison(a, b *gedcom.Individual, rows []diff.Row, w io.Writer) {
+	head := func(ind *gedcom.Individual) string { return ind.ID + "  " + chart.Label(ind) }
+	whatW, leftW, differ := 0, runewidth.StringWidth(head(a)), 0
+	for _, r := range rows {
+		whatW = max(whatW, runewidth.StringWidth(r.What))
+		leftW = max(leftW, runewidth.StringWidth(r.Left))
+		if !r.Same() {
+			differ++
+		}
+	}
+	fmt.Fprintln(w, "  "+pad("", whatW)+"  "+pad(head(a), leftW)+"  "+head(b))
+	for _, r := range rows {
+		mark := " "
+		if !r.Same() {
+			mark = "≠"
+		}
+		fmt.Fprintln(w, strings.TrimRight(mark+" "+pad(r.What, whatW)+"  "+pad(r.Left, leftW)+"  "+r.Right, " "))
+	}
+	fmt.Fprintf(w, "%d %s, %d the same\n", differ, word(differ, "detail differs", "details differ"), len(rows)-differ)
 }
 
 func printEvents(list []*gedcom.Event, stdout io.Writer) {

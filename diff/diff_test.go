@@ -161,6 +161,78 @@ func TestCompare(t *testing.T) {
 	}
 }
 
+// People pairs what two people's records hold, those that read the same
+// first, in the order of names, events, parents, partners and the rest.
+func TestPeople(t *testing.T) {
+	doc := parse(t, `0 HEAD
+0 @A@ INDI
+1 NAME John /Smith/
+1 SEX M
+1 NOTE First record
+1 OCCU Weaver
+1 BIRT
+2 DATE 1817
+2 PLAC Leeds
+1 FAMC @F1@
+1 FAMS @F2@
+0 @B@ INDI
+1 NAME Johann /Smith/
+1 SEX M
+1 ALIA @A@
+1 BURI
+2 DATE 1880
+1 BIRT
+2 DATE 2 FEB 1817
+2 PLAC Leeds
+1 OCCU Spinner
+1 OCCU Weaver
+1 FAMC @F1@
+1 CHAN
+2 DATE 1 JAN 2026
+0 @P@ INDI
+1 NAME William /Smith/
+0 @W@ INDI
+1 NAME Ann /Taylor/
+0 @F1@ FAM
+1 HUSB @P@
+1 CHIL @A@
+1 CHIL @B@
+0 @F2@ FAM
+1 HUSB @A@
+1 WIFE @W@
+1 CHIL @P@
+1 MARR
+2 DATE 1840
+0 TRLR
+`)
+	var got []string
+	same := 0
+	for _, r := range People(doc.Individual("A"), doc.Individual("B")) {
+		got = append(got, r.What+"|"+r.Left+"|"+r.Right)
+		if r.Same() {
+			same++
+		}
+	}
+	want := []string{
+		"name|John Smith|Johann Smith",
+		"sex|male|male",
+		"birth|1817, Leeds|2 Feb 1817, Leeds",
+		"occupation|Weaver|Weaver",
+		"occupation||Spinner",
+		"burial||1880",
+		"parents|William Smith|William Smith",
+		"partner|Ann Taylor, married 1840, 1 child|",
+		"note|First record|",
+		"alias||John Smith (1817–)",
+	}
+	if strings.Join(got, "\n") != strings.Join(want, "\n") || same != 3 {
+		t.Errorf("%d the same, got:\n%s\nwant:\n%s", same, strings.Join(got, "\n"), strings.Join(want, "\n"))
+	}
+	if People(nil, doc.Individual("A")) != nil {
+		t.Error("a comparison with nobody")
+	}
+}
+
 // Links to people name them: who the alias is, who is associated and how.
 func TestCompareNamesLinkedPeople(t *testing.T) {
 	old := parse(t, "0 HEAD\n0 @I1@ INDI\n1 NAME A /B/\n1 ASSO @I2@\n2 RELA Godparent\n1 ALIA @I2@\n0 @I2@ INDI\n1 NAME C /D/\n0 @I3@ INDI\n1 NAME E /F/\n0 TRLR\n")

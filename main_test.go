@@ -141,6 +141,28 @@ func TestTimelineFlag(t *testing.T) {
 	}
 }
 
+// -compare prints two people side by side, the differences marked.
+func TestCompareFlag(t *testing.T) {
+	want := `               I3  John Smith (1817–1880)                                    I1  William Smith (1790–1850)
+≠ name         John Smith                                                    William Smith
+  sex          male                                                          male
+≠ birth        2 Feb 1817, Leeds, Yorkshire, England                         12 Mar 1790, Leeds, Yorkshire, England
+≠ christening  10 Feb 1817, St Peter's, Leeds, Yorkshire, England
+≠ occupation   Mill worker, from 1835 to 1870                                Weaver
+≠ census       30 Mar 1851, Manchester, Lancashire, England
+≠ death        1880, Manchester, Lancashire, England                         cause: Consumption, 4 Jan 1850, Leeds, Yorkshire, England
+≠ burial                                                                     8 Jan 1850, St Peter's Churchyard, Leeds, Yorkshire, England
+≠ parents      William Smith & Elizabeth Brown
+≠ partner      Ann Taylor (1820–1845), married 1840, 1 child                 Elizabeth Brown (c.1795–1860), married 15 Jun 1815, 2 children
+≠ partner      Sarah White (1825–1890), married 1847, 2 children
+≠ note         John moved to Manchester around 1839 to work in the cotton …  William was a hand-loom weaver in the parish of St Peter, L…
+11 details differ, 1 the same
+`
+	if r := runCLI(t, "", "-compare", "I3,I1", sample); r.code != 0 || r.stdout != want {
+		t.Errorf("exit %d, got:\n%s\nwant:\n%s", r.code, r.stdout, want)
+	}
+}
+
 func TestRelateFlag(t *testing.T) {
 	tests := []struct {
 		ids  string
@@ -422,6 +444,8 @@ func TestErrors(t *testing.T) {
 		{[]string{"-timeline", "I99", sample}, 1, `no individual with ID "I99"`},
 		{[]string{"-relate", "I1", sample}, 2, "two IDs separated by a comma"},
 		{[]string{"-relate", "I1,I99", sample}, 1, `no individual with ID "I99"`},
+		{[]string{"-compare", "I1", sample}, 2, "-compare expects two IDs separated by a comma"},
+		{[]string{"-compare", "I99,I1", sample}, 1, `no individual with ID "I99"`},
 		{[]string{"-q", "foo:bar", sample}, 2, `unknown field "foo"`},
 		{[]string{"-events", "sex:m", sample}, 2, "not available for events"},
 	}

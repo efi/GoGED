@@ -107,6 +107,9 @@ The screenshots below use the [GEDCOM-L sample file](testdata/Muster_GEDCOM_UTF-
   lists what changed: the header (program, date of the file …), people,
   families and other records added, removed or changed, with the details.
   `goged -diff OLD.ged FILE.ged` prints the same for two versions of a file.
+- **Compare two people** side by side, such as two records that may be the
+  same person: names, events, parents, partners, notes and sources, paired
+  and with the differences marked (`goged -compare I1,I2 FILE.ged`).
 - **Mouse**: click to select and again to open, click the tabs, scroll with
   the wheel, zoom the map around the pointer and drag it. `-no-mouse` leaves
   the mouse to the terminal for selecting text.
@@ -186,6 +189,7 @@ goged -hourglass I3 -gen 3 family.ged      # descendants left, ancestors right
 goged -lifespans I3 family.ged             # the lives of John Smith's family
 goged -timeline I14 family.ged             # life events incl. relatives
 goged -relate I20,I23 family.ged           # how is I23 related to I20?
+goged -compare I3,I1 family.ged            # two people side by side
 goged -events 'type:marr place:leeds' family.ged
 goged -events '' -all family.ged           # every event, chronologically
 goged -places family.ged                   # place hierarchy with counts
