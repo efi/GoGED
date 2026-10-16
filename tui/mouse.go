@@ -311,7 +311,8 @@ func (m *Model) clampMap() {
 	m.mapv.view = m.mapv.view.Clamped(m.mapCols(), m.mapRows())
 }
 
-// mapPoint returns the Web Mercator point in the middle of a map cell.
+// mapPoint returns the point on the plane of the map's projection in the
+// middle of a map cell.
 func (m *Model) mapPoint(col, row int) (x, y float64) {
 	v, cols, rows := m.mapv.view, m.mapCols(), m.mapRows()
 	w, h := v.Span(cols, rows)

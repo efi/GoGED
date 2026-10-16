@@ -115,7 +115,7 @@ type Cell struct {
 
 // Marker is a place to highlight on the map.
 type Marker struct {
-	X, Y  float64 // Web Mercator coordinates
+	X, Y  float64 // on the plane of the view's projection (Projection.Project)
 	Label string  // name shown next to the marker if there is room
 	// Faint markers are small dots without labels, beneath the others:
 	// places shown for orientation only.
