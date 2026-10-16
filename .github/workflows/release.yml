@@ -50,7 +50,7 @@ jobs:
 
           Checksums are in \`goged-${BUILD_DATE}-SHA256SUMS.txt\`.
 
-          The experimental map uses data made with Natural Earth (public domain).
+          The map uses data made with Natural Earth (public domain).
           Run \`goged -licenses\` to read the licenses of the map data and all libraries.
           EOF
           if gh release view "$tag" >/dev/null 2>&1; then
