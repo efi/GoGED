@@ -2,6 +2,7 @@ package search
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -30,7 +31,10 @@ type eventTerm struct {
 	negate bool
 	folded string
 	years  yearRange
+	// tags and labels are what type: accepts: the tags, and the
+	// beginnings of the labels, as of an EVEN with its TYPE.
 	tags   map[string]bool
+	labels []string
 }
 
 // ParseEventQuery parses an event filter.
@@ -104,6 +108,7 @@ func parseEventTerm(tok string) (*eventTerm, error) {
 				t.tags[tag] = true
 			}
 			t.tags[strings.ToUpper(part)] = true
+			t.labels = append(t.labels, Fold(part))
 		}
 	}
 	return &t, nil
@@ -111,6 +116,7 @@ func parseEventTerm(tok string) (*eventTerm, error) {
 
 type eventItem struct {
 	ev     *gedcom.Event
+	label  string // folded
 	text   string
 	names  string
 	place  string
@@ -139,10 +145,11 @@ func NewEventIndex(events []*gedcom.Event) *EventIndex {
 		}
 		it := eventItem{
 			ev:    ev,
+			label: Fold(ev.Label()),
 			names: Fold(strings.Join(names, "\n")),
 			place: Fold(strings.Join(ev.Place.Names(), "\n")),
 		}
-		it.text = Fold(ev.Label()+"\n"+ev.Detail()) + "\n" + it.names + "\n" + it.place
+		it.text = it.label + "\n" + Fold(ev.Detail()) + "\n" + it.names + "\n" + it.place
 		it.lo, it.hi, it.ok = eventYears(ev.Date, false)
 		it.key, it.dated = ev.Date.Key()
 		ix.items = append(ix.items, it)
@@ -184,7 +191,7 @@ func (q EventQuery) matches(it *eventItem) bool {
 		case FieldYear:
 			m = it.ok && t.years.intersects(it.lo, it.hi)
 		case FieldType:
-			m = t.tags[it.ev.Tag] || strings.HasPrefix(Fold(it.ev.Label()), t.folded)
+			m = t.tags[it.ev.Tag] || slices.ContainsFunc(t.labels, func(l string) bool { return strings.HasPrefix(it.label, l) })
 		case FieldPlace:
 			m = strings.Contains(it.place, t.folded)
 		case FieldName:

@@ -775,6 +775,49 @@ func TestSearchBoolean(t *testing.T) {
 	}
 }
 
+// type: takes a list of types; each may be the beginning of a label, as
+// of an EVEN with its TYPE.
+func TestEventTypeList(t *testing.T) {
+	doc, err := gedcom.ParseString(`0 HEAD
+0 @I1@ INDI
+1 NAME A /B/
+1 BIRT
+2 DATE 1800
+1 EVEN
+2 TYPE Auszeichnung
+2 DATE 1850
+0 @F1@ FAM
+1 HUSB @I1@
+1 MARR
+2 TYPE CIVIL
+2 DATE 1825
+0 TRLR
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ix := NewEventIndex(doc.Events())
+	for q, want := range map[string]string{
+		"type:auszeichnung":        "Auszeichnung",
+		"type:birth,auszeichnung":  "Birth Auszeichnung",
+		"type:auszeichnung,birth":  "Birth Auszeichnung",
+		"type:civil,auszeich":      "Civil marriage Auszeichnung",
+		"-type:birth,auszeichnung": "Civil marriage",
+	} {
+		eq, err := ParseEventQuery(q)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var got []string
+		for _, e := range ix.Filter(eq, false) {
+			got = append(got, e.Label())
+		}
+		if strings.Join(got, " ") != want {
+			t.Errorf("%s: %v, want %s", q, got, want)
+		}
+	}
+}
+
 func TestEventQueryBoolean(t *testing.T) {
 	ix := NewEventIndex(loadSample(t).Events())
 	count := func(q string, vital bool) int {
