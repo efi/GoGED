@@ -13,18 +13,6 @@ import (
 // The hints of Checks: gaps in the research and places that may be the
 // same.
 
-// birthParentsOf returns a person's birth parents (links of unspecified
-// kind count).
-func birthParentsOf(ind *gedcom.Individual) []*gedcom.Individual {
-	var out []*gedcom.Individual
-	for _, pl := range ind.ParentLinks() {
-		if pl.Pedigree.IsBirth() {
-			out = append(out, pl.Parent)
-		}
-	}
-	return out
-}
-
 // missingParents reports the people within the threshold in generations
 // of the marked person (the marked person included) whose father or
 // mother is unknown, generation by generation. People who appear in more
@@ -39,7 +27,7 @@ func missingParents(_ *gedcom.Document, gens int, ctx Context) []Finding {
 	for g := 0; g < gens && len(level) > 0; g++ {
 		var next []*gedcom.Individual
 		for _, ind := range level {
-			parents := birthParentsOf(ind)
+			parents := ind.BirthParents()
 			if missing := unknownParents(parents); missing != "" {
 				who := "the marked person"
 				if g > 0 {
@@ -85,7 +73,7 @@ func completeness(_ *gedcom.Document, gens int, ctx Context) string {
 	for g := 1; g <= gens; g++ {
 		var next []*gedcom.Individual
 		for _, ind := range level {
-			next = append(next, birthParentsOf(ind)...)
+			next = append(next, ind.BirthParents()...)
 		}
 		parts = append(parts, fmt.Sprintf("%ss %d of %d", describe(g, 0, gedcom.SexUnknown, false), len(next), 1<<g))
 		level = next
