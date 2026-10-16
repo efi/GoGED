@@ -848,26 +848,48 @@ func (c *Chart) About(i int) string {
 	}
 	ind, root := c.Nodes[i].Ind, c.Nodes[0].Ind
 	parts := []string{ind.DisplayName()}
+	// at gives the date and the place of an event, as far as they are
+	// recorded: "1820 in Leeds", "in Leeds".
 	at := func(e *gedcom.Event) string {
 		s := e.Date.String()
 		if p := e.Place.Short(); p != "" {
-			s += " in " + p
+			s = strings.TrimSpace(s + " in " + p)
 		}
 		return s
 	}
+	// named names a birth "born", a death "died" and other events by
+	// their label.
+	named := func(e *gedcom.Event) string {
+		switch e.Tag {
+		case "BIRT":
+			return "born"
+		case "DEAT":
+			return "died"
+		}
+		return lower(e.Label())
+	}
+	// undated describes an event recorded without a date.
+	undated := func(e *gedcom.Event) string {
+		return strings.TrimSpace(named(e)+" "+at(e)) + ", date not recorded"
+	}
+	// The birth and death, if recorded; dated ones are preferred.
 	birth := ind.FirstDatedEvent(gedcom.BirthTags...)
+	death := ind.FirstDatedEvent(gedcom.DeathTags...)
 	first, last := records(ind)
 	switch {
-	case birth != nil && birth.Tag == "BIRT":
-		parts = append(parts, "born "+at(birth))
-	case birth != nil:
-		parts = append(parts, lower(birth.Label())+" "+at(birth))
-	case first != nil && first != ind.FirstDatedEvent(gedcom.DeathTags...):
-		parts = append(parts, "birth not recorded, first record "+lower(first.Label())+" "+at(first))
-	case first != nil:
-		parts = append(parts, "birth not recorded")
-	default:
+	case birth != nil && !birth.Date.IsZero():
+		parts = append(parts, named(birth)+" "+at(birth))
+	case first == nil:
 		return parts[0] + " · no dates recorded"
+	default:
+		s := "birth not recorded"
+		if birth != nil {
+			s = undated(birth)
+		}
+		if first != death {
+			s += ", first record " + lower(first.Label()) + " " + at(first)
+		}
+		parts = append(parts, s)
 	}
 	if ind != root {
 		for _, f := range root.FamiliesAsSpouse() {
@@ -894,13 +916,11 @@ func (c *Chart) About(i int) string {
 		}
 		return s
 	}
-	switch death := ind.FirstDatedEvent(gedcom.DeathTags...); {
-	case death != nil && death.Tag == "DEAT":
-		parts = append(parts, "died "+at(death)+age(death))
+	switch {
+	case death != nil && !death.Date.IsZero():
+		parts = append(parts, named(death)+" "+at(death)+age(death))
 	case death != nil:
-		parts = append(parts, lower(death.Label())+" "+at(death)+age(death))
-	case ind.IsDeceased():
-		parts = append(parts, "died, date not recorded")
+		parts = append(parts, undated(death))
 	case last != nil && last != birth:
 		parts = append(parts, "no death recorded, last record "+lower(last.Label())+" "+at(last)+age(last))
 	default:

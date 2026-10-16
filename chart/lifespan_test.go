@@ -156,6 +156,58 @@ func TestLifespansAbout(t *testing.T) {
 	}
 }
 
+// Births, deaths and marriages recorded without a date are described as
+// such.
+func TestLifespansAboutUndated(t *testing.T) {
+	doc, err := gedcom.ParseString(`0 HEAD
+0 @I1@ INDI
+1 NAME A /X/
+1 BIRT
+2 DATE 1800
+2 PLAC Leeds
+1 DEAT Y
+0 @I2@ INDI
+1 NAME B /X/
+1 BIRT
+2 PLAC Leeds
+1 RESI
+2 DATE 1841
+1 DEAT
+2 PLAC York
+0 @I3@ INDI
+1 NAME C /X/
+1 BIRT
+2 DATE 1830
+1 BURI
+0 @I4@ INDI
+1 NAME D /X/
+1 BIRT
+2 DATE 1805
+0 @F1@ FAM
+1 HUSB @I1@
+1 WIFE @I4@
+1 MARR
+2 PLAC Leeds
+1 CHIL @I2@
+1 CHIL @I3@
+0 TRLR
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := Lifespans(doc.Individual("I1"), LifespanOptions{})
+	for id, want := range map[string]string{
+		"I1": "A X · born 1800 in Leeds · died, date not recorded",
+		"I2": "B X · born in Leeds, date not recorded, first record residence 1841 · died in York, date not recorded",
+		"I3": "C X · born 1830 · burial, date not recorded",
+		"I4": "D X · born 1805 · married in Leeds · no death recorded",
+	} {
+		if got := c.About(c.Find(doc.Individual(id))); got != want {
+			t.Errorf("about %s:\n got %s\nwant %s", id, got, want)
+		}
+	}
+}
+
 func TestLifespansWidths(t *testing.T) {
 	doc := loadSample(t)
 	for _, w := range []int{50, 60, 84, 100, 120, 200} {
