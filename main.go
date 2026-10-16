@@ -436,26 +436,33 @@ func printTimeline(ind *gedcom.Individual, w io.Writer) {
 }
 
 func printRelationship(a, b *gedcom.Individual, w io.Writer) {
-	r := genealogy.Relate(a, b)
+	for _, l := range relationshipLines(a, b, genealogy.Relate(a, b)) {
+		fmt.Fprintln(w, l)
+	}
+}
+
+// relationshipLines describes r, the relationship of b to a: a sentence,
+// then the closest common ancestors or the person a marriage relationship
+// runs through.
+func relationshipLines(a, b *gedcom.Individual, r genealogy.Relationship) []string {
 	switch r.Kind {
 	case genealogy.KindNone:
-		fmt.Fprintf(w, "No relationship found between %s and %s.\n", a.DisplayName(), b.DisplayName())
-		return
+		return []string{fmt.Sprintf("No relationship found between %s and %s.", a.DisplayName(), b.DisplayName())}
 	case genealogy.KindSelf:
-		fmt.Fprintf(w, "%s and %s are the same person.\n", a.DisplayName(), b.DisplayName())
-		return
+		return []string{fmt.Sprintf("%s and %s are the same person.", a.DisplayName(), b.DisplayName())}
 	}
-	fmt.Fprintf(w, "%s is %s's %s.\n", b.DisplayName(), a.DisplayName(), r.Description)
+	lines := []string{fmt.Sprintf("%s is %s's %s.", b.DisplayName(), a.DisplayName(), r.Description)}
 	if (r.Kind == genealogy.KindBlood || r.Kind == genealogy.KindAdoptive) && len(r.CommonAncestors) > 0 && r.UpA > 0 && r.UpB > 0 {
 		var names []string
 		for _, c := range r.CommonAncestors {
 			names = append(names, c.DisplayName())
 		}
-		fmt.Fprintf(w, "Closest common ancestors: %s (%d and %d generations up).\n", strings.Join(names, " & "), r.UpA, r.UpB)
+		lines = append(lines, fmt.Sprintf("Closest common ancestors: %s (%d and %d generations up).", strings.Join(names, " & "), r.UpA, r.UpB))
 	}
 	if r.Via != nil && r.Kind == genealogy.KindMarriage {
-		fmt.Fprintf(w, "Related through %s.\n", r.Via.DisplayName())
+		lines = append(lines, fmt.Sprintf("Related through %s.", r.Via.DisplayName()))
 	}
+	return lines
 }
 
 func printEvents(list []*gedcom.Event, stdout io.Writer) {

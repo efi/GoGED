@@ -166,11 +166,9 @@ func relationshipJSON(a, b *gedcom.Individual) jsonRelationship {
 	j := jsonRelationship{
 		A: *refJSON(a), B: *refJSON(b), Description: r.Description, UpA: r.UpA, UpB: r.UpB, Half: r.Half,
 		Via: refJSON(r.Via), Pedigree: string(r.Pedigree),
-		Kind: [...]string{"none", "self", "blood", "marriage", "adoptive"}[r.Kind],
+		Kind:     [...]string{"none", "self", "blood", "marriage", "adoptive"}[r.Kind],
+		Sentence: relationshipLines(a, b, r)[0],
 	}
-	var b2 strings.Builder
-	printRelationship(a, b, &b2)
-	j.Sentence = strings.TrimSpace(strings.SplitN(b2.String(), "\n", 2)[0])
 	for _, c := range r.CommonAncestors {
 		j.CommonAncestors = append(j.CommonAncestors, *refJSON(c))
 	}
