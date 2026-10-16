@@ -65,6 +65,29 @@ func TestAssociationLabels(t *testing.T) {
 	}
 }
 
+// A name given with ALIA follows the names given with NAME, wherever it
+// is written.
+func TestAliasNameAfterNames(t *testing.T) {
+	doc, err := ParseString(`0 HEAD
+0 @I1@ INDI
+1 ALIA Johnny /Smith/
+1 NAME John /Smith/
+1 NAME Jack /Smith/
+2 TYPE aka
+0 TRLR
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for _, n := range doc.Individual("I1").Names {
+		names = append(names, n.String()+" ("+n.Type+")")
+	}
+	if got := strings.Join(names, ", "); got != "John Smith (), Jack Smith (aka), Johnny Smith (alias)" {
+		t.Errorf("names: %s", got)
+	}
+}
+
 func TestAssociationEdgeCases(t *testing.T) {
 	doc, err := ParseString(`0 HEAD
 0 @I1@ INDI

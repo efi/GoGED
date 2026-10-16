@@ -250,6 +250,7 @@ func (n *Node) valueOrEmpty() string {
 }
 
 func (d *Document) buildIndividual(ind *Individual) {
+	var aliases []Name
 	for _, c := range ind.Node.Children {
 		switch {
 		case c.Tag == "NAME":
@@ -260,13 +261,16 @@ func (d *Document) buildIndividual(ind *Individual) {
 			// Some programs record an alias name instead of a link.
 			n := ParseName(c.Value)
 			n.Type = "alias"
-			ind.Names = append(ind.Names, n)
+			aliases = append(aliases, n)
 		case isEventNode(c):
 			e := newEvent(d, c)
 			e.Individual = ind
 			ind.Events = append(ind.Events, e)
 		}
 	}
+	// The names come first, so that an alias is not taken as the primary
+	// name where it is written before them.
+	ind.Names = append(ind.Names, aliases...)
 }
 
 func (d *Document) buildFamily(f *Family) {
