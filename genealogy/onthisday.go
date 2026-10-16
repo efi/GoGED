@@ -22,7 +22,8 @@ type Anniversary struct {
 // years.
 func OnThisDay(doc *gedcom.Document, today time.Time) []Anniversary {
 	month, day := int(today.Month()), today.Day()
-	leapDayToo := month == 2 && day == 28 && !isLeap(today.Year())
+	// In a common year, the day after 28 February is in March.
+	leapDayToo := month == 2 && day == 28 && today.AddDate(0, 0, 1).Month() == time.March
 	var out []Anniversary
 	for _, e := range doc.Events() {
 		if e.Date.Modifier != gedcom.DateExact && e.Date.Modifier != gedcom.DateInterpreted {
@@ -41,5 +42,3 @@ func OnThisDay(doc *gedcom.Document, today time.Time) []Anniversary {
 	sort.SliceStable(out, func(i, j int) bool { return out[i].Year < out[j].Year })
 	return out
 }
-
-func isLeap(y int) bool { return y%4 == 0 && (y%100 != 0 || y%400 == 0) }
