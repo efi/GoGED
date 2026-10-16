@@ -248,7 +248,8 @@ func (m *Model) replaceDoc(doc *gedcom.Document) {
 		n.histPos = 0
 	}
 	n.reference = same(m.reference)
-	n.compare = compareState{same(m.compare.a), same(m.compare.b)}
+	n.compare = m.compare
+	n.compare.a, n.compare.b = same(m.compare.a), same(m.compare.b)
 	n.person.hideRelatives = m.person.hideRelatives
 	n.tree.mode, n.tree.gens, n.tree.lifeGens = m.tree.mode, m.tree.gens, m.tree.lifeGens
 	n.currentChanged()

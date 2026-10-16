@@ -384,8 +384,13 @@ func (m *Model) handleKey(msg tea.KeyMsg) tea.Cmd {
 			return tea.Quit
 		case "enter":
 			m.showHelp = false
-			if sel := m.help.selected(); sel != nil && sel.target != nil && m.help.visible(m.help.selectedLine(), m.bodyHeight()) {
-				m.open(sel.target)
+			if sel := m.help.selected(); sel != nil && m.help.visible(m.help.selectedLine(), m.bodyHeight()) {
+				switch {
+				case sel.target != nil:
+					m.open(sel.target)
+				case sel.place != "":
+					m.showPlace(sel.place)
+				}
 			}
 		default:
 			m.showHelp = false
@@ -685,7 +690,7 @@ func (m Model) viewFooter() string {
 	case m.active == viewStats:
 		hints = [][2]string{{"↑↓", "surnames, births"}, {"enter", "list those people"}, {"?", "help"}}
 	case m.active == viewChecks:
-		hints = [][2]string{{"↑↓", "select"}, {"←→", "threshold"}, {"space", "on/off"}, {"enter", "fold/open"}, {"o", "other person/place"}, {"r", "reset"}, {"?", "help"}}
+		hints = [][2]string{{"↑↓", "select"}, {"←→", "threshold"}, {"space", "on/off"}, {"enter", "fold/open"}, {"o", "other"}, {"M", "compare"}, {"r", "reset"}, {"?", "help"}}
 	case m.active == viewExport && m.export.editing:
 		hints = [][2]string{{"type", "file name"}, {"enter", "done"}, {"esc", "cancel"}}
 	case m.active == viewExport:

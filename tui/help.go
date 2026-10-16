@@ -95,6 +95,7 @@ var helpSections = [][]string{
 	{"space", "switch the check off or on"},
 	{"enter", "fold or unfold the check; on a finding, open the person, or the first place of a group"},
 	{"o", "open the other person of a finding (the child, partner or possible duplicate), or the next place of a group"},
+	{"M", "compare a possible duplicate with the other record side by side, or the places of a group in a table (enter opens one); other findings: the person with the marked one"},
 	{"- / +", "fold / unfold all checks"},
 	{"r", "switch all checks on with their usual thresholds"},
 	{"dates", "imprecise dates only count where the problem is certain: \"before 1850\" may be any time before, \"about\" up to two years off"},

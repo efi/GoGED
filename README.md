@@ -284,6 +284,7 @@ Try it with the sample file in [`testdata/family.ged`](testdata/family.ged).
 | Stats   | `enter` | for the selected surname: the people with it, or the surname on the map; for a period: the people born then |
 | Checks  | `←` `→`, `space` | lower or raise the threshold of a check (the findings change at once), switch it off or on |
 |         | `enter`, `o`, `r` | fold a check or open the person (or first place) of a finding, open the other person (or next place), reset all thresholds |
+|         | `M` | compare a possible duplicate with the other record side by side, or a group of similar places in a table: events, people, years, coordinates and distance, place record, GOV |
 | Export  | `↑` `↓`, `←` `→` | choose a setting, change it: the format, everybody or the people connected to the marked person |
 |         | `enter` | edit the file name, or export (an existing file is replaced after `enter` again) |
 

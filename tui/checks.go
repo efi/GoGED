@@ -252,6 +252,22 @@ func (m *Model) updateChecks(msg tea.KeyMsg) (bool, tea.Cmd) {
 			m.openPlaceOf(f, c.placeStep)
 			c.placeStep++
 		}
+	case "M":
+		// A possible duplicate is compared with the other record, a group
+		// of places in a table; other findings as everywhere.
+		f := m.finding()
+		switch {
+		case f != nil && len(f.Places) > 1:
+			title := f.Message
+			if ch := genealogy.Checks[i]; ch.Levels != nil {
+				title = ch.Value(c.params[i]) + " names: " + f.Message
+			}
+			m.comparePlaces(f.Places, title)
+		case f != nil && genealogy.Checks[i].ID == "duplicates" && f.Person != nil && f.Other != nil:
+			m.comparePeople(f.Person, f.Other, "One record", "Other record")
+		default:
+			return false, nil
+		}
 	case "-", "+", "=":
 		for j := range c.folded {
 			c.folded[j] = msg.String() == "-"

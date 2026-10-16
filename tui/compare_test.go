@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/charmbracelet/x/ansi"
+	"github.com/efi/goged/gedcom"
+	"github.com/efi/goged/genealogy"
 )
 
 func TestCompareView(t *testing.T) {
@@ -22,7 +24,7 @@ func TestCompareView(t *testing.T) {
 		t.Fatal("M does not open the comparison")
 	}
 	a.contains("[Compare]", "Comparison of two people", "11 differences, 1 the same", "Marked        William Smith (1790–1850) ★  I1",
-		"Compared      John Smith (1817–1880)  I3", "≠ name", "William Smith", "John Smith", "  sex", "≠ burial",
+		"Selected      John Smith (1817–1880)  I3", "≠ name", "William Smith", "John Smith", "  sex", "≠ burial",
 		"↑↓ select  enter open  any other key close")
 	for _, l := range strings.Split(ansi.Strip(a.view()), "\n") {
 		if ansi.StringWidth(l) > 100 {
@@ -62,4 +64,78 @@ func TestCompareView(t *testing.T) {
 		t.Error("after a reload, the comparison is of the people loaded before")
 	}
 	a.contains("Comparison of two people", "Arthur Smith")
+}
+
+// In the checks, M compares a possible duplicate with the other record,
+// and a group of places that may be the same in a table.
+func TestCompareInChecks(t *testing.T) {
+	doc, err := gedcom.ParseString(`0 HEAD
+1 CHAR UTF-8
+0 @I1@ INDI
+1 NAME Johann /Müller/
+1 SEX M
+1 BIRT
+2 DATE 1850
+2 PLAC Köln, Deutschland
+0 @I2@ INDI
+1 NAME Johan /Mueller/
+1 SEX M
+1 BIRT
+2 DATE 1851
+2 PLAC Koeln, Deutschland
+0 @I3@ INDI
+1 NAME Anna /Schmidt/
+1 BIRT
+2 DATE 1860
+2 PLAC Cöln, Deutschland
+3 MAP
+4 LATI N50.94
+4 LONG E6.96
+1 DEAT
+2 DATE 1930
+2 PLAC Köln, Deutschland
+0 TRLR
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	a := &app{t: t, m: New(doc, Options{Title: "x.ged"})}
+	a.resize(100, 30)
+	a.press("alt+8")
+	findingOf := func(id string) {
+		t.Helper()
+		for r, cr := range a.m.checks.rows {
+			if genealogy.Checks[cr.check].ID == id && cr.finding >= 0 {
+				a.m.checks.cursor = r
+				return
+			}
+		}
+		t.Fatalf("no finding of %s", id)
+	}
+
+	findingOf("duplicates")
+	a.press("M")
+	if a.m.overlay != "Compare" || a.m.compare.a.ID != "I1" || a.m.compare.b.ID != "I2" {
+		t.Fatalf("overlay %q, comparison %+v", a.m.overlay, a.m.compare)
+	}
+	a.contains("One record    Johann Müller (1850–)  I1", "Other record  Johan Mueller (1851–)  I2", "≠ name",
+		"≠ birth  1850, Köln, Deutschland")
+	a.press("esc")
+
+	findingOf("similar-places")
+	a.press("M")
+	a.contains("Places that may be the same", "similar names: Cöln · Koeln · Köln (in Deutschland)",
+		"place  events  people  years      coordinates     from Cöln  record  GOV",
+		"Cöln   1       1       1860       50.94°N 6.96°E  0 km       –       –",
+		"Köln   2       2       1850–1930  –               –          –       –")
+	a.press("enter")
+	if a.m.showHelp || a.m.active != viewPlaces || a.m.selectedPlace().Full != "Cöln, Deutschland" {
+		t.Errorf("enter: overlay %v, view %d, place %v", a.m.showHelp, a.m.active, a.m.selectedPlace())
+	}
+
+	// Other findings compare their person with the marked one.
+	a.press("alt+8")
+	findingOf("no-death")
+	a.press("M")
+	a.contains("mark a person with m first")
 }

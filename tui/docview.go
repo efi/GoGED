@@ -18,8 +18,8 @@ type span struct {
 	width int
 }
 
-// line is one row of a scrollable document. Lines with a target person or
-// a query are selectable links. A heading starts a section; printed pages
+// line is one row of a scrollable document. Lines with a target person, a
+// query or a place are selectable links. A heading starts a section; printed pages
 // keep it together with what follows. A continuation (cont) is a further
 // row of the line before it, made by wrapping. Selected, a line is shown
 // in reverse; with colsOnly, only its columns are, and the text after
@@ -28,12 +28,13 @@ type line struct {
 	spans    []span
 	target   *gedcom.Individual
 	query    string
+	place    string // the full name of a place
 	heading  bool
 	cont     bool
 	colsOnly bool
 }
 
-func (l line) isLink() bool { return l.target != nil || l.query != "" }
+func (l line) isLink() bool { return l.target != nil || l.query != "" || l.place != "" }
 
 // plain returns the text of the line as one row, with cut columns.
 func (l line) plain() string {
@@ -198,7 +199,7 @@ func expand(lines []line, width int) []line {
 	var out []line
 	for _, l := range lines {
 		for i, row := range l.layout(width, true) {
-			out = append(out, line{spans: row, target: l.target, query: l.query, heading: l.heading && i == 0, cont: i > 0})
+			out = append(out, line{spans: row, target: l.target, query: l.query, place: l.place, heading: l.heading && i == 0, cont: i > 0})
 		}
 	}
 	return out

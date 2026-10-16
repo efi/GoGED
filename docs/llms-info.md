@@ -589,8 +589,16 @@ packages.
   `selected()` with the marked person in the "Compare" overlay: a line on
   each person (links, the marked one first), then the rows of
   `diff.People` in columns, wrapped with `expand` to the width, ≠ on
-  differing rows. `compareState` keeps the two people; a reload looks
-  them up again by ID.
+  differing rows. `compareState` keeps the two people with their labels
+  ("Marked"/"Selected", or "One record"/"Other record" for a possible
+  duplicate); a reload looks them up again by ID. In the Checks, `M` on
+  a duplicates finding compares its two people, and on a similar-places
+  group shows a table of all its places (the user chose one table for
+  any group): a row per place linking to it (`line.place`, which the
+  overlay's enter opens with `showPlace`), columns of events, people,
+  years, coordinates, distance from the first located place, place
+  record and GOV, dim where all agree. The places are kept by full name
+  and looked up in the places tree.
 - **`docView`:** a scrollable list of lines, where lines with a target
   person or a query are links.
 - **Query history** (`history.go`): the search box and the filters of
