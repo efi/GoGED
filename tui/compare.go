@@ -109,18 +109,7 @@ func (m *Model) buildCompare() {
 // years, coordinates and distance from the first with coordinates, place
 // record and GOV identifier. Columns in which all places agree are dim.
 func (m *Model) buildPlaceComparison() {
-	m.ensurePlaces()
-	byFull := map[string]*genealogy.PlaceNode{}
-	m.places.root.Walk(func(n *genealogy.PlaceNode) bool {
-		byFull[n.Full] = n
-		return true
-	})
-	var places []*genealogy.PlaceNode
-	for _, full := range m.compare.places {
-		if n := byFull[full]; n != nil {
-			places = append(places, n)
-		}
-	}
+	places := m.placesNamed(m.compare.places...)
 	ls := []line{textLine(span{text: "Places that may be the same", style: m.st.name})}
 	if m.compare.title != "" {
 		ls = append(ls, dimLine(m, m.compare.title))

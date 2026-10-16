@@ -620,7 +620,13 @@ packages.
   overlay's enter opens with `showPlace`), columns of events, people,
   years, coordinates, distance from the first located place, place
   record and GOV, dim where all agree. The places are kept by full name
-  and looked up in the places tree.
+  and looked up in the places tree (`placesNamed`).
+- **M means map** (the user's choice; comparing is C): in the Events tab
+  the selected event's place (`mapEvent`, through `placesState.nodeOf`),
+  in a place's events the place listed, in the Checks a group of similar
+  places (`showMapPlaces`, which also turns the surname view off). A place
+  without coordinates of its own or within it is shown at the nearest
+  enclosing place that has them, with a note (`selectMapPlace`).
 - **`docView`:** a scrollable list of lines, where lines with a target
   person or a query are links.
 - **Query history** (`history.go`): the search box and the filters of

@@ -677,11 +677,11 @@ func (m Model) viewFooter() string {
 	case m.active == viewEvents && m.ev.editing:
 		hints = [][2]string{{"type", "filter"}, {"enter", "done"}, {"esc", "clear"}, {"alt+↑↓", "history"}}
 	case m.active == viewEvents:
-		hints = [][2]string{{"↑↓", "select"}, {"enter", "open"}, {"f", "filter"}, {"a", "all/important"}, {"?", "help"}}
+		hints = [][2]string{{"↑↓", "select"}, {"enter", "open"}, {"f", "filter"}, {"a", "all/important"}, {"M", "map"}, {"?", "help"}}
 	case m.active == viewPlaces && m.places.editing:
 		hints = [][2]string{{"type", "filter"}, {"enter", "done"}, {"esc", "clear"}, {"alt+↑↓", "history"}}
 	case m.active == viewPlaces && m.places.detail != nil:
-		hints = [][2]string{{"↑↓", "select"}, {"enter", "open person"}, {"esc", "back to places"}, {"?", "help"}}
+		hints = [][2]string{{"↑↓", "select"}, {"enter", "open person"}, {"esc", "back to places"}, {"M", "map"}, {"?", "help"}}
 	case m.active == viewMap:
 		hints = [][2]string{{"arrows", "pan"}, {"+/-", "zoom"}, {"n/N", "next/previous place"}, {"enter", "events here"}, {"s", "surnames"}, {"v", "projection"}, {"0/w", "fit places/world"}, {"?", "help"}}
 		if m.mapv.sn.on {
@@ -692,7 +692,7 @@ func (m Model) viewFooter() string {
 	case m.active == viewStats:
 		hints = [][2]string{{"↑↓", "surnames, births"}, {"enter", "list those people"}, {"?", "help"}}
 	case m.active == viewChecks:
-		hints = [][2]string{{"↑↓", "select"}, {"←→", "threshold"}, {"space", "on/off"}, {"enter", "fold/open"}, {"o", "other"}, {"C", "compare"}, {"r", "reset"}, {"?", "help"}}
+		hints = [][2]string{{"↑↓", "select"}, {"←→", "threshold"}, {"space", "on/off"}, {"enter", "fold/open"}, {"o", "other"}, {"C", "compare"}, {"M", "map"}, {"r", "reset"}, {"?", "help"}}
 	case m.active == viewExport && m.export.editing:
 		hints = [][2]string{{"type", "file name"}, {"enter", "done"}, {"esc", "cancel"}}
 	case m.active == viewExport:

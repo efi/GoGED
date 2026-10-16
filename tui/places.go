@@ -16,6 +16,7 @@ import (
 type placesState struct {
 	root      *genealogy.PlaceNode
 	folded    map[*genealogy.PlaceNode]string // folded names for filtering
+	nodeOf    map[*gedcom.Event]*genealogy.PlaceNode
 	collapsed map[*genealogy.PlaceNode]bool
 	input     textinput.Model
 	editing   bool
@@ -46,8 +47,12 @@ func (m *Model) ensurePlaces() {
 	}
 	p.root = genealogy.Places(m.doc)
 	p.folded = map[*genealogy.PlaceNode]string{}
+	p.nodeOf = map[*gedcom.Event]*genealogy.PlaceNode{}
 	p.root.Walk(func(n *genealogy.PlaceNode) bool {
 		p.folded[n] = search.Fold(n.Name)
+		for _, e := range n.Events {
+			p.nodeOf[e] = n
+		}
 		return true
 	})
 	m.refreshPlaces()
@@ -148,6 +153,24 @@ func (m *Model) selectedPlace() *genealogy.PlaceNode {
 		return nil
 	}
 	return p.rows[p.cursor]
+}
+
+// placesNamed returns the places with the full names given, as far as
+// there are any.
+func (m *Model) placesNamed(fulls ...string) []*genealogy.PlaceNode {
+	m.ensurePlaces()
+	byFull := map[string]*genealogy.PlaceNode{}
+	m.places.root.Walk(func(n *genealogy.PlaceNode) bool {
+		byFull[n.Full] = n
+		return true
+	})
+	var out []*genealogy.PlaceNode
+	for _, full := range fulls {
+		if n := byFull[full]; n != nil {
+			out = append(out, n)
+		}
+	}
+	return out
 }
 
 // selectPlace moves the cursor to a visible place.
@@ -275,6 +298,9 @@ func (m *Model) updatePlaces(msg tea.KeyMsg) (bool, tea.Cmd) {
 			}
 		case "esc", "left", "h":
 			p.detail, p.events = nil, nil
+		case "M":
+			m.switchTo(viewMap)
+			m.selectMapPlace(p.detail)
 		default:
 			return false, nil
 		}

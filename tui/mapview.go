@@ -8,6 +8,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/efi/goged/gedcom"
 	"github.com/efi/goged/genealogy"
 	"github.com/efi/goged/worldmap"
 )
@@ -144,19 +145,54 @@ func (m *Model) selectMarker(i int) {
 }
 
 // selectMapPlace selects the located place n or, if n has no coordinates,
-// fits the map to the located places within it.
+// fits the map to the located places within it, or else selects the
+// nearest place around it that has coordinates.
 func (m *Model) selectMapPlace(n *genealogy.PlaceNode) {
-	s := &m.mapv
-	for i, p := range s.places {
-		if p == n {
-			s.view.Zoom = math.Max(s.view.Zoom, 7)
-			m.selectMarker(i)
-			return
+	if len(n.Located()) == 0 {
+		for a := n.Parent; a != nil && a.Depth > 0; a = a.Parent {
+			if a.HasCoords {
+				m.selectMapPlace(a)
+				m.setStatus(n.Full + " has no coordinates: shown at " + a.Name)
+				return
+			}
 		}
 	}
-	inside := n.Located()
+	m.showMapPlaces([]*genealogy.PlaceNode{n}, n.Full+" has no coordinates")
+}
+
+// mapEvent shows the place of an event on the map.
+func (m *Model) mapEvent(ev *gedcom.Event) {
+	m.ensurePlaces()
+	n := m.places.nodeOf[ev]
+	if n == nil {
+		m.setStatus("the event has no place")
+		return
+	}
+	m.switchTo(viewMap)
+	m.selectMapPlace(n)
+}
+
+// showMapPlaces shows places on the map among all places: a single
+// located place close up, else the located places of them and within
+// them, the first selected. none says that there are none.
+func (m *Model) showMapPlaces(nodes []*genealogy.PlaceNode, none string) {
+	s := &m.mapv
+	s.sn.on = false
+	if len(nodes) == 1 {
+		for i, p := range s.places {
+			if p == nodes[0] {
+				s.view.Zoom = math.Max(s.view.Zoom, 7)
+				m.selectMarker(i)
+				return
+			}
+		}
+	}
+	var inside []*genealogy.PlaceNode
+	for _, n := range nodes {
+		inside = append(inside, n.Located()...)
+	}
 	if len(inside) == 0 {
-		m.setStatus(n.Full + " has no coordinates (add PLAC.MAP.LATI/LONG to the file)")
+		m.setStatus(none + " (add PLAC.MAP.LATI/LONG to the file)")
 		return
 	}
 	minX, minY, maxX, maxY := math.Inf(1), math.Inf(1), math.Inf(-1), math.Inf(-1)

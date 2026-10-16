@@ -252,6 +252,19 @@ func (m *Model) updateChecks(msg tea.KeyMsg) (bool, tea.Cmd) {
 			m.openPlaceOf(f, c.placeStep)
 			c.placeStep++
 		}
+	case "M":
+		// A group of places is shown on the map; other findings as
+		// everywhere.
+		f := m.finding()
+		if f == nil || len(f.Places) == 0 {
+			return false, nil
+		}
+		var fulls []string
+		for _, p := range f.Places {
+			fulls = append(fulls, p.Full)
+		}
+		m.switchTo(viewMap)
+		m.showMapPlaces(m.placesNamed(fulls...), "none of these places has coordinates")
 	case "C":
 		// A possible duplicate is compared with the other record, a group
 		// of places in a table; other findings as everywhere.

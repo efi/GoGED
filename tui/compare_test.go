@@ -132,6 +132,13 @@ func TestCompareInChecks(t *testing.T) {
 	if a.m.showHelp || a.m.active != viewPlaces || a.m.selectedPlace().Full != "Cöln, Deutschland" {
 		t.Errorf("enter: overlay %v, view %d, place %v", a.m.showHelp, a.m.active, a.m.selectedPlace())
 	}
+	// M shows the group on the map: Cöln is the one with coordinates.
+	a.press("alt+8")
+	findingOf("similar-places")
+	a.press("M")
+	if a.m.active != viewMap || a.m.mapv.places[a.m.mapv.sel].Full != "Cöln, Deutschland" {
+		t.Errorf("M: view %d", a.m.active)
+	}
 
 	// Other findings compare their person with the marked one.
 	a.press("alt+8")

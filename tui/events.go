@@ -137,6 +137,10 @@ func (m *Model) updateEvents(msg tea.KeyMsg) (bool, tea.Cmd) {
 	case "f", "e":
 		e.editing = true
 		return true, e.input.Focus()
+	case "M":
+		if len(e.list) > 0 {
+			m.mapEvent(e.list[e.cursor])
+		}
 	case "a":
 		e.all = !e.all
 		m.filterEvents()

@@ -275,9 +275,10 @@ Try it with the sample file in [`testdata/family.ged`](testdata/family.ged).
 |         | `p` `d` `h` `s` `v`, `+` `-` | pedigree, descendants, hourglass, lifespans, the next of these; more or fewer generations (in the lifespans one more each way) |
 |         | `P` | print the whole chart to a PDF file, as a large enough screen would show it, on A4 or a larger page as the chart needs |
 | Events  | `f`, `a`, `x`, `enter` | edit filter, all/important events, clear filter, open person |
+|         | `M` | show the place of the event on the map (or the nearest place around it with coordinates) |
 | Places  | `←` `→` (`h` `l`), `-` / `+` | collapse/expand a place (or go to the enclosing/first contained place); collapse/expand all |
 |         | `enter`, `esc` | list the events at a place and within it (enter again opens the person); back to the places |
-|         | `f`, `x`, `M` | filter places by name, clear the filter, show the place on the map |
+|         | `f`, `x`, `M` | filter places by name, clear the filter, show the place on the map (also from the events at a place) |
 | Map     | arrows (`h` `j` `k` `l`), `+` `-` | pan, zoom |
 |         | `s`, `PgUp` `PgDn`, `e` | surname view on/off: the places of the people born with a surname; another surname; all events, births, deaths or other events |
 |         | `n` / `N`, `enter` | next/previous place (most events first), list the events at the place |
@@ -287,6 +288,7 @@ Try it with the sample file in [`testdata/family.ged`](testdata/family.ged).
 | Checks  | `←` `→`, `space` | lower or raise the threshold of a check (the findings change at once), switch it off or on |
 |         | `enter`, `o`, `r` | fold a check or open the person (or first place) of a finding, open the other person (or next place), reset all thresholds |
 |         | `C` | compare a possible duplicate with the other record side by side, or a group of similar places in a table: events, people, years, coordinates and distance, place record, GOV |
+|         | `M` | show a group of similar places on the map |
 | Export  | `↑` `↓`, `←` `→` | choose a setting, change it: the format, everybody or the people connected to the marked person |
 |         | `enter` | edit the file name, or export (an existing file is replaced after `enter` again) |
 

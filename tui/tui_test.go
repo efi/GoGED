@@ -1773,6 +1773,59 @@ func TestPlacesToMap(t *testing.T) {
 	a.contains("France has no coordinates")
 }
 
+// M shows the place of an event on the map: the place of the event
+// itself, the nearest place around it with coordinates, or none.
+func TestEventsToMap(t *testing.T) {
+	a := newApp(t, Options{})
+	a.resize(120, 36)
+	a.press("alt+4", "a") // all events
+	at := func(where string) {
+		t.Helper()
+		a.press("alt+4")
+		for i, ev := range a.m.ev.list {
+			if ev.Place.String() == where {
+				a.m.ev.cursor = i
+				a.m.moveEvents(0)
+				a.press("M")
+				return
+			}
+		}
+		t.Fatalf("no event at %q", where)
+	}
+	at("Toronto, Ontario, Canada")
+	if a.m.active != viewMap || a.m.mapv.places[a.m.mapv.sel].Name != "Toronto" {
+		t.Errorf("M shows %s", a.m.mapv.places[a.m.mapv.sel].Full)
+	}
+	at("France")
+	a.contains("France has no coordinates")
+	at("")
+	if a.m.active != viewEvents {
+		t.Error("M on an event without a place")
+	}
+	a.contains("the event has no place")
+
+	// In the events at a place, the place listed.
+	a.press("alt+5", "down", "down", "enter", "down", "M") // the events in Toronto
+	if a.m.active != viewMap || a.m.mapv.places[a.m.mapv.sel].Name != "Toronto" {
+		t.Errorf("M in the events at a place shows %s", a.m.mapv.places[a.m.mapv.sel].Full)
+	}
+
+	// A place without coordinates is shown at the nearest place around
+	// it that has them.
+	doc, err := gedcom.ParseString("0 HEAD\n0 @I1@ INDI\n1 NAME A /B/\n1 BIRT\n2 DATE 1850\n2 PLAC Leeds, England\n" +
+		"3 MAP\n4 LATI N53.8\n4 LONG W1.55\n1 CHR\n2 DATE 1850\n2 PLAC St Anne's, Leeds, England\n0 TRLR\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	a = &app{t: t, m: New(doc, Options{Title: "x.ged"})}
+	a.resize(120, 36)
+	a.press("alt+4", "down", "M")
+	if a.m.active != viewMap || a.m.mapv.places[a.m.mapv.sel].Name != "Leeds" {
+		t.Errorf("M shows %s", a.m.mapv.places[a.m.mapv.sel].Full)
+	}
+	a.contains("St Anne's, Leeds, England has no coordinates: shown at Leeds")
+}
+
 func TestLicensesScreen(t *testing.T) {
 	a := newApp(t, Options{})
 	a.press("esc", "alt+4") // in the search box, L would be typed
