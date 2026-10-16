@@ -597,13 +597,16 @@ func Descendants(root *gedcom.Individual, opts Options) *Chart {
 		col := runewidth.StringWidth(lead)
 		label := fitLabel(ind, opts.MaxLabel)
 		families := ind.FamiliesAsSpouse()
-		expand := gen < opts.Generations-1 && !seen[ind]
-		if seen[ind] {
+		repeated := seen[ind]
+		expand := gen < opts.Generations-1 && !repeated
+		if repeated {
 			note += "  (see above)"
 		}
 		seen[ind] = true
+		// Descendants beyond the generations shown are marked, unless they
+		// are shown above.
 		more := false
-		if !expand && note == "" {
+		if !expand && !repeated {
 			for _, f := range families {
 				if len(f.Children) > 0 {
 					more = true

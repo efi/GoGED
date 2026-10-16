@@ -514,6 +514,52 @@ func TestLoopsTerminate(t *testing.T) {
 	}
 }
 
+// A child with a note on the link, such as an adopted one, is marked as
+// having descendants beyond the generations shown, as the others are.
+func TestDescendantsMoreWithNote(t *testing.T) {
+	doc, err := gedcom.ParseString(`0 HEAD
+0 @I1@ INDI
+1 NAME Root /X/
+0 @I2@ INDI
+1 NAME Adopted /X/
+1 FAMC @F1@
+2 PEDI adopted
+0 @I3@ INDI
+1 NAME Born /X/
+0 @I4@ INDI
+1 NAME Grandchild /X/
+0 @I5@ INDI
+1 NAME Grandchild /Y/
+0 @F1@ FAM
+1 HUSB @I1@
+1 CHIL @I2@
+1 CHIL @I3@
+0 @F2@ FAM
+1 HUSB @I2@
+1 CHIL @I4@
+0 @F3@ FAM
+1 HUSB @I3@
+1 CHIL @I5@
+0 TRLR
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := golden(`
+Root X
+└── ⚭ (unknown)
+    ├── Adopted X ▾  (adopted)
+    └── Born X ▾
+`)
+	c := Descendants(doc.Individual("I1"), Options{Generations: 2})
+	if got := c.String(); got != want {
+		t.Errorf("got:\n%s\nwant:\n%s", got, want)
+	}
+	if n := c.Nodes[c.Find(doc.Individual("I2"))]; !n.More {
+		t.Errorf("adopted child = %+v", n)
+	}
+}
+
 func TestDescendantsAdoptionAndRepeats(t *testing.T) {
 	doc, err := gedcom.ParseFile(filepath.Join("..", "testdata", "Muster_GEDCOM_UTF-8.ged"))
 	if err != nil {
