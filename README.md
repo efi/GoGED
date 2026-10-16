@@ -334,7 +334,8 @@ Coordinates are read from the standard GEDCOM structure below a place:
 ```
 
 Signed decimals (`-0.1278`), a trailing hemisphere letter (`50.78N`) and a
-decimal comma are accepted as well. A place gets the coordinates of the first
+decimal comma are accepted as well; with both a letter and a sign
+(`W-0.1278`), the letter decides. A place gets the coordinates of the first
 event that records them.
 
 The map shows the 1:10m coastlines, land borders, rivers and lakes of

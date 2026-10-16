@@ -447,13 +447,14 @@ func (d *Document) placeOf(event *Node) Place {
 // ("W0.1278"). pos and neg are the hemisphere letters for positive and
 // negative values and limit is the largest absolute value allowed. Signed
 // decimals ("-0.1278"), a trailing hemisphere letter ("50.78N") and a
-// decimal comma ("N50,78") are accepted as well.
+// decimal comma ("N50,78") are accepted as well. With a hemisphere letter,
+// the letter decides: a sign as well, as in "W-0.1278", is redundant.
 func ParseCoordinate(s string, pos, neg byte, limit float64) (float64, bool) {
 	s = strings.ToUpper(strings.TrimSpace(s))
 	if s == "" {
 		return 0, false
 	}
-	sign := 1.0
+	sign, lettered := 1.0, true
 	switch {
 	case s[0] == pos:
 		s = s[1:]
@@ -463,11 +464,16 @@ func ParseCoordinate(s string, pos, neg byte, limit float64) (float64, bool) {
 		s = s[:len(s)-1]
 	case s[len(s)-1] == neg:
 		sign, s = -1, s[:len(s)-1]
+	default:
+		lettered = false
 	}
 	s = strings.ReplaceAll(strings.TrimSpace(s), ",", ".")
 	v, err := strconv.ParseFloat(s, 64)
 	if err != nil || math.IsNaN(v) || math.IsInf(v, 0) {
 		return 0, false
+	}
+	if lettered {
+		v = math.Abs(v)
 	}
 	v *= sign
 	if v < -limit || v > limit {

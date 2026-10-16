@@ -438,6 +438,12 @@ func TestParseCoordinate(t *testing.T) {
 		{"51.5N", true, 51.5, true},
 		{"0.12W", false, -0.12, true},
 		{"N50,78", true, 50.78, true},
+		// The hemisphere letter decides, also against a sign.
+		{"W-0.1278", false, -0.1278, true},
+		{"S-33.8688", true, -33.8688, true},
+		{"-0.12W", false, -0.12, true},
+		{"N-50.5", true, 50.5, true},
+		{"E+10.5", false, 10.5, true},
 		{"N91", true, 0, false},
 		{"E181", false, 0, false},
 		{"W180", false, -180, true},
