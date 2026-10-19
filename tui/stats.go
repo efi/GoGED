@@ -288,7 +288,7 @@ func (m *Model) updateStats(msg tea.KeyMsg) (bool, tea.Cmd) {
 		d.page(1, h)
 	case "home", "g":
 		d.home(h)
-	case "end":
+	case "end", "G":
 		d.end(h)
 	case "enter":
 		sel := d.selected()

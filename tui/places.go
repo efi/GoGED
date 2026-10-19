@@ -290,7 +290,7 @@ func (m *Model) updatePlaces(msg tea.KeyMsg) (bool, tea.Cmd) {
 			m.movePlaceEvents(h)
 		case "home", "g":
 			m.movePlaceEvents(-len(p.events))
-		case "end":
+		case "end", "G":
 			m.movePlaceEvents(len(p.events))
 		case "enter":
 			if len(p.events) > 0 {
@@ -319,7 +319,7 @@ func (m *Model) updatePlaces(msg tea.KeyMsg) (bool, tea.Cmd) {
 		m.movePlaces(h)
 	case "home", "g":
 		m.movePlaces(-len(p.rows))
-	case "end":
+	case "end", "G":
 		m.movePlaces(len(p.rows))
 	case "left", "h":
 		switch {

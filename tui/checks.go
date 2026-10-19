@@ -220,7 +220,7 @@ func (m *Model) updateChecks(msg tea.KeyMsg) (bool, tea.Cmd) {
 		m.moveChecks(m.checksHeight())
 	case "home", "g":
 		m.moveChecks(-len(c.rows))
-	case "end":
+	case "end", "G":
 		m.moveChecks(len(c.rows))
 	case "left", "h":
 		m.setThreshold(-1)

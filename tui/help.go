@@ -50,7 +50,7 @@ var helpSections = [][]string{
 	{"↑ ↓  j k", "move between relatives (parents, siblings, spouses, children, relatives' events)"},
 	{"enter", "go to the selected relative"},
 	{"← →  l", "back / forward in history"},
-	{"pgup pgdown home end", "scroll"},
+	{"pgup pgdown g G", "scroll"},
 	{"t / d / h / s", "pedigree / descendant / hourglass chart / lifespans of this person"},
 	{"c", "show or hide relatives' events in the timeline"},
 	{""},

@@ -80,6 +80,12 @@ func TestGenderColors(t *testing.T) {
 		}
 	}
 
+	// G scrolls to the end, as in the other lists.
+	a.press("G")
+	if !a.m.genders || a.m.person.doc.offset == 0 {
+		t.Errorf("G: colored %v, scrolled to %d", a.m.genders, a.m.person.doc.offset)
+	}
+
 	// A sex not given as female or male keeps the color.
 	a.openPerson("I24")
 	if c := heading(); c == female || c == male {

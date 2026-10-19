@@ -128,7 +128,7 @@ func (m *Model) updateEvents(msg tea.KeyMsg) (bool, tea.Cmd) {
 		m.moveEvents(m.eventsListHeight())
 	case "home", "g":
 		m.moveEvents(-len(e.list))
-	case "end":
+	case "end", "G":
 		m.moveEvents(len(e.list))
 	case "enter":
 		if len(e.list) > 0 {
