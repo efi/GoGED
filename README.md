@@ -259,7 +259,7 @@ Try it with the sample file in [`testdata/family.ged`](testdata/family.ged).
 |         | `C` (`alt+C` in the search) | compare the selected person with the marked one, side by side, the differences marked |
 |         | `M` (`alt+M` in the search) | the map of the selected person: the places of their events and their route (where a place or an event is selected: its place) |
 |         | `W` | wrap long lines in the person view instead of cutting them (again to cut) |
-|         | `G` (`alt+G` in the search) | color the names of people by sex: women light red, men light blue (again to turn it off); a printed chart keeps the colors, exports do not get them |
+|         | `alt+G` | color the names of people by sex: women light red, men light blue (again to turn it off); a printed chart keeps the colors, exports do not get them |
 |         | `y` / `n` / `N` | when another program has changed the file: load it again, not this time, never this session |
 |         | `?` | help · `L` licenses · `q`, `ctrl+c` quit |
 |         | `D` | what changed when the file was loaded again (`enter` opens a person) |

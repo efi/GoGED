@@ -59,8 +59,8 @@ func TestGenderColors(t *testing.T) {
 		t.Error("the names are colored before G")
 	}
 
-	a.press("G")
-	a.contains("names are colored by sex: women light red, men light blue (G turns it off)")
+	a.press("alt+G")
+	a.contains("names are colored by sex: women light red, men light blue (alt+G turns it off)")
 	if heading() != male {
 		t.Errorf("John Smith's name is %v", heading())
 	}
@@ -120,17 +120,28 @@ func TestGenderColors(t *testing.T) {
 		t.Errorf("%d partners colored in %q", n, a.m.eventLine(marriage, 100).plain())
 	}
 
-	// In the search, G is typed; alt+G switches.
+	// While typing, G is typed and alt+G switches: in the search and in
+	// the filters.
 	a.press("/", "ctrl+u")
 	a.typ("G")
-	if v := a.m.search.input.Value(); v != "G" || !a.m.genders {
+	a.press("alt+G")
+	if v := a.m.search.input.Value(); v != "G" || a.m.genders {
 		t.Errorf("query %q, colored %v", v, a.m.genders)
 	}
+	a.press("esc", "esc", "4", "f")
+	a.typ("G")
 	a.press("alt+G")
-	if a.m.genders {
-		t.Error("alt+G left the colors on")
+	if v := a.m.ev.input.Value(); v != "G" || !a.m.genders {
+		t.Errorf("filter %q, colored %v", v, a.m.genders)
 	}
-	a.press("alt+G", "esc", "esc")
+	a.press("esc")
+
+	// Over the help, which stays open.
+	a.press("?", "alt+G", "alt+G")
+	if !a.m.showHelp || !a.m.genders {
+		t.Errorf("help shown %v, colored %v", a.m.showHelp, a.m.genders)
+	}
+	a.press("esc")
 
 	// The statistics, and loading the file again.
 	a.press("7")
@@ -141,8 +152,8 @@ func TestGenderColors(t *testing.T) {
 	if !a.m.genders {
 		t.Error("loading the file again turned the colors off")
 	}
-	a.press("G")
-	a.contains("names are not colored by sex (G colors them)")
+	a.press("alt+G")
+	a.contains("names are not colored by sex (alt+G colors them)")
 	for _, l := range a.m.stats.doc.lines {
 		for _, sp := range l.spans {
 			if c := sp.style.GetForeground(); c == female || c == male {
@@ -193,7 +204,7 @@ func TestGenderColorsKeepText(t *testing.T) {
 func TestGenderColorsNotExported(t *testing.T) {
 	a := newApp(t, Options{})
 	a.openPerson("I3")
-	a.press("G")
+	a.press("alt+G")
 	female, male := a.m.st.female.GetForeground(), a.m.st.male.GetForeground()
 	sel, _ := export.Select(a.m.doc, export.Options{})
 	for _, b := range a.m.bookBlocks(sel, export.Options{}) {

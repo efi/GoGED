@@ -118,8 +118,6 @@ func (m *Model) updateSearch(msg tea.KeyMsg) (bool, tea.Cmd) {
 		m.compareSelected()
 	case "alt+M":
 		m.mapPerson(m.selected())
-	case "alt+G":
-		m.toggleGenders()
 	case "f1":
 		return false, nil
 	case "?":

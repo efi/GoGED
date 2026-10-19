@@ -644,9 +644,12 @@ packages.
   places (`showMapPlaces`, which also turns the surname view off). A place
   without coordinates of its own or within it is shown at the nearest
   enclosing place that has them, with a note (`selectMapPlace`).
-- **Gender colors** (`gender.go`): `G` (alt+G in the search) switches
-  `Model.genders`, off at the start (the user asked for G, default off,
-  light red and light blue); `replaceDoc` carries it over. There is no
+- **Gender colors** (`gender.go`): alt+G switches `Model.genders`, off at
+  the start (the user asked for a switch, default off, light red and
+  light blue, and then for alt+G, as G scrolls to the end).
+  `handleKey` takes it before the text inputs and the overlays, so it
+  works everywhere, also while typing; an open overlay is rebuilt.
+  `replaceDoc` carries it over. There is no
   single place names pass through, so each place a name is drawn asks
   for it: `personStyle(ind, base)` for a name on its own (relatives,
   headings, search results, findings, map panels, the chart header, the
@@ -659,8 +662,7 @@ packages.
   color is what marks them there; the selection shows no colors. The
   status line and dialogs stay as they are. A printed chart keeps the
   colors (the paper variants), exports never get them. The colors change
-  no text (`TestGenderColorsKeepText`). G used to be the vim-style end
-  key in the lists; `end` still is, and `g` still goes to the top.
+  no text (`TestGenderColorsKeepText`).
 - **`docView`:** a scrollable list of lines, where lines with a target
   person or a query are links.
 - **Query history** (`history.go`): the search box and the filters of

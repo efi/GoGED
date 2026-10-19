@@ -8,7 +8,7 @@ import (
 	"github.com/efi/goged/gedcom"
 )
 
-// The gender colors (G): while they are on, the names of women are light
+// The gender colors (alt+G): while they are on, the names of women are light
 // red and those of men light blue, wherever a person's name is shown on
 // its own, in a title or in a list. The status line and dialogs keep
 // their colors, and so does the marked person in the charts, whose color
@@ -23,10 +23,13 @@ func (m *Model) toggleGenders() {
 	if m.stats.computed {
 		m.buildStats()
 	}
+	if m.showHelp {
+		m.rebuildOverlay()
+	}
 	if m.genders {
-		m.setStatus("names are colored by sex: women light red, men light blue (G turns it off)")
+		m.setStatus("names are colored by sex: women light red, men light blue (alt+G turns it off)")
 	} else {
-		m.setStatus("names are not colored by sex (G colors them)")
+		m.setStatus("names are not colored by sex (alt+G colors them)")
 	}
 }
 

@@ -80,7 +80,7 @@ type Model struct {
 	// wrap shows long lines of the person view on several rows instead of
 	// cutting them (W).
 	wrap bool
-	// genders colors the names of people by their sex (G).
+	// genders colors the names of people by their sex (alt+G).
 	genders bool
 
 	search searchState
@@ -370,6 +370,11 @@ func (m *Model) handleKey(msg tea.KeyMsg) tea.Cmd {
 	if m.dlg != nil {
 		return m.updateDialog(msg)
 	}
+	if key == "alt+G" {
+		// Everywhere: in every view, while typing and over the overlays.
+		m.toggleGenders()
+		return nil
+	}
 	if m.showHelp {
 		// The overlay scrolls; the list of changes moves between its
 		// people and families, and enter opens one.
@@ -479,8 +484,6 @@ func (m *Model) handleKey(msg tea.KeyMsg) tea.Cmd {
 		m.compareSelected()
 	case "M":
 		m.mapPerson(m.selected())
-	case "G":
-		m.toggleGenders()
 	case "W":
 		m.wrap = !m.wrap
 		m.rebuildPerson()
