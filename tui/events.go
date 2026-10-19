@@ -128,7 +128,7 @@ func (m *Model) updateEvents(msg tea.KeyMsg) (bool, tea.Cmd) {
 		m.moveEvents(m.eventsListHeight())
 	case "home", "g":
 		m.moveEvents(-len(e.list))
-	case "end", "G":
+	case "end":
 		m.moveEvents(len(e.list))
 	case "enter":
 		if len(e.list) > 0 {
@@ -222,13 +222,13 @@ func (m Model) eventLine(ev *gedcom.Event, width int) line {
 	if d := ev.Detail(); d != "" && ev.Class() == gedcom.ClassAttribute {
 		label += ": " + d
 	}
-	return line{spans: []span{
+	spans := []span{
 		{text: date, style: m.st.label, width: dateW},
 		{text: " "},
 		{text: label, width: labelW},
 		{text: " "},
-		{text: strings.Join(names, " & "), style: m.st.name, width: nameW},
-		{text: " "},
-		{text: ev.Place.String(), style: m.st.dim},
-	}, target: eventPerson(ev)}
+	}
+	spans = append(spans, asColumn(m.nameSpans(strings.Join(names, " & "), m.st.name, ev.Principals()...), nameW)...)
+	spans = append(spans, span{text: " "}, span{text: ev.Place.String(), style: m.st.dim})
+	return line{spans: spans, target: eventPerson(ev)}
 }

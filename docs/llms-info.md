@@ -558,7 +558,8 @@ packages.
   `tui` imports `export`; `exportFormats()` appends it to `export.Formats`.
   Changes to the views show up in the PDF.
 - **Nobody is marked:** `bookBlocks` works on a copy of the model without
-  the reference person, so no ★ and no relationship lines are printed.
+  the reference person, so no ★ and no relationship lines are printed,
+  and without the gender colors.
 - **Layout:** A4, a grid of 96 columns of Martian Mono Condensed (0.6 em)
   at 9 pt; the views are built for 90 columns (88 plus the interface's
   2-column margin), and the last 8 columns hold page references.
@@ -643,6 +644,23 @@ packages.
   places (`showMapPlaces`, which also turns the surname view off). A place
   without coordinates of its own or within it is shown at the nearest
   enclosing place that has them, with a note (`selectMapPlace`).
+- **Gender colors** (`gender.go`): `G` (alt+G in the search) switches
+  `Model.genders`, off at the start (the user asked for G, default off,
+  light red and light blue); `replaceDoc` carries it over. There is no
+  single place names pass through, so each place a name is drawn asks
+  for it: `personStyle(ind, base)` for a name on its own (relatives,
+  headings, search results, findings, map panels, the chart header, the
+  ★ in the title bar), `nameSpans(text, style, people…)` for names in a
+  title ("Family with …", "Marriage with …", "Birth of son …", partners
+  in the events, the Changes list, stats rows), `renderNames` for the
+  same as a string, and `asColumn` to keep split names one column (if
+  the names before the last overflow it, they stay one span). Chart
+  nodes get it in `segmentStyle`, except the marked person, whose warm
+  color is what marks them there; the selection shows no colors. The
+  status line and dialogs stay as they are. A printed chart keeps the
+  colors (the paper variants), exports never get them. The colors change
+  no text (`TestGenderColorsKeepText`). G used to be the vim-style end
+  key in the lists; `end` still is, and `g` still goes to the top.
 - **`docView`:** a scrollable list of lines, where lines with a target
   person or a query are links.
 - **Query history** (`history.go`): the search box and the filters of

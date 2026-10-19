@@ -68,7 +68,7 @@ func (m *Model) personLines(ind *gedcom.Individual, width int) []line {
 	textW := max(20, width-4)
 
 	// Heading.
-	ls = append(ls, textLine(span{text: ind.DisplayName(), style: m.st.name}))
+	ls = append(ls, textLine(span{text: ind.DisplayName(), style: m.personStyle(ind, m.st.name)}))
 	facts := []string{ind.Sex.String(), ind.ID}
 	if life := ind.Lifespan(); life != "" {
 		facts = append(facts, life)
@@ -92,7 +92,7 @@ func (m *Model) personLines(ind *gedcom.Individual, width int) []line {
 		if alt.Type != "" {
 			text += " (" + alt.Type + ")"
 		}
-		ls = append(ls, textLine(span{text: "Also known as", style: m.st.label, width: labelWidth}, span{text: text, style: m.st.name}))
+		ls = append(ls, textLine(span{text: "Also known as", style: m.st.label, width: labelWidth}, span{text: text, style: m.personStyle(ind, m.st.name)}))
 	}
 	if m.reference != nil {
 		ls = append(ls, m.relationshipLine(ind))
@@ -156,7 +156,7 @@ func (m *Model) personLines(ind *gedcom.Individual, width int) []line {
 			}
 			facts = append(facts, fact)
 		}
-		heading := []span{{text: title, style: m.st.section}}
+		heading := m.nameSpans(title, m.st.section, partner)
 		if len(facts) > 0 {
 			heading = append(heading, span{text: "  " + strings.Join(facts, " · "), style: m.st.dim})
 		}
@@ -315,7 +315,7 @@ func (m *Model) associationLines(ind *gedcom.Individual, textW int) []line {
 		}
 		spans := []span{{text: label, style: m.st.label, width: labelWidth}}
 		if a.Family != nil {
-			spans = append(spans, span{text: a.Family.Title(), style: m.st.name})
+			spans = append(spans, m.nameSpans(a.Family.Title(), m.st.name, a.Family.Husband, a.Family.Wife)...)
 		} else {
 			spans = append(spans, m.personSpans(ps[0])...)
 		}
@@ -337,9 +337,9 @@ func (m *Model) relationshipLine(ind *gedcom.Individual) line {
 	}
 	r := genealogy.Relate(ref, ind)
 	if r.Kind == genealogy.KindNone {
-		return textLine(label, span{text: "no relationship to " + ref.DisplayName() + " found", style: m.st.dim})
+		return textLine(append([]span{label}, m.nameSpans("no relationship to "+ref.DisplayName()+" found", m.st.dim, ref)...)...)
 	}
-	spans := []span{label, {text: ref.DisplayName() + "'s " + r.Description, style: m.st.reference}}
+	spans := append([]span{label}, m.nameSpans(ref.DisplayName()+"'s "+r.Description, m.st.reference, ref)...)
 	if (r.Kind == genealogy.KindBlood || r.Kind == genealogy.KindAdoptive) && r.UpA > 0 && r.UpB > 0 && len(r.CommonAncestors) > 0 {
 		var names []string
 		for _, a := range r.CommonAncestors {
@@ -349,7 +349,7 @@ func (m *Model) relationshipLine(ind *gedcom.Individual) line {
 		if len(names) > 1 {
 			word += "s"
 		}
-		spans = append(spans, span{text: "  (" + word + ": " + strings.Join(names, " & ") + ")", style: m.st.dim})
+		spans = append(spans, m.nameSpans("  ("+word+": "+strings.Join(names, " & ")+")", m.st.dim, r.CommonAncestors...)...)
 	}
 	return textLine(spans...)
 }
@@ -383,9 +383,10 @@ func (m *Model) timelineLine(e genealogy.TimelineEntry) line {
 		tail = "  " + strings.Join(rest, " · ")
 	}
 	if !e.Own() {
-		return line{spans: []span{{text: date, style: m.st.dim, width: 20}, {text: title + tail, style: m.st.dim}}, target: e.Relative}
+		return line{spans: append([]span{{text: date, style: m.st.dim, width: 20}}, m.nameSpans(title+tail, m.st.dim, e.Relative)...), target: e.Relative}
 	}
-	return textLine(span{text: date, style: m.st.label, width: 20}, span{text: title, style: m.st.name.UnsetBold()}, span{text: tail, style: m.st.dim})
+	spans := append([]span{{text: date, style: m.st.label, width: 20}}, m.nameSpans(title, m.st.name.UnsetBold(), e.Spouse)...)
+	return textLine(append(spans, span{text: tail, style: m.st.dim})...)
 }
 
 func (m *Model) updatePerson(msg tea.KeyMsg) (bool, tea.Cmd) {
@@ -402,7 +403,7 @@ func (m *Model) updatePerson(msg tea.KeyMsg) (bool, tea.Cmd) {
 		d.page(1, h)
 	case "home", "g":
 		d.home(h)
-	case "end", "G":
+	case "end":
 		d.end(h)
 	case "enter":
 		if sel := d.selected(); sel != nil && d.visible(d.selectedLine(), h) {

@@ -19,6 +19,8 @@ type styles struct {
 	key         lipgloss.Style
 	root        lipgloss.Style
 	reference   lipgloss.Style
+	female      lipgloss.Style
+	male        lipgloss.Style
 	mapBorder   lipgloss.Style
 	mapCoast    lipgloss.Style
 	mapWater    lipgloss.Style
@@ -48,6 +50,8 @@ func defaultStyles() styles {
 		key:         lipgloss.NewStyle().Bold(true).Foreground(warm),
 		root:        lipgloss.NewStyle().Bold(true).Underline(true),
 		reference:   lipgloss.NewStyle().Foreground(warm).Bold(true),
+		female:      lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#C93C3C", Dark: "#FF8C8C"}),
+		male:        lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#2E6DC0", Dark: "#7CC6FF"}),
 		mapBorder:   lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#A0A0A0", Dark: "#6E6E6E"}),
 		mapCoast:    lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#4E7A32", Dark: "#9CCB7A"}),
 		mapWater:    lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: "#1E6BB8", Dark: "#5AA9E6"}),

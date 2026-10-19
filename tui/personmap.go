@@ -239,7 +239,7 @@ func (m *Model) personInfo() string {
 	s := &m.mapv
 	evs := s.pm.events[s.sel]
 	if len(evs) == 0 {
-		return m.st.dim.Render(" · no events of " + s.pm.ind.DisplayName() + " here")
+		return m.renderNames(" · no events of "+s.pm.ind.DisplayName()+" here", m.st.dim, s.pm.ind)
 	}
 	text := " · " + plural(len(evs), "event", "events")
 	if span := yearSpan(entryEvents(evs)); span != "" {
@@ -259,7 +259,7 @@ func (m *Model) personHeading() string {
 	if m.person.hideRelatives {
 		relatives = "left out"
 	}
-	return m.st.section.Render("Map") + m.st.dim.Render(" · places of ") + m.st.mapMarker.Render(pm.ind.DisplayName()) +
+	return m.st.section.Render("Map") + m.st.dim.Render(" · places of ") + m.personStyle(pm.ind, m.st.mapMarker).Render(pm.ind.DisplayName()) +
 		m.st.dim.Render(fmt.Sprintf(" · %s at %s · ", plural(located, "event", "events"), plural(len(pm.stops), "place", "places"))) +
 		m.st.key.Render("c") + m.st.dim.Render(" relatives' events "+relatives+" · ") + m.st.key.Render("l") + m.st.dim.Render(" route · ") +
 		m.st.key.Render("esc") + m.st.dim.Render(" all places")
@@ -279,7 +279,7 @@ func entryEvents(entries []genealogy.TimelineEntry) []*gedcom.Event {
 func (m *Model) personPanel(rows, width int) []string {
 	s := &m.mapv
 	pm := &s.pm
-	out := []string{m.st.section.Render(pm.ind.DisplayName())}
+	out := []string{m.personStyle(pm.ind, m.st.section).Render(pm.ind.DisplayName())}
 	about := plural(len(pm.stops), "place", "places") + " · n N"
 	if ls := pm.ind.Lifespan(); ls != "" {
 		about = ls + " · " + about
@@ -323,7 +323,7 @@ func (m *Model) personPanel(rows, width int) []string {
 			if !e.Own() {
 				style = m.st.dim
 			}
-			out = append(out, "  "+m.st.dim.Render(pad(date, 11))+style.Render(e.Title()))
+			out = append(out, "  "+m.st.dim.Render(pad(date, 11))+m.renderNames(e.Title(), style, e.Relative, e.Spouse))
 		}
 	}
 	for i := range out {

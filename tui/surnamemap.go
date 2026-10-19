@@ -399,7 +399,7 @@ func (m *Model) panelLines(rows, width int) []string {
 				out = append(out, m.st.dim.Render(fmt.Sprintf("  … %d more", len(people)-3)))
 				break
 			}
-			out = append(out, "  "+m.st.mapLabel.Render(p.DisplayName())+" "+m.st.dim.Render(p.Lifespan()))
+			out = append(out, "  "+m.personStyle(p, m.st.mapLabel).Render(p.DisplayName())+" "+m.st.dim.Render(p.Lifespan()))
 		}
 	}
 

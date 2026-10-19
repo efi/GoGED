@@ -138,7 +138,8 @@ func (m *Model) printedChart() []line {
 	if m.tree.mode == modeLifespans {
 		c = chart.Lifespans(m.current(), chart.LifespanOptions{Generations: m.tree.lifeGens, ASCII: m.opts.ASCII})
 	}
-	lines := []line{textLine(span{text: m.chartTitle(), style: m.st.section}, span{text: m.chartReach(), style: m.st.dim}), textLine()}
+	heading := append(m.nameSpans(m.chartTitle(), m.st.section, m.current()), span{text: m.chartReach(), style: m.st.dim})
+	lines := []line{textLine(heading...), textLine()}
 	for _, segs := range c.Lines {
 		var l line
 		for _, seg := range segs {

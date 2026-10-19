@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/efi/goged/gedcom"
 	"github.com/efi/goged/genealogy"
 )
@@ -219,7 +220,7 @@ func (m *Model) updateChecks(msg tea.KeyMsg) (bool, tea.Cmd) {
 		m.moveChecks(m.checksHeight())
 	case "home", "g":
 		m.moveChecks(-len(c.rows))
-	case "end", "G":
+	case "end":
 		m.moveChecks(len(c.rows))
 	case "left", "h":
 		m.setThreshold(-1)
@@ -371,7 +372,7 @@ func (m Model) viewChecks(h int) string {
 			case r == c.cursor:
 				out = append(out, fit(m.st.selected.Render("▸ "+text), m.width))
 			case f.Person != nil:
-				out = append(out, fit("  "+m.st.name.Render(text)+"  "+f.Message, m.width))
+				out = append(out, fit("  "+m.personStyle(f.Person, m.st.name).Render(text)+"  "+m.renderNames(f.Message, lipgloss.Style{}, f.Other), m.width))
 			default:
 				out = append(out, fit("  "+m.st.name.Render(text), m.width))
 			}

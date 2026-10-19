@@ -378,12 +378,13 @@ func (m Model) viewTree(h int) string {
 	// name and then the number of generations are left out so that the
 	// selection stays readable.
 	gens := m.chartReach()
-	selected := m.st.dim.Render(" · selected: ") + m.st.name.Render(chart.Label(sel.Ind))
+	selName := m.personStyle(sel.Ind, m.st.name).Render(chart.Label(sel.Ind))
+	selected := m.st.dim.Render(" · selected: ") + selName
 	if sel.Kind == chart.KindDuplicate {
-		selected = m.st.dim.Render(" · selected: ancestors of ") + m.st.name.Render(chart.Label(sel.Ind)) +
+		selected = m.st.dim.Render(" · selected: ancestors of ") + selName +
 			m.st.dim.Render(", shown elsewhere; enter or space shows them here")
 	}
-	header := m.st.section.Render(m.chartTitle()) + m.st.dim.Render(gens) + selected
+	header := m.renderNames(m.chartTitle(), m.st.section, m.current()) + m.st.dim.Render(gens) + selected
 	if ansi.StringWidth(header) > m.width {
 		header = m.st.section.Render(kind) + m.st.dim.Render(gens) + selected
 	}
@@ -422,7 +423,7 @@ func (m Model) viewTree(h int) string {
 func (m Model) lifespanAbout() string {
 	about := m.tree.chart.About(m.tree.sel)
 	name, rest, _ := strings.Cut(about, " · ")
-	return fit(m.st.name.Render(name)+m.st.dim.Render(" · "+rest), m.width)
+	return fit(m.personStyle(m.tree.chart.Nodes[m.tree.sel].Ind, m.st.name).Render(name)+m.st.dim.Render(" · "+rest), m.width)
 }
 
 // renderTreeLine draws the visible horizontal slice of a chart line.
@@ -473,7 +474,10 @@ func (m Model) segmentStyle(c *chart.Chart, seg chart.Segment, sel int) (lipglos
 	case c.Nodes[seg.Node].Ind == m.reference:
 		return m.st.reference, true
 	case seg.Node == 0:
-		return m.st.root, true
+		return m.personStyle(c.Nodes[0].Ind, m.st.root), true
+	}
+	if color, ok := m.genderColor(c.Nodes[seg.Node].Ind); ok {
+		return lipgloss.NewStyle().Foreground(color), true
 	}
 	return lipgloss.Style{}, false
 }

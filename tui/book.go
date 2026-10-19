@@ -77,10 +77,10 @@ func (m *Model) exportFormats() []export.Format {
 // bookBlocks builds the book: the contents, a block per person in name
 // order, then the places with their events. The marked person is
 // forgotten while the blocks are built, so no one is starred and no
-// relationships to them appear.
+// relationships to them appear, and names are not colored by sex.
 func (m *Model) bookBlocks(sel *export.Selection, opts export.Options) []bookBlock {
 	p := *m
-	p.reference = nil
+	p.reference, p.genders = nil, false
 
 	var people []*gedcom.Individual
 	results, _ := p.index.SearchString("")

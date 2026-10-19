@@ -118,6 +118,8 @@ func (m *Model) updateSearch(msg tea.KeyMsg) (bool, tea.Cmd) {
 		m.compareSelected()
 	case "alt+M":
 		m.mapPerson(m.selected())
+	case "alt+G":
+		m.toggleGenders()
 	case "f1":
 		return false, nil
 	case "?":
@@ -181,9 +183,10 @@ func (m Model) viewSearch(h int) string {
 			out = append(out, fit(m.st.selected.Render("▸ "+strings.TrimRight(cols, " ")), m.width))
 			continue
 		}
-		nameCol := m.st.name.Render(name) + m.st.dim.Render(alt)
+		nameStyle := m.personStyle(ind, m.st.name)
+		nameCol := nameStyle.Render(name) + m.st.dim.Render(alt)
 		if w := ansi.StringWidth(name + alt); w > nameW {
-			nameCol = m.st.name.Render(pad(name+alt, nameW))
+			nameCol = nameStyle.Render(pad(name+alt, nameW))
 		} else {
 			nameCol += strings.Repeat(" ", nameW-w)
 		}

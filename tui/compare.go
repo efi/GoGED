@@ -90,8 +90,8 @@ func (m *Model) buildCompare() {
 		m.relativeLine(m.compare.labels[0], a, "  "+a.ID),
 		m.relativeLine(m.compare.labels[1], b, "  "+b.ID),
 		textLine(),
-		textLine(span{text: "", width: 2 + whatW}, gap, span{text: a.DisplayName(), style: m.st.label, width: colW}, gap,
-			span{text: b.DisplayName(), style: m.st.label}),
+		textLine(span{text: "", width: 2 + whatW}, gap, span{text: a.DisplayName(), style: m.personStyle(a, m.st.label), width: colW}, gap,
+			span{text: b.DisplayName(), style: m.personStyle(b, m.st.label)}),
 	}
 	for _, r := range rows {
 		mark, style := "", m.st.dim

@@ -190,7 +190,11 @@ func (m *Model) buildChanges() {
 			if rec.Tag != "INDI" && rec.Tag != "FAM" {
 				title = strings.TrimSpace(rec.Noun() + " " + title)
 			}
-			l := textLine(symbol(rec.Kind), span{text: rec.ID, style: m.st.dim, width: idW + 2}, span{text: title, style: m.st.name})
+			people := []*gedcom.Individual{rec.Person}
+			if f := rec.Family; f != nil {
+				people = []*gedcom.Individual{f.Husband, f.Wife}
+			}
+			l := textLine(append([]span{symbol(rec.Kind), {text: rec.ID, style: m.st.dim, width: idW + 2}}, m.nameSpans(title, m.st.name, people...)...)...)
 			// What was removed is gone from the file.
 			if rec.Kind != diff.Removed {
 				switch {
@@ -220,7 +224,7 @@ func (m *Model) replaceDoc(doc *gedcom.Document) {
 	n := New(doc, opts)
 	n.width, n.height = m.width, m.height
 	n.layout()
-	n.watch, n.wrap, n.prev = m.watch, m.wrap, m.prev
+	n.watch, n.wrap, n.genders, n.prev = m.watch, m.wrap, m.genders, m.prev
 	n.search.hist, n.ev.hist, n.places.hist = m.search.hist, m.ev.hist, m.places.hist
 	n.showHelp, n.overlay, n.help = m.showHelp, m.overlay, m.help
 	same := func(ind *gedcom.Individual) *gedcom.Individual {

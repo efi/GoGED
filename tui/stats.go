@@ -9,6 +9,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/efi/goged/gedcom"
 	"github.com/efi/goged/genealogy"
 )
 
@@ -34,8 +35,9 @@ func (m *Model) ensureStats() {
 func (m *Model) buildStats() {
 	s := m.stats.stats
 	var ls []line
-	row := func(label, value string) line {
-		return textLine(span{text: pad(label, 22), style: m.st.label}, span{text: value, style: m.st.name.UnsetBold()})
+	// row is a label and a value, which may name people.
+	row := func(label, value string, people ...*gedcom.Individual) line {
+		return textLine(append([]span{{text: pad(label, 22), style: m.st.label}}, m.nameSpans(value, m.st.name.UnsetBold(), people...)...)...)
 	}
 	blank := textLine()
 
@@ -69,7 +71,7 @@ func (m *Model) buildStats() {
 		ls = append(ls, row("Average lifespan", fmt.Sprintf("%.1f years (%d people with known birth and death)", s.AverageLifespan, s.Lifespans)))
 	}
 	if s.LongestLived != nil {
-		l := row("Longest lived", fmt.Sprintf("%s, %s years", s.LongestLived.DisplayName(), s.LongestAge))
+		l := row("Longest lived", fmt.Sprintf("%s, %s years", s.LongestLived.DisplayName(), s.LongestAge), s.LongestLived)
 		l.target = s.LongestLived
 		ls = append(ls, l)
 	}
@@ -231,7 +233,7 @@ func bar(n, most, room int, ascii bool) string {
 
 // onThisDay lists the events that happened on today's day and month in
 // earlier years; each line links to the person (or the first partner).
-func (m *Model) onThisDay(row func(label, value string) line) []line {
+func (m *Model) onThisDay(row func(label, value string, people ...*gedcom.Individual) line) []line {
 	today := m.opts.Today
 	if today.IsZero() {
 		today = time.Now()
@@ -260,7 +262,7 @@ func (m *Model) onThisDay(row func(label, value string) line) []line {
 		for _, p := range people {
 			names = append(names, p.DisplayName())
 		}
-		l := row(year, a.Event.Label()+"  "+strings.Join(names, " & "))
+		l := row(year, a.Event.Label()+"  "+strings.Join(names, " & "), people...)
 		if place := a.Event.Place.String(); place != "" {
 			l.spans = append(l.spans, span{text: "  " + place, style: m.st.dim})
 		}
@@ -286,7 +288,7 @@ func (m *Model) updateStats(msg tea.KeyMsg) (bool, tea.Cmd) {
 		d.page(1, h)
 	case "home", "g":
 		d.home(h)
-	case "end", "G":
+	case "end":
 		d.end(h)
 	case "enter":
 		sel := d.selected()

@@ -80,6 +80,8 @@ type Model struct {
 	// wrap shows long lines of the person view on several rows instead of
 	// cutting them (W).
 	wrap bool
+	// genders colors the names of people by their sex (G).
+	genders bool
 
 	search searchState
 	person personState
@@ -477,6 +479,8 @@ func (m *Model) handleKey(msg tea.KeyMsg) tea.Cmd {
 		m.compareSelected()
 	case "M":
 		m.mapPerson(m.selected())
+	case "G":
+		m.toggleGenders()
 	case "W":
 		m.wrap = !m.wrap
 		m.rebuildPerson()
@@ -640,7 +644,7 @@ func (m *Model) title() string {
 func (m Model) viewHeader() string {
 	title := m.title()
 	if m.reference != nil {
-		title += "  " + m.st.reference.Render("★ "+m.reference.DisplayName())
+		title += "  " + m.st.reference.Render("★ ") + m.personStyle(m.reference, m.st.reference).Render(m.reference.DisplayName())
 	}
 	var tabs []string
 	for _, t := range m.tabs() {
@@ -719,7 +723,7 @@ func (m *Model) sectionLine(title string) line {
 
 // personSpans renders a person as name plus dimmed lifespan.
 func (m *Model) personSpans(ind *gedcom.Individual) []span {
-	spans := []span{{text: ind.DisplayName(), style: m.st.name}}
+	spans := []span{{text: ind.DisplayName(), style: m.personStyle(ind, m.st.name)}}
 	if ls := ind.Lifespan(); ls != "" {
 		spans = append(spans, span{text: " (" + ls + ")", style: m.st.dim})
 	}
