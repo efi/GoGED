@@ -1,0 +1,99 @@
+@font-face {
+  font-family: "Martian Mono";
+  src: url("/fonts/MartianMono-CnRg.ttf") format("truetype");
+  font-weight: 400;
+}
+
+@font-face {
+  font-family: "Martian Mono";
+  src: url("/fonts/MartianMono-CnBd.ttf") format("truetype");
+  font-weight: 700;
+}
+
+:root {
+  --fg: #dcdcdc;
+  --bg: #1e1e24;
+  --accent: #b9a2ff;
+  --dim: #8a8a8a;
+  --key: #ffb454;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--fg);
+  font: 15px "Martian Mono", monospace;
+}
+
+canvas {
+  display: block;
+  outline: none;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+#login,
+#note {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  box-sizing: border-box;
+  max-width: calc(100% - 32px);
+  padding: 20px 24px;
+  border: 1px solid var(--accent);
+  background: var(--bg);
+}
+
+#login {
+  display: grid;
+  gap: 10px;
+  width: 360px;
+}
+
+#login h1 {
+  margin: 0 0 6px;
+  font-size: 15px;
+}
+
+#login h1 span {
+  padding: 0 8px;
+  background: var(--accent);
+  color: #1a1a1a;
+}
+
+#login label {
+  color: var(--dim);
+}
+
+#login input,
+#login button {
+  font: inherit;
+  color: var(--fg);
+  background: transparent;
+  border: 1px solid var(--dim);
+  padding: 4px 8px;
+}
+
+#login button {
+  justify-self: start;
+  color: var(--key);
+  border-color: var(--key);
+  cursor: pointer;
+}
+
+#login-error {
+  margin: 0;
+  color: #ff6b6b;
+  min-height: 1em;
+}
+
+#note {
+  color: var(--fg);
+  cursor: pointer;
+}
