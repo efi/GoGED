@@ -45,16 +45,8 @@ func (m *Model) ensurePlaces() {
 	if p.root != nil {
 		return
 	}
-	p.root = genealogy.Places(m.doc)
-	p.folded = map[*genealogy.PlaceNode]string{}
-	p.nodeOf = map[*gedcom.Event]*genealogy.PlaceNode{}
-	p.root.Walk(func(n *genealogy.PlaceNode) bool {
-		p.folded[n] = search.Fold(n.Name)
-		for _, e := range n.Events {
-			p.nodeOf[e] = n
-		}
-		return true
-	})
+	d := m.sh.places()
+	p.root, p.folded, p.nodeOf = d.root, d.folded, d.nodeOf
 	m.refreshPlaces()
 }
 

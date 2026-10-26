@@ -37,33 +37,7 @@ const personListRows = 8
 
 // eventMarkers returns the marker each event counts at: that of its
 // place, or of the nearest place around it with coordinates.
-func (m *Model) eventMarkers() map[*gedcom.Event]int {
-	s := &m.mapv
-	if s.placeOf != nil {
-		return s.placeOf
-	}
-	index := map[*genealogy.PlaceNode]int{}
-	for i, p := range s.places {
-		index[p] = i
-	}
-	s.placeOf = map[*gedcom.Event]int{}
-	var walk func(n *genealogy.PlaceNode, at int)
-	walk = func(n *genealogy.PlaceNode, at int) {
-		if i, ok := index[n]; ok {
-			at = i
-		}
-		if at >= 0 {
-			for _, e := range n.Events {
-				s.placeOf[e] = at
-			}
-		}
-		for _, c := range n.Children {
-			walk(c, at)
-		}
-	}
-	walk(m.places.root, -1)
-	return s.placeOf
-}
+func (m *Model) eventMarkers() map[*gedcom.Event]int { return m.sh.located().markerOf }
 
 // mapPerson shows the places of a person's events on the map.
 func (m *Model) mapPerson(ind *gedcom.Individual) {

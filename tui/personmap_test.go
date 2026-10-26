@@ -85,7 +85,7 @@ func TestPersonMap(t *testing.T) {
 	}
 
 	// A reload keeps the person view, with the person loaded now.
-	a.m.replaceDoc(loadSample(t))
+	a.m.replaceDoc(NewShared(loadSample(t)))
 	if s := &a.m.mapv; !s.pm.on || s.pm.ind != a.m.doc.Individual("I3") || len(s.pm.stops) != 4 {
 		t.Errorf("after a reload: %v", s.pm.on)
 	}

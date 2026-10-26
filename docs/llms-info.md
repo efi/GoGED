@@ -714,12 +714,23 @@ packages.
   Keys within `dialogGrace` (0.5 s) after it appears are ignored, as they
   were typed for the view (`n` or `N` in a search). The dialog is drawn
   over the body by `overlay`; `reloadDialog` lays it out for both drawing
-  and clicks. Loading runs in a command; `replaceDoc` builds a new
-  `Model` with `New` and carries over what still exists by ID or place
-  name: history, marked person, query, filters, folded places, the map's
-  view and selection, check thresholds, export settings, the view. The
-  tests change a copy of family.ged (`rewrite`) and call `statFile`
-  themselves (`poll`).
+  and clicks. Loading runs in a command; `Load` returns a `Shared`, and
+  `replaceDoc` builds a new `Model` on it with `NewModel` and carries
+  over what still exists by ID or place name: history, marked person,
+  query, filters, folded places, the map's view and selection, check
+  thresholds, export settings, the view. The tests change a copy of
+  family.ged (`rewrite`) and call `statFile` themselves (`poll`).
+- **Shared** (`shared.go`): a document with what is worked out from it
+  alone, which never changes once built: the search index (at once), the
+  event index, the place tree with folded names and each event's place,
+  the located places in marker order with the marker each event counts
+  at, the statistics and the birth surnames, each built on first use
+  with `sync.OnceValue`. `New(doc, opts)` makes its own;
+  `NewModel(sh, opts)` takes one that other models share, as the
+  server's clients do. Per model stay what depends on the user: the
+  markers' projected positions, collapsed places, filters, check results
+  (thresholds, the marked person). `TestSharedModelsConcurrently` drives
+  several models of one `Shared` at once for the race detector.
 
 ## 5. GEDCOM knowledge worth keeping
 

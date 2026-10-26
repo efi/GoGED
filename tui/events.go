@@ -29,7 +29,7 @@ func newEventsState() eventsState {
 // sorting all events of a large file takes a moment.
 func (m *Model) ensureEvents() {
 	if m.events == nil {
-		m.events = search.NewEventIndex(m.doc.Events())
+		m.events = m.sh.events()
 		m.filterEvents()
 	}
 }

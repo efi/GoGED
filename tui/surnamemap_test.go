@@ -176,7 +176,7 @@ func TestSurnameListScrolls(t *testing.T) {
 
 	// A reload keeps the list where it is.
 	a.press("pgdown", "pgdown", "pgdown", "pgdown", "pgdown", "pgdown", "pgdown", "pgdown")
-	a.m.replaceDoc(doc)
+	a.m.replaceDoc(NewShared(doc))
 	a.contains("▸ Name11 ", "Name04 ")
 	a.clickOn("Name04 ")
 	if a.shown() != "Name04" {

@@ -1955,7 +1955,7 @@ func TestLifespansView(t *testing.T) {
 
 	// Loading the file again keeps the chart, its generations and the
 	// selection.
-	a.m.replaceDoc(loadSample(t))
+	a.m.replaceDoc(NewShared(loadSample(t)))
 	if tr := a.m.tree; tr.mode != modeLifespans || tr.lifeGens != 2 || tr.chart.Nodes[tr.sel].Ind.ID != "I24" {
 		t.Errorf("after loading again: mode %d, %d generations, %s selected", tr.mode, tr.lifeGens, tr.chart.Nodes[tr.sel].Ind.ID)
 	}

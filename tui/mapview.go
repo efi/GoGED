@@ -3,7 +3,6 @@ package tui
 import (
 	"fmt"
 	"math"
-	"sort"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -34,8 +33,6 @@ type mapState struct {
 
 	sn surnameMap
 	pm personMap
-	// placeOf is the marker each event counts at (eventMarkers).
-	placeOf map[*gedcom.Event]int
 }
 
 const (
@@ -66,25 +63,13 @@ func (m *Model) ensureMap() {
 		}
 	}
 	m.ensurePlaces()
-	located := m.places.root.Located()
-	sort.SliceStable(located, func(i, j int) bool {
-		if located[i].Count() != located[j].Count() {
-			return located[i].Count() > located[j].Count()
-		}
-		return located[i].Full < located[j].Full
-	})
-	s.places = located
-	s.markers = make([]worldmap.Marker, len(located))
-	for i, p := range located {
+	l := m.sh.located()
+	s.places, s.unknown = l.places, l.unknown
+	s.markers = make([]worldmap.Marker, len(s.places))
+	for i, p := range s.places {
 		s.markers[i].Label = p.Name
 	}
 	m.projectMarkers()
-	m.places.root.Walk(func(n *genealogy.PlaceNode) bool {
-		if len(n.Events) > 0 && !n.HasCoords {
-			s.unknown++
-		}
-		return true
-	})
 	m.fitMap()
 }
 

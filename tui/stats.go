@@ -27,7 +27,7 @@ func (m *Model) ensureStats() {
 		return
 	}
 	m.stats.computed = true
-	m.stats.stats = genealogy.Compute(m.doc)
+	m.stats.stats = m.sh.stats()
 	m.buildStats()
 }
 

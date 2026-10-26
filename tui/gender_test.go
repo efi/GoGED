@@ -154,7 +154,7 @@ func TestGenderColors(t *testing.T) {
 	if n := checkNameColors(t, &a.m, a.m.stats.doc.lines); n < 1 {
 		t.Error("no name colored in the statistics")
 	}
-	a.m.replaceDoc(loadSample(t))
+	a.m.replaceDoc(NewShared(loadSample(t)))
 	if !a.m.genders {
 		t.Error("loading the file again turned the colors off")
 	}

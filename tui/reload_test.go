@@ -23,12 +23,18 @@ func watchedApp(t *testing.T) (*app, string) {
 	if err := os.WriteFile(path, data, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	load := func() (*gedcom.Document, error) { return gedcom.ParseFile(path) }
-	doc, err := load()
+	load := func() (*Shared, error) {
+		doc, err := gedcom.ParseFile(path)
+		if err != nil {
+			return nil, err
+		}
+		return NewShared(doc), nil
+	}
+	sh, err := load()
 	if err != nil {
 		t.Fatal(err)
 	}
-	a := &app{t: t, m: New(doc, Options{Title: "family.ged", Path: path, Load: load})}
+	a := &app{t: t, m: NewModel(sh, Options{Title: "family.ged", Path: path, Load: load})}
 	a.resize(100, 30)
 	return a, path
 }

@@ -10,7 +10,6 @@ import (
 
 	"github.com/efi/goged/gedcom"
 	"github.com/efi/goged/genealogy"
-	"github.com/efi/goged/search"
 	"github.com/efi/goged/worldmap"
 )
 
@@ -77,24 +76,8 @@ func (m *Model) ensureSurnames() {
 	if sn.surnameOf != nil {
 		return
 	}
-	sn.surnameOf = map[*gedcom.Individual]string{}
-	count := map[string]int{}
-	for _, ind := range m.doc.Individuals {
-		if name := strings.TrimSpace(ind.BirthName().FullSurname()); name != "" {
-			sn.surnameOf[ind] = name
-			count[name]++
-		}
-	}
-	for name, n := range count {
-		sn.names = append(sn.names, surnameEntry{name, n})
-	}
-	sort.Slice(sn.names, func(i, j int) bool {
-		a, b := sn.names[i], sn.names[j]
-		if a.people != b.people {
-			return a.people > b.people
-		}
-		return search.Fold(a.name) < search.Fold(b.name)
-	})
+	d := m.sh.surnames()
+	sn.names, sn.surnameOf = d.names, d.surnameOf
 }
 
 // kindOf tells which kind of event e is.

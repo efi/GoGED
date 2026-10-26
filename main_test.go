@@ -399,7 +399,7 @@ func TestStartsTUI(t *testing.T) {
 	if got.Load == nil {
 		t.Fatal("no Load")
 	}
-	if doc, err := got.Load(); err != nil || len(doc.Individuals) != 24 {
+	if sh, err := got.Load(); err != nil || len(sh.Doc().Individuals) != 24 {
 		t.Errorf("Load: %v", err)
 	}
 	got.Load = nil
@@ -414,9 +414,9 @@ func TestStartsTUI(t *testing.T) {
 		if show {
 			args = append(args, "-show-restricted")
 		}
-		doc, err := runCLI(t, "", args...).tui.Load()
-		if err != nil || (doc.Redactions > 0) == show {
-			t.Errorf("show %v: %v, %d redactions", show, err, doc.Redactions)
+		sh, err := runCLI(t, "", args...).tui.Load()
+		if err != nil || (sh.Doc().Redactions > 0) == show {
+			t.Errorf("show %v: %v, %d redactions", show, err, sh.Doc().Redactions)
 		}
 	}
 

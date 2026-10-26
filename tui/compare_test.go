@@ -58,7 +58,7 @@ func TestCompareView(t *testing.T) {
 	}
 
 	// A reload keeps the comparison, with the people of the file loaded now.
-	a.m.replaceDoc(loadSample(t))
+	a.m.replaceDoc(NewShared(loadSample(t)))
 	a.m.rebuildOverlay()
 	if a.m.compare.b != a.m.doc.Individual("I14") {
 		t.Error("after a reload, the comparison is of the people loaded before")

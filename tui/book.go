@@ -114,7 +114,7 @@ func (m *Model) bookBlocks(sel *export.Selection, opts export.Options) []bookBlo
 	// Places, in the order of the hierarchy, with the events of the
 	// selected people there.
 	var places []*genealogy.PlaceNode
-	genealogy.Places(p.doc).Walk(func(n *genealogy.PlaceNode) bool {
+	p.sh.places().root.Walk(func(n *genealogy.PlaceNode) bool {
 		var events []*gedcom.Event
 		for _, ev := range n.Events {
 			if slices.ContainsFunc(ev.Principals(), sel.Has) {

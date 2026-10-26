@@ -33,7 +33,7 @@ type statMsg struct {
 
 // reloadedMsg brings the file loaded again, and its state before loading.
 type reloadedMsg struct {
-	doc   *gedcom.Document
+	sh    *Shared
 	state fileState
 	err   error
 }
@@ -111,8 +111,8 @@ func (m *Model) answer(choice int) tea.Cmd {
 		return func() tea.Msg {
 			// A change while loading is noticed afterwards.
 			st := statFile(path)
-			doc, err := load()
-			return reloadedMsg{doc, st.state, err}
+			sh, err := load()
+			return reloadedMsg{sh, st.state, err}
 		}
 	case choiceNotNow:
 		w.loaded = w.seen
@@ -131,8 +131,8 @@ func (m *Model) reloaded(msg reloadedMsg) {
 		m.setError(fmt.Sprintf("%s could not be loaded again: %v", m.opts.Title, msg.err))
 		return
 	}
-	changes := diff.Compare(m.doc, msg.doc)
-	m.replaceDoc(msg.doc)
+	changes := diff.Compare(m.doc, msg.sh.doc)
+	m.replaceDoc(msg.sh)
 	m.changes = &changes
 	if m.showHelp {
 		// An open overlay shows the file loaded now: its links lead into
@@ -218,10 +218,11 @@ func (m *Model) buildChanges() {
 // replaceDoc shows a document loaded again. It keeps the view, the people
 // in the history and the marked person, the query and the filters, the
 // settings of the views, and the selections where they can still be.
-func (m *Model) replaceDoc(doc *gedcom.Document) {
+func (m *Model) replaceDoc(sh *Shared) {
+	doc := sh.doc
 	opts := m.opts
 	opts.StartPerson = ""
-	n := New(doc, opts)
+	n := NewModel(sh, opts)
 	n.width, n.height = m.width, m.height
 	n.layout()
 	n.watch, n.wrap, n.genders, n.prev = m.watch, m.wrap, m.genders, m.prev

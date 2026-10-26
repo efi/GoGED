@@ -158,7 +158,13 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, startTUI tuiR
 		return doc, nil
 	}
 	// load reads the file; the browser uses it again to reload the file.
-	load := func() (*gedcom.Document, error) { return loadFile(path) }
+	load := func() (*tui.Shared, error) {
+		doc, err := loadFile(path)
+		if err != nil {
+			return nil, err
+		}
+		return tui.NewShared(doc), nil
+	}
 	var (
 		doc *gedcom.Document
 		err error
@@ -169,7 +175,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, startTUI tuiR
 			doc = doc.Redacted()
 		}
 	} else {
-		doc, err = load()
+		doc, err = loadFile(path)
 	}
 	if err != nil {
 		fmt.Fprintf(stderr, "goged: %s: %v\n", path, err)

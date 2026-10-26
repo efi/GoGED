@@ -81,7 +81,7 @@ func TestSearchHistory(t *testing.T) {
 	a.contains("alt+↑↓ history  tab/alt+1-9 views  ? help")
 
 	// A reload keeps the history.
-	a.m.replaceDoc(loadSample(t))
+	a.m.replaceDoc(NewShared(loadSample(t)))
 	a.press("alt+up")
 	if q := a.m.search.input.Value(); q != "jones" {
 		t.Errorf("after a reload, alt+↑ shows %q", q)

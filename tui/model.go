@@ -45,17 +45,20 @@ type Options struct {
 	NoMouse bool
 	// Path is the file shown. With Load, which reads it again, the browser
 	// watches it and offers to reload it when another program changes it.
+	// Load may return the same Shared to several models, as long as the
+	// file stays the same.
 	Path string
-	Load func() (*gedcom.Document, error)
+	Load func() (*Shared, error)
 	// Today is the date used for "On this day"; zero means the current date.
 	Today time.Time
 }
 
 // Model is the Bubble Tea model of the application.
 type Model struct {
-	doc    *gedcom.Document
-	index  *search.Index
-	events *search.EventIndex
+	sh     *Shared
+	doc    *gedcom.Document   // sh.doc
+	index  *search.Index      // sh.index
+	events *search.EventIndex // sh.events(), once the events are shown
 	opts   Options
 	st     styles
 
@@ -101,7 +104,12 @@ type Model struct {
 }
 
 // New creates the model for a document.
-func New(doc *gedcom.Document, opts Options) Model {
+func New(doc *gedcom.Document, opts Options) Model { return NewModel(NewShared(doc), opts) }
+
+// NewModel creates a model for a document prepared with NewShared, which
+// other models may show too.
+func NewModel(sh *Shared, opts Options) Model {
+	doc := sh.doc
 	// Generations below 1 select the default; others are kept within the
 	// limits that + and - keep to.
 	if opts.Generations < 1 {
@@ -109,8 +117,9 @@ func New(doc *gedcom.Document, opts Options) Model {
 	}
 	opts.Generations = clamp(opts.Generations, minGenerations, maxPedigreeGenerations)
 	m := Model{
+		sh:      sh,
 		doc:     doc,
-		index:   search.NewIndex(doc),
+		index:   sh.index,
 		opts:    opts,
 		st:      defaultStyles(),
 		width:   80,
