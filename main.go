@@ -63,6 +63,7 @@ Usage:
   goged -diff OLD.ged FILE.ged            print what changed since OLD.ged
   goged -compare ID1,ID2 FILE.ged         print two people side by side
   goged -checks all [-person ID] FILE.ged print the findings of the checks and hints
+  goged -serve ADDRESS FILE.ged           serve the browser to web browsers
 
 Add -json to a flag that prints to get the output as JSON.
 
@@ -90,6 +91,7 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, startTUI tuiR
 		gens     = fs.Int("gen", 4, "number of `generations` shown in trees; with -lifespans, how many each way (default 1)")
 		ascii    = fs.Bool("ascii", false, "draw trees with ASCII characters only")
 		noMouse  = fs.Bool("no-mouse", false, "leave the mouse to the terminal, to select text as usual")
+		serve    = fs.String("serve", "", "serve the browser to web browsers at `ADDRESS`, e.g. localhost:8080, or :8080 on all networks; open the address it prints, which holds the secret token")
 		person   = fs.String("person", "", "open the browser at the person with `ID`; with -checks, mark them for the hint on unknown parents")
 		showRes  = fs.Bool("show-restricted", false, "show data marked confidential or private (RESN), which is hidden by default")
 		showVer  = fs.Bool("version", false, "print the version and exit")
@@ -312,6 +314,9 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer, startTUI tuiR
 		opts.Title = "stdin"
 	} else {
 		opts.Path, opts.Load = path, load
+	}
+	if set["serve"] {
+		return runServe(doc, opts, *serve, stdout, stderr)
 	}
 	if err := startTUI(doc, opts, path == "-"); err != nil {
 		fmt.Fprintf(stderr, "goged: %v\n", err)

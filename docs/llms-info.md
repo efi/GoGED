@@ -123,6 +123,7 @@ export/            selection of people and links, GEXF writer, atomic file writi
 diff/              what changed between two versions of a file
 fonts/             Martian Mono Condensed (regular, bold) and its OFL, for the PDF
 tui/               Bubble Tea model, one file per view
+server/            -serve: the TUI for web browsers (WebSocket, sessions, page)
 licenses/          embedded third-party license texts (generated)
 scripts/           build-release.sh (makefat universal macOS), gen-licenses.sh
 testdata/          family.ged (own, fictional), Muster_GEDCOM_UTF-8.ged (CC BY 4.0)
@@ -731,6 +732,68 @@ packages.
   markers' projected positions, collapsed places, filters, check results
   (thresholds, the marked person). `TestSharedModelsConcurrently` drives
   several models of one `Shared` at once for the race detector.
+
+### server (-serve)
+
+The user asked for it in this form: the TUI in the browser, a model per
+browser tab with its own state, no library (so the WebSocket is written
+here), the token first before any data, the indexes shared, nothing loaded
+from elsewhere, Martian Mono served by goged, a favicon of a "g" in the
+title badge's colors.
+
+- **No tea.Program.** Each session (`session.go`) owns a `tui.Model` in one
+  goroutine and does what Bubble Tea's loop does: `Update`, run the
+  returned command in its own goroutine (`exec`; `go f(cmd())` would run
+  `cmd()` in the loop: a watch tick froze it for a second, which
+  `TestWatchedFile` catches), `View`. Batches run at once, sequences in
+  order, `tea.Quit` ends the session; of tea's unexported messages only
+  the window title is used (by reflection), the rest concern a terminal.
+  Events that arrive together are handled before one draw; only changed
+  lines are sent.
+- **Frames** (`frame.go`): `View` holds only SGR sequences (checked with a
+  probe); each line becomes runs `[text, fg, bg, attrs]`, with
+  `[cluster, …, cells]` for wide characters and graphemes of several
+  code points, so the page needs no width tables. Widths come from
+  `ansi.GraphemeWidth.DecodeSequenceInString`, as lipgloss measures; a
+  combining mark it returns on its own (after ASCII) joins the cell before.
+- **Keys** (`keys.go`): names as Bubble Tea gives them, mapped back to key
+  types by asking `tea.Key{Type: t}.String()` for every type. `ctrl+v` is
+  never passed on, as textinput would paste the server's clipboard; the
+  page sends paste events as text (`Paste: true`).
+- **WebSocket** (`ws.go`): RFC 6455 handshake via `http.NewResponseController
+  (w).Hijack()`, masked frames from the page, fragments, ping/pong, close
+  codes, size limit, UTF-8 check, per-frame read timeout. The server pings
+  every 30 s. Tests use a client in `ws_test.go`; the page script was also
+  run in node 20 with `--experimental-websocket` (undici's client) against
+  a live server, with a stand-in DOM recording the canvas calls.
+- **Token and origin** (`server.go`): the page connects to `/ws` and sends
+  `{token, session, cols, rows}` first; nothing is sent before (close 4001
+  after a second's wait for a wrong one). `Origin` must be this host. The
+  static files contain nothing about the file. The token sits after `#` in
+  the printed address (never sent in HTTP); the page moves it to
+  `sessionStorage` and out of the address bar. CSP `default-src 'none'`
+  with `'self'` for scripts, styles, fonts, images and connections.
+- **Sessions** survive the page for 15 minutes (`idleTimeout`); the session
+  id is kept in `sessionStorage`, so each tab has its own and a reload
+  resumes. A second tab with the same id takes it over (4002). At most 64
+  sessions (4003); `q` ends one (bye, 4004).
+- **Sharing:** sessions start with `Server.current()`, the newest version of
+  the file; `Options.Load` is the server's `loadShared`, which loads each
+  file state once for all sessions. `Options.Save` sends exports and
+  printed charts to the page as a `download` message and a binary frame.
+- **lipgloss is global:** `server.New` sets the true-color profile and a
+  dark background for the whole program, so all clients share one theme.
+- **The page** (`static/goged.js`): a canvas grid; the cell width is
+  rounded to device pixels; Braille dots and box-drawing lines (light,
+  heavy, dashed, rounded) are drawn, other glyphs from Martian Mono or a
+  local fallback squeezed into their cell. Martian Mono lacks Braille and
+  about 18 of goged's symbols (see the PDF section). Keys: `e.code` for
+  alt+letter, so Option on a Mac works; the browser keeps ctrl+c/v/x/r/w/t/n
+  and cmd. Mouse in cells, the wheel in steps of 40 px, back/forward
+  buttons kept from the browser. Reconnects with backoff.
+- **Favicon:** textimg rendered "g" in Martian Mono Bold, #1A1A1A on
+  #B9A2FF (the title badge), a scratch Go program centred it in a square
+  and box-filtered it to 64×64 (1.3 KB).
 
 ## 5. GEDCOM knowledge worth keeping
 

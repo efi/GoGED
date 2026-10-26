@@ -175,6 +175,7 @@ goged family.ged                 # open the browser
 goged -person I42 family.ged     # open the browser at a person
 goged -no-mouse family.ged       # leave the mouse to the terminal
 cat family.ged | goged -         # read from standard input
+goged -serve 8080 family.ged     # serve it to web browsers (see below)
 ```
 
 Data marked confidential or private (`RESN confidential` or `privacy`) is
@@ -247,6 +248,48 @@ John Smith (1817–1880)
 generation limit.
 
 Try it with the sample file in [`testdata/family.ged`](testdata/family.ged).
+
+## In a web browser
+
+`-serve` serves the browser to web browsers, as it looks in a terminal:
+
+```sh
+goged -serve 8080 family.ged     # on this computer: localhost:8080
+goged -serve :8080 family.ged    # on all networks
+```
+
+It prints the address to open, which ends in a secret token after `#`:
+
+```
+goged: serving family.ged at http://localhost:8080/#6c1f0e…
+```
+
+- **Every browser tab has a goged of its own:** its own marked person,
+  history, view, queries and filters, charts and map. The tabs share the
+  file and what is worked out from it, such as the search index, which is
+  built once. A reloaded tab carries on where it was. A tab can be closed
+  and opened again within 15 minutes; `q` ends its goged.
+- **The token comes first:** on its connection the page gives the token
+  before the server sends anything about the file; without it there is
+  only the page itself, the same for every file. The token is new each time
+  the server starts. The page keeps it for the tab and takes it out of the
+  address bar. Whoever has the address with the token can browse the file,
+  so on other networks put goged behind a reverse proxy with HTTPS, which
+  must pass WebSocket connections on.
+- **Nothing comes from elsewhere:** the page loads its script, style, font
+  (Martian Mono, as in the PDF) and icon from goged only, and its content
+  security policy allows nothing else. It draws the screen cell by cell, the
+  map's Braille dots and the lines of the charts too, so that columns stay
+  in line whatever fonts the browser has.
+- **Exports and printed charts** (`P`) are downloaded by the browser;
+  nothing is written on the server.
+- **Keys are those of the terminal.** The browser keeps `ctrl+c`, `ctrl+v`,
+  `ctrl+x`, `ctrl+r`, `ctrl+w`, `ctrl+t` and `ctrl+n`. Pasted text is typed
+  into the search box or a filter. `alt` with a letter works with Option on
+  a Mac too.
+- **When the file changes,** every tab asks whether to load it again; each
+  version is loaded once for all of them.
+- The colors are those of a dark terminal.
 
 ## Keys
 
@@ -424,6 +467,7 @@ build date; a second run on the same day replaces that day's release.
 | [`fonts`](fonts) | the embedded font of the PDF export, Martian Mono Condensed |
 | [`licenses`](licenses) | embedded third-party license texts |
 | [`tui`](tui) | the Bubble Tea interface |
+| [`server`](server) | `-serve`: the interface for web browsers, over a WebSocket of its own making, with the page in [`server/static`](server/static) |
 | [`main.go`](main.go) | command-line entry point and batch mode |
 
 The interface is built with [Bubble Tea](https://github.com/charmbracelet/bubbletea),
