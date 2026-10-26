@@ -75,6 +75,9 @@ func (m *Model) chartFileName() string {
 		base = "goged"
 	}
 	name := base + "-" + strings.ToLower(chartNames[m.tree.mode]) + "-" + anchor(m.current().ID)
+	if m.opts.Save != nil {
+		return name + ".pdf" // for the browser, which finds a free name itself
+	}
 	path := filepath.Join(dir, name+".pdf")
 	for n := 2; fileExists(path); n++ {
 		path = filepath.Join(dir, fmt.Sprintf("%s-%d.pdf", name, n))
@@ -90,10 +93,13 @@ func fileExists(path string) bool {
 // printChart writes the chart shown to path. An existing file is only
 // replaced if it is confirmed, else the dialog asks again.
 func (m *Model) printChart(path, confirmed string) {
+	name := filepath.Base(path)
 	switch {
-	case path == "":
+	case path == "" || name == "." || name == string(filepath.Separator):
 		m.setError("no file name: nothing printed")
 		return
+	case m.opts.Save != nil:
+		// The browser takes the file: no file here is written or replaced.
 	case m.opts.Path != "" && absPath(path) == absPath(m.opts.Path):
 		m.setError("the chart would replace the GEDCOM file " + m.opts.Title)
 		return
@@ -103,16 +109,21 @@ func (m *Model) printChart(path, confirmed string) {
 	}
 	lines := m.printedChart()
 	w, h := chartPage(lines)
-	write := func(out io.Writer, _ *export.Selection, _ export.Options) error {
-		return writeChartPDF(out, lines, w, h, m.chartTitle())
+	write := func(out io.Writer) error { return writeChartPDF(out, lines, w, h, m.chartTitle()) }
+	var err error
+	where := name
+	if m.opts.Save != nil {
+		err = m.opts.Save(name, write)
+		where += " for the browser to save"
+	} else {
+		err = export.WriteFile(path, export.Format{Write: func(out io.Writer, _ *export.Selection, _ export.Options) error { return write(out) }}, nil, export.Options{})
+		if abs, err := filepath.Abs(path); err == nil {
+			where += " in " + filepath.Dir(abs)
+		}
 	}
-	if err := export.WriteFile(path, export.Format{Write: write}, nil, export.Options{}); err != nil {
+	if err != nil {
 		m.setError("printing failed: " + err.Error())
 		return
-	}
-	where := filepath.Base(path)
-	if abs, err := filepath.Abs(path); err == nil {
-		where += " in " + filepath.Dir(abs)
 	}
 	m.setStatus(fmt.Sprintf("printed the %s chart to %s, on a page of %.0f × %.0f mm", strings.ToLower(chartNames[m.tree.mode]), where, w/72*25.4, h/72*25.4))
 }

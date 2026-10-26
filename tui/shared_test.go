@@ -1,6 +1,10 @@
 package tui
 
 import (
+	"bytes"
+	"io"
+	"os"
+	"strings"
 	"sync"
 	"testing"
 
@@ -71,4 +75,45 @@ func TestSharedModelsConcurrently(t *testing.T) {
 		}()
 	}
 	wg.Wait()
+}
+
+// With Save, exports and printed charts go to it, not to the file system.
+func TestSave(t *testing.T) {
+	saved := map[string][]byte{}
+	save := func(name string, write func(io.Writer) error) error {
+		var b bytes.Buffer
+		if err := write(&b); err != nil {
+			return err
+		}
+		saved[name] = b.Bytes()
+		return nil
+	}
+	dir := t.TempDir()
+	a := newApp(t, Options{Title: "family.ged", Path: dir + "/family.ged", Save: save})
+	a.openPerson("I14")
+	a.press("t", "P")
+	if v := a.m.dlg.input.Value(); v != "family-pedigree-I14.pdf" {
+		t.Errorf("suggested %q", v)
+	}
+	a.press("ctrl+u")
+	a.typ("../../elsewhere/chart.pdf")
+	a.press("enter")
+	a.contains("printed the pedigree chart to chart.pdf for the browser to save")
+	if !bytes.HasPrefix(saved["chart.pdf"], []byte("%PDF")) {
+		t.Errorf("saved %v", len(saved["chart.pdf"]))
+	}
+	// Again under the same name: the browser keeps both.
+	a.press("P", "ctrl+u")
+	a.typ("chart.pdf")
+	a.press("enter")
+	a.notContains("exists")
+
+	a.press("9", "down", "down", "down", "enter")
+	a.contains("exported 24 people and 37 relationships as GEXF to family.gexf for the browser to save")
+	if !strings.Contains(string(saved["family.gexf"]), "<gexf") {
+		t.Errorf("exported %.100q", saved["family.gexf"])
+	}
+	if entries, _ := os.ReadDir(dir); len(entries) != 0 {
+		t.Errorf("files written: %v", entries)
+	}
 }

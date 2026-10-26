@@ -3,6 +3,7 @@ package tui
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -192,12 +193,28 @@ func (m *Model) runExport(confirm string) {
 		return
 	}
 	path := strings.TrimSpace(e.path.Value())
+	f := m.exportFormats()[e.format]
+	what := fmt.Sprintf("%s and %s as %s", plural(len(sel.People), "person", "people"),
+		plural(len(sel.Links), "relationship", "relationships"), f.Name)
+	if m.opts.Save != nil {
+		// The browser takes the file: no file here is written or replaced.
+		name := filepath.Base(path)
+		if path == "" || name == "." || name == string(filepath.Separator) {
+			m.setError("no file name: nothing exported")
+			return
+		}
+		if err := m.opts.Save(name, func(w io.Writer) error { return f.Write(w, sel, opts) }); err != nil {
+			m.setError("export failed: " + err.Error())
+			return
+		}
+		m.setStatus("exported " + what + " to " + name + " for the browser to save")
+		return
+	}
 	if _, err := os.Stat(path); err == nil && confirm != path {
 		e.confirm = path
 		m.setError(path + " exists: press enter again to replace it")
 		return
 	}
-	f := m.exportFormats()[e.format]
 	if err := export.WriteFile(path, f, sel, opts); err != nil {
 		m.setError("export failed: " + err.Error())
 		return
@@ -207,8 +224,7 @@ func (m *Model) runExport(confirm string) {
 	if abs, err := filepath.Abs(path); err == nil {
 		where += " in " + filepath.Dir(abs)
 	}
-	m.setStatus(fmt.Sprintf("exported %s and %s as %s to %s", plural(len(sel.People), "person", "people"),
-		plural(len(sel.Links), "relationship", "relationships"), f.Name, where))
+	m.setStatus("exported " + what + " to " + where)
 }
 
 // exportNotes explain what each format contains.

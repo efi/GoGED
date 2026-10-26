@@ -4,6 +4,7 @@ package tui
 
 import (
 	"fmt"
+	"io"
 	"strings"
 	"time"
 
@@ -49,6 +50,10 @@ type Options struct {
 	// file stays the same.
 	Path string
 	Load func() (*Shared, error)
+	// Save, if set, takes the files the user exports or prints instead of
+	// the file system, as goged's server does: name is a file name without
+	// a directory, and write writes the file.
+	Save func(name string, write func(io.Writer) error) error
 	// Today is the date used for "On this day"; zero means the current date.
 	Today time.Time
 }
