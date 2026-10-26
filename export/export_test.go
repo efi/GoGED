@@ -183,6 +183,11 @@ func TestWriteGEXF(t *testing.T) {
 1 NAME Kit /Smith/
 1 FAMC @F1@
 2 PEDI foster
+0 @I4@ INDI
+1 NAME Jan /Berg/
+2 SPFX van der
+0 @I5@ INDI
+1 NAME /Nobody/
 0 @F1@ FAM
 1 HUSB @I1@
 1 WIFE @I2@
@@ -204,10 +209,12 @@ func TestWriteGEXF(t *testing.T) {
 <gexf xmlns="http://www.gexf.net/1.2draft" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.gexf.net/1.2draft http://www.gexf.net/1.2draft/gexf.xsd" version="1.2">
   <meta lastmodifieddate="2026-10-12">
     <creator>goged</creator>
-    <description>All 3 people of smith.ged and their relationships</description>
+    <description>All 5 people of smith.ged and their relationships</description>
   </meta>
   <graph mode="static" defaultedgetype="directed">
     <attributes class="node">
+      <attribute id="firstname" title="first name" type="string"></attribute>
+      <attribute id="lastname" title="last name" type="string"></attribute>
       <attribute id="sex" title="sex" type="string"></attribute>
       <attribute id="birth" title="birth" type="string"></attribute>
       <attribute id="birthyear" title="birth year" type="integer"></attribute>
@@ -225,6 +232,8 @@ func TestWriteGEXF(t *testing.T) {
     <nodes>
       <node id="I1" label="Tom &#34;Tommy&#34; Smith &amp; Sons &lt;Ltd&gt;">
         <attvalues>
+          <attvalue for="firstname" value="Tom &#34;Tommy&#34;"></attvalue>
+          <attvalue for="lastname" value="Smith &amp; Sons &lt;Ltd&gt;"></attvalue>
           <attvalue for="sex" value="male"></attvalue>
           <attvalue for="birth" value="about 1850"></attvalue>
           <attvalue for="birthyear" value="1850"></attvalue>
@@ -234,6 +243,8 @@ func TestWriteGEXF(t *testing.T) {
       </node>
       <node id="I2" label="Ann O&#39;Neil">
         <attvalues>
+          <attvalue for="firstname" value="Ann"></attvalue>
+          <attvalue for="lastname" value="O&#39;Neil"></attvalue>
           <attvalue for="sex" value="female"></attvalue>
           <attvalue for="death" value="3 Jan 1920"></attvalue>
           <attvalue for="deathyear" value="1920"></attvalue>
@@ -241,6 +252,21 @@ func TestWriteGEXF(t *testing.T) {
       </node>
       <node id="I3" label="Kit Smith">
         <attvalues>
+          <attvalue for="firstname" value="Kit"></attvalue>
+          <attvalue for="lastname" value="Smith"></attvalue>
+          <attvalue for="sex" value="unknown"></attvalue>
+        </attvalues>
+      </node>
+      <node id="I4" label="Jan van der Berg">
+        <attvalues>
+          <attvalue for="firstname" value="Jan"></attvalue>
+          <attvalue for="lastname" value="van der Berg"></attvalue>
+          <attvalue for="sex" value="unknown"></attvalue>
+        </attvalues>
+      </node>
+      <node id="I5" label="Nobody">
+        <attvalues>
+          <attvalue for="lastname" value="Nobody"></attvalue>
           <attvalue for="sex" value="unknown"></attvalue>
         </attvalues>
       </node>

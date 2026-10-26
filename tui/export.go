@@ -228,8 +228,8 @@ func (m *Model) runExport(confirm string) {
 // exportNotes explain what each format contains.
 var exportNotes = map[string][]string{
 	"GEXF": {
-		"People become nodes with their sex, birth and death. Parents point to their",
-		"children; partners are linked both ways.",
+		"People become nodes with their first and last names, sex, birth and death.",
+		"Parents point to their children; partners are linked both ways.",
 	},
 	"PDF": {
 		"Contents with indexes, then a page per person in name order and the places",

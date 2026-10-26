@@ -97,8 +97,9 @@ The screenshots below use the [GEDCOM-L sample file](testdata/Muster_GEDCOM_UTF-
   family, and all warnings found while reading the file.
 - **Export** of everybody or only the people connected to the marked person:
   - to [GEXF](https://gexf.net/) (Graph Exchange XML Format) for Gephi,
-    networkx and sigma.js: people are nodes with their sex, birth and death;
-    parents point to their children, and partners are linked both ways;
+    networkx and sigma.js: people are nodes with their first and last names,
+    sex, birth and death; parents point to their children, and partners are
+    linked both ways;
   - to PDF, pages to print or read: contents with indexes, a page per person
     as in the person view, then the places with their events, with page
     references that link to the pages. Nothing is cut on paper: long lines

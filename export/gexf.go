@@ -29,6 +29,8 @@ type gexfAttributes struct {
 
 var (
 	gexfNodeAttributes = gexfAttributes{Class: "node", List: []gexfAttribute{
+		{"firstname", "first name", "string"},
+		{"lastname", "last name", "string"},
 		{"sex", "sex", "string"},
 		{"birth", "birth", "string"},
 		{"birthyear", "birth year", "integer"},
@@ -85,7 +87,8 @@ type gexfEdge struct {
 }
 
 // WriteGEXF writes the selection as a GEXF graph. People are the nodes,
-// labeled with their names, with sex, birth and death as attributes. A
+// labeled with their names, with first name, last name, sex, birth and
+// death as attributes. A
 // directed edge leads from each parent to each child and records how the
 // child is linked (pedigree: birth, adopted, ...); a mutual edge, which
 // goes both ways, links the partners of a family and records the year of
@@ -172,6 +175,11 @@ func Describe(sel *Selection, opts Options) string {
 func gexfPerson(ind *gedcom.Individual) gexfNode {
 	n := gexfNode{ID: ind.ID, Label: ind.DisplayName()}
 	var v gexfValues
+	// The names of the label: the given names, and the surname with a
+	// prefix recorded apart ("van der Berg").
+	name := ind.Name()
+	v.add("firstname", name.Given)
+	v.add("lastname", name.FullSurname())
 	v.add("sex", ind.Sex.String())
 	for _, part := range []struct {
 		tags []string

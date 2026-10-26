@@ -477,7 +477,9 @@ packages.
   `Select`, so that every format gets them.
 - **GEXF** is written as version 1.2 (draft), the one Gephi, networkx and
   sigma.js all read, with `encoding/xml` streaming. People are nodes (id =
-  GEDCOM ID). Parent edges are directed; partner edges have the type
+  GEDCOM ID) with the attributes `firstname` (the given names of the
+  primary name, as in the label) and `lastname` (its surname with an SPFX
+  prefix), sex, birth and death. Parent edges are directed; partner edges have the type
   `mutual`, because networkx refuses undirected edges in a directed graph.
   The output was validated against the official XSD with lxml and loaded
   with networkx; see llms-toolinfo.md for the throwaway environment.
