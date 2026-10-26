@@ -175,9 +175,7 @@ func (m *Model) updateExportPath(msg tea.KeyMsg) (bool, tea.Cmd) {
 			e.edited = e.path.Value() != m.defaultExportPath()
 			return false, nil
 		}
-		var cmd tea.Cmd
-		e.path, cmd = e.path.Update(msg)
-		return true, cmd
+		return true, updateInput(&e.path, msg)
 	}
 	return true, nil
 }

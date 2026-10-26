@@ -257,8 +257,7 @@ func (m *Model) updatePlacesFilter(msg tea.KeyMsg) (bool, tea.Cmd) {
 		p.input.Blur()
 		return false, nil
 	default:
-		var cmd tea.Cmd
-		p.input, cmd = p.input.Update(msg)
+		cmd := updateInput(&p.input, msg)
 		m.refreshPlaces()
 		return true, cmd
 	}

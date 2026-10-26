@@ -57,9 +57,7 @@ func (m *Model) updateDialog(msg tea.KeyMsg) tea.Cmd {
 		case "esc":
 			return m.choose(d.cancel)
 		}
-		var cmd tea.Cmd
-		*d.input, cmd = d.input.Update(msg)
-		return cmd
+		return updateInput(d.input, msg)
 	}
 	switch key := msg.String(); key {
 	case "left", "h", "shift+tab", "up", "k":

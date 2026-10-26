@@ -1968,3 +1968,28 @@ func TestLifespansView(t *testing.T) {
 		t.Errorf("v from the lifespans: %d", a.m.tree.mode)
 	}
 }
+
+// An alt+letter is not typed into a text input as if alt were not held;
+// those the input or goged use still work.
+func TestAltInInputs(t *testing.T) {
+	a := newApp(t, Options{})
+	a.press("alt+g", "alt+x")
+	a.typ("john smith")
+	a.press("alt+b", "alt+d")
+	if v := a.m.search.input.Value(); v != "john " {
+		t.Errorf("query %q, want %q", v, "john ")
+	}
+	a.press("alt+G")
+	if !a.m.genders {
+		t.Error("alt+G was typed")
+	}
+	a.press("alt+m")
+	if a.m.reference == nil || a.m.search.input.Value() != "john " {
+		t.Errorf("alt+m: marked %v, query %q", a.m.reference, a.m.search.input.Value())
+	}
+	a.press("alt+4", "f", "alt+t", "alt+q")
+	a.typ("marr")
+	if v := a.m.ev.input.Value(); v != "marr" {
+		t.Errorf("events filter %q", v)
+	}
+}

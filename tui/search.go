@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/bubbles/cursor"
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/x/ansi"
@@ -28,6 +29,22 @@ func newTextInput(prompt, placeholder string) textinput.Model {
 	ti.Placeholder = placeholder
 	ti.Cursor.SetMode(cursor.CursorStatic)
 	return ti
+}
+
+// updateInput passes a message to a text input. An alt+letter the input
+// has no use for is not typed, as textinput would type the letter as if
+// alt were not held; alt+b, alt+f and alt+d still move and delete words.
+func updateInput(in *textinput.Model, msg tea.Msg) tea.Cmd {
+	if k, ok := msg.(tea.KeyMsg); ok && k.Alt && k.Type == tea.KeyRunes && !k.Paste {
+		km := in.KeyMap
+		if !key.Matches(k, km.WordForward, km.WordBackward, km.DeleteWordForward, km.DeleteWordBackward,
+			km.DeleteAfterCursor, km.DeleteBeforeCursor, km.LineStart, km.LineEnd) {
+			return nil
+		}
+	}
+	var cmd tea.Cmd
+	*in, cmd = in.Update(msg)
+	return cmd
 }
 
 func newSearchState() searchState {
@@ -137,8 +154,7 @@ func (m *Model) updateSearch(msg tea.KeyMsg) (bool, tea.Cmd) {
 
 // typeInSearch forwards a key to the query input and reruns the search.
 func (m *Model) typeInSearch(msg tea.KeyMsg) tea.Cmd {
-	var cmd tea.Cmd
-	m.search.input, cmd = m.search.input.Update(msg)
+	cmd := updateInput(&m.search.input, msg)
 	m.runSearch()
 	return cmd
 }

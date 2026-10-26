@@ -611,7 +611,10 @@ packages.
   Multi-rune key messages are split. `m` marks `Model.selected()`, the
   person selected in the view shown (a result, the person of an event,
   a chart node, a stats line, a finding), else the current person; in
-  the search box, where letters are typed, it is alt+m.
+  the search box, where letters are typed, it is alt+m. Text inputs get
+  keys through `updateInput`: textinput types an alt+letter it has no
+  binding for as the bare letter, which looked like a lost alt key in the
+  browser; such keys are dropped (alt+b, alt+f and alt+d still edit).
 - **Comparison** (`compare.go`): `C` (alt+C in the search) compares
   `selected()` with the marked person in the "Compare" overlay: a line on
   each person (links, the marked one first), then the rows of

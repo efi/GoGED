@@ -97,8 +97,7 @@ func (m *Model) updateEventsFilter(msg tea.KeyMsg) (bool, tea.Cmd) {
 			e.input.Blur()
 			return false, nil
 		}
-		var cmd tea.Cmd
-		e.input, cmd = e.input.Update(msg)
+		cmd := updateInput(&e.input, msg)
 		e.cursor, e.offset = 0, 0
 		m.filterEvents()
 		return true, cmd
